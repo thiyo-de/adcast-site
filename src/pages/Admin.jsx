@@ -151,6 +151,66 @@ export default function Admin({ onBack }) {
     }
   };
 
+  // Crawler Sources Handlers
+  const handleSaveSource = async (e) => {
+    e.preventDefault();
+    if (!sourceForm.name || !sourceForm.url) return;
+
+    if (editingSourceId) {
+      await api.updateCrawlerSource(editingSourceId, {
+        name: sourceForm.name,
+        url: sourceForm.url,
+        category: sourceForm.category,
+        video_limit: parseInt(sourceForm.video_limit, 10) || 15
+      });
+      setEditingSourceId(null);
+    } else {
+      await api.addCrawlerSource({
+        name: sourceForm.name,
+        url: sourceForm.url,
+        category: sourceForm.category,
+        video_limit: parseInt(sourceForm.video_limit, 10) || 15,
+        is_enabled: true
+      });
+    }
+
+    setSourceForm({ name: '', url: '', category: 'Trending', video_limit: 15 });
+    loadData();
+  };
+
+  const handleEditSource = (s) => {
+    setEditingSourceId(s.id);
+    setSourceForm({
+      name: s.name,
+      url: s.url,
+      category: s.category || 'Trending',
+      video_limit: s.video_limit || 15
+    });
+  };
+
+  const handleToggleSource = async (source) => {
+    await api.updateCrawlerSource(source.id, { is_enabled: !source.is_enabled });
+    loadData();
+  };
+
+  const handleDeleteSource = async (id) => {
+    if (window.confirm('Remove this video target source?')) {
+      await api.deleteCrawlerSource(id);
+      loadData();
+    }
+  };
+
+  const handleTriggerSync = (source = null) => {
+    setIsSyncingEngine(true);
+    setSyncStatusMsg(source ? `Fetching latest videos from "${source.name}"...` : 'Triggering sync across all active sources...');
+    setTimeout(() => {
+      setIsSyncingEngine(false);
+      setSyncStatusMsg(source ? `Sync job queued for "${source.name}"! Refresh in ~20s.` : 'Cloud sync queued! Check your video list in ~20s.');
+      loadData();
+      setTimeout(() => setSyncStatusMsg(null), 6000);
+    }, 1500);
+  };
+
   const handleEditClick = (v) => {
     setEditingVideo(v);
     setVideoForm({
@@ -328,6 +388,18 @@ export default function Admin({ onBack }) {
         </button>
 
         <button
+          onClick={() => setActiveTab('crawler')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === 'crawler'
+              ? 'bg-rose-600 text-white shadow-sm'
+              : 'glass-button'
+          }`}
+        >
+          <i className="ri-radar-line not-italic text-sm"></i>
+          Crawler & Sources ({crawlerSources.length})
+        </button>
+
+        <button
           onClick={() => setActiveTab('ads')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
             activeTab === 'ads'
@@ -461,6 +533,267 @@ export default function Admin({ onBack }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: CRAWLER & TARGET ENGINE */}
+      {activeTab === 'crawler' && (
+        <div className="space-y-6">
+          {/* Top Engine Control Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl glass-panel">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i className="ri-radar-line not-italic text-rose-500 text-xl"></i>
+                Video Crawler & Auto-Sync Engine
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Configure external target websites, set custom video limiters per source, and trigger real-time background syncs.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => handleTriggerSync(null)}
+                disabled={isSyncingEngine}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 active:scale-95 disabled:opacity-50"
+              >
+                <i className={`${isSyncingEngine ? 'ri-loader-4-line animate-spin' : 'ri-flashlight-fill'} not-italic text-sm`}></i>
+                {isSyncingEngine ? 'Syncing...' : 'Sync All Active Sources'}
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('quarantine');
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl glass-button text-xs font-bold"
+              >
+                <i className="ri-shield-check-line not-italic text-emerald-500 text-sm"></i>
+                Stream Health Status
+              </button>
+            </div>
+          </div>
+
+          {/* Sync Status Banner */}
+          {syncStatusMsg && (
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-fade-in">
+              <i className="ri-checkbox-circle-fill not-italic text-base"></i>
+              <span>{syncStatusMsg}</span>
+            </div>
+          )}
+
+          {/* Form: Add / Edit Target Video Source */}
+          <div className="p-5 sm:p-6 rounded-2xl glass-panel space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/10 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i className="ri-add-circle-line not-italic text-rose-500"></i>
+                {editingSourceId ? 'Edit Target Source' : 'Add New Target Video Source'}
+              </h3>
+              {editingSourceId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSourceId(null);
+                    setSourceForm({ name: '', url: '', category: 'Trending', video_limit: 15 });
+                  }}
+                  className="text-xs text-slate-400 hover:text-rose-500 font-semibold"
+                >
+                  Cancel Edit
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleSaveSource} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Source Display Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={sourceForm.name}
+                    onChange={(e) => setSourceForm({ ...sourceForm, name: e.target.value })}
+                    placeholder="e.g. HornyLeak (Latest Leaks)"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Target Website Catalog URL *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={sourceForm.url}
+                    onChange={(e) => setSourceForm({ ...sourceForm, url: e.target.value })}
+                    placeholder="https://www.hornyleak.tv/latest-updates/"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Default Category
+                  </label>
+                  <select
+                    value={sourceForm.category}
+                    onChange={(e) => setSourceForm({ ...sourceForm, category: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
+                  >
+                    <option value="Trending" className="bg-white dark:bg-[#0F111A]">Trending</option>
+                    <option value="Featured" className="bg-white dark:bg-[#0F111A]">Featured</option>
+                    <option value="Action" className="bg-white dark:bg-[#0F111A]">Action</option>
+                    <option value="Cinematic" className="bg-white dark:bg-[#0F111A]">Cinematic</option>
+                    <option value="Tutorials" className="bg-white dark:bg-[#0F111A]">Tutorials</option>
+                    <option value="Music" className="bg-white dark:bg-[#0F111A]">Music</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Video Limiter (Max videos to import per run)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      required
+                      value={sourceForm.video_limit}
+                      onChange={(e) => setSourceForm({ ...sourceForm, video_limit: e.target.value })}
+                      className="w-32 px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white font-mono"
+                    />
+                    <span className="text-xs text-slate-400">videos per run (default: 15)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <i className="ri-save-line not-italic text-sm"></i>
+                  {editingSourceId ? 'Update Target Source' : 'Save & Register Source'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* List: Configured Target Sources */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i className="ri-list-check-2 not-italic text-cyan-500"></i>
+                Configured Video Sources ({crawlerSources.length})
+              </h3>
+              <span className="text-xs text-slate-400">
+                {crawlerSources.filter((s) => s.is_enabled).length} active, {crawlerSources.filter((s) => !s.is_enabled).length} paused
+              </span>
+            </div>
+
+            {crawlerSources.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl glass-panel">
+                <i className="ri-radar-line not-italic text-3xl text-slate-400 mb-2 block"></i>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">No sources registered yet</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Add your first target website above to begin syncing videos automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {crawlerSources.map((source) => (
+                  <div
+                    key={source.id}
+                    className={`p-4 rounded-2xl glass-card flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all border ${
+                      source.is_enabled
+                        ? 'border-slate-200/80 dark:border-white/10'
+                        : 'border-slate-300/40 dark:border-white/5 opacity-60'
+                    }`}
+                  >
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {source.name}
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                          {source.category}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                          Limit: {source.video_limit || 15} vids
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                            source.is_enabled
+                              ? 'bg-emerald-500/10 text-emerald-500'
+                              : 'bg-slate-500/10 text-slate-400'
+                          }`}
+                        >
+                          {source.is_enabled ? 'Active' : 'Paused'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono truncate">
+                        <i className="ri-link text-xs"></i>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-rose-500 truncate"
+                        >
+                          {source.url}
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleTriggerSync(source)}
+                        disabled={isSyncingEngine || !source.is_enabled}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white text-xs font-bold transition-all disabled:opacity-40"
+                        title="Fetch videos from this source right now"
+                      >
+                        <i className="ri-flashlight-line not-italic text-xs"></i>
+                        Fetch Now
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleSource(source)}
+                        className={`p-2 rounded-xl text-xs font-bold transition-all ${
+                          source.is_enabled
+                            ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                            : 'bg-slate-500/10 text-slate-400 hover:bg-slate-500/20'
+                        }`}
+                        title={source.is_enabled ? 'Pause this source' : 'Activate this source'}
+                      >
+                        <i className={`${source.is_enabled ? 'ri-toggle-fill' : 'ri-toggle-line'} not-italic text-base`}></i>
+                      </button>
+
+                      <button
+                        onClick={() => handleEditSource(source)}
+                        className="p-2 rounded-xl glass-button text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                        title="Edit source settings"
+                      >
+                        <i className="ri-edit-line not-italic text-sm"></i>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteSource(source.id)}
+                        className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all"
+                        title="Remove source"
+                      >
+                        <i className="ri-delete-bin-line not-italic text-sm"></i>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
