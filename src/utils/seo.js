@@ -3,7 +3,7 @@
  * Updates document.title, OpenGraph, Twitter Cards, and schema.org/VideoObject JSON-LD.
  */
 
-const DEFAULT_TITLE = 'AdCast | Next-Gen Video Streaming';
+const DEFAULT_TITLE = 'HornyLeaks | Next-Gen Video Streaming';
 const DEFAULT_DESCRIPTION = 'Stream 4K movies, viral clips, cinematic animations, and exclusive trending streams in dark obsidian luxury with zero lag.';
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&auto=format&fit=crop&q=80';
 
@@ -20,8 +20,8 @@ function setMetaTag(selector, attrName, attrValue, content) {
 export function updateVideoSEO(video) {
   if (!video) return;
 
-  const pageTitle = `${video.title} | AdCast 4K`;
-  const description = `${video.title} - Watch high-definition ${video.quality || '4K UHD'} ${video.category || 'streaming'} video on AdCast. Rated ${video.rating || 98}% with ${(video.views || 0).toLocaleString()} views.`;
+  const pageTitle = `${video.title} | HornyLeaks`;
+  const description = `${video.title} - Watch high-definition ${video.quality || '4K UHD'} ${video.category || 'streaming'} video on HornyLeaks. Rated ${video.rating || 98}% with ${(video.views || 0).toLocaleString()} views.`;
   const imageUrl = video.thumbnail_url || DEFAULT_IMAGE;
   const currentUrl = window.location.href;
 
@@ -35,7 +35,7 @@ export function updateVideoSEO(video) {
   setMetaTag('meta[property="og:image"]', 'property', 'og:image', imageUrl);
   setMetaTag('meta[property="og:url"]', 'property', 'og:url', currentUrl);
   setMetaTag('meta[property="og:type"]', 'property', 'og:type', 'video.other');
-  setMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', 'AdCast');
+  setMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', 'HornyLeaks');
 
   // 3. Twitter / X Cards
   setMetaTag('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary_large_image');
