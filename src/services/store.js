@@ -514,7 +514,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'Adsterra / Popunder',
     dimensions: 'Full Tab',
     isActive: true,
-    code: '<!-- Adsterra Popunder Script Placeholder --><script>console.log("Popunder triggered (24h cooldown active)");</script>',
+    code: '<script data-cfasync="false" src="https://benchform.org/1/01e50bcdca43c9601796cdcc4d4f9bba"></script>',
     frequencyHours: 24
   },
   affiliate_fallbacks: {
@@ -696,6 +696,13 @@ export const store = {
             ...(parsed.slot_video_preroll || {}),
             vastUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.vastUrl,
             targetUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.targetUrl
+          };
+        }
+        if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('Adsterra Popunder Script Placeholder')) {
+          parsed.slot_popunder = {
+            ...DEFAULT_AD_SETTINGS.slot_popunder,
+            ...(parsed.slot_popunder || {}),
+            code: DEFAULT_AD_SETTINGS.slot_popunder.code
           };
         }
         return {
