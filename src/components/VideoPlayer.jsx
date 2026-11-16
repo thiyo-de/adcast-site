@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { store, parseToEmbedUrl } from '../services/store';
+import { resolveVastAd } from '../utils/vast';
 
 export default function VideoPlayer({ video, onEnded }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showPreRoll, setShowPreRoll] = useState(true);
+  const [showPreRoll, setShowPreRoll] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
-  const [vastClickUrl, setVastClickUrl] = useState(null);
+  const [adData, setAdData] = useState(null);
+  const [isLoadingAd, setIsLoadingAd] = useState(false);
   const videoRef = useRef(null);
 
   const adSettings = store.getAdSettings();
@@ -23,10 +25,11 @@ export default function VideoPlayer({ video, onEnded }) {
 
   useEffect(() => {
     setIsPlaying(false);
-    setShowPreRoll(hasPreRoll);
-    setCountdown(preRollSlot?.durationSeconds || 5);
+    setShowPreRoll(false);
+    setAdData(null);
+    setCountdown(5);
     setCanSkip(false);
-    setVastClickUrl(null);
+    setIsLoadingAd(false);
   }, [video?.id]);
 
   useEffect(() => {
@@ -45,33 +48,33 @@ export default function VideoPlayer({ video, onEnded }) {
     return () => clearInterval(timer);
   }, [isPlaying, showPreRoll, countdown]);
 
-  const handleStartPlay = () => {
-    setIsPlaying(true);
-    if (!hasPreRoll) {
-      setShowPreRoll(false);
-    } else if (preRollSlot?.vastUrl) {
-      // Fetch live VAST tag from ExoClick, fire impression beacon, and extract click URL
-      fetch(preRollSlot.vastUrl)
-        .then(res => res.text())
-        .then(xmlText => {
-          const impMatch = xmlText.match(/<Impression[^>]*><!\[CDATA\[(.*?)\]\]><\/Impression>/i) ||
-                           xmlText.match(/<Impression[^>]*>(.*?)<\/Impression>/i);
-          if (impMatch && impMatch[1]) {
-            const beacon = new Image();
-            beacon.src = impMatch[1].trim();
-          }
-          const clickMatch = xmlText.match(/<ClickTracking><!\[CDATA\[(.*?)\]\]><\/ClickTracking>/i) ||
-                             xmlText.match(/<ClickThrough><!\[CDATA\[(.*?)\]\]><\/ClickThrough>/i) ||
-                             xmlText.match(/<VASTAdTagURI><!\[CDATA\[(.*?)\]\]><\/VASTAdTagURI>/i);
-          if (clickMatch && clickMatch[1]) {
-            setVastClickUrl(clickMatch[1].trim());
-          }
-        })
-        .catch(() => {});
-    }
+  const handleStartPlay = async () => {
     if (video) {
       store.addToHistory(video);
     }
+
+    if (hasPreRoll && preRollSlot?.vastUrl) {
+      setIsLoadingAd(true);
+      const vastResult = await resolveVastAd(preRollSlot.vastUrl);
+      setIsLoadingAd(false);
+
+      if (vastResult?.mediaUrl) {
+        if (vastResult.impressionUrl) {
+          const beacon = new Image();
+          beacon.src = vastResult.impressionUrl;
+        }
+        setAdData(vastResult);
+        setShowPreRoll(true);
+        setCountdown(5);
+        setCanSkip(false);
+        setIsPlaying(true);
+        return;
+      }
+    }
+
+    // If no ad returned (e.g. frequency capped or no-bid), start user video immediately
+    setShowPreRoll(false);
+    setIsPlaying(true);
   };
 
   // Desktop Power Controls (Keyboard Shortcuts)
@@ -141,7 +144,7 @@ export default function VideoPlayer({ video, onEnded }) {
   };
 
   const handleAdClick = () => {
-    const dest = vastClickUrl || preRollSlot?.targetUrl || 'https://s.magsrv.com/v1/vast.php?idz=6091580';
+    const dest = adData?.clickUrl || preRollSlot?.targetUrl || 'https://s.magsrv.com/v1/vast.php?idz=6091580';
     if (dest) {
       window.open(dest, '_blank', 'noopener,noreferrer');
     }
@@ -187,48 +190,51 @@ export default function VideoPlayer({ video, onEnded }) {
         </div>
       )}
 
-      {/* 2. Pre-Roll Video Ad Overlay (ExoClick VAST) */}
-      {isPlaying && showPreRoll && (
-        <div className="absolute inset-0 z-30 flex flex-col justify-between p-4 sm:p-6 bg-gradient-to-t from-black via-slate-950 to-black/90">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/80 border border-rose-500/30 text-rose-400 text-xs font-bold tracking-wider uppercase">
-              <i className="ri-shield-star-line not-italic text-sm"></i>
-              Sponsor Message
-            </div>
+      {/* 2. Loading State while resolving stream/VAST */}
+      {isLoadingAd && (
+        <div className="absolute inset-0 z-30 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+          <div className="w-10 h-10 border-3 border-rose-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold text-slate-300 tracking-wide">Starting video stream...</span>
+        </div>
+      )}
 
-            <div className="text-xs text-slate-400 font-mono">
-              Video starts in: <span className="text-white font-bold text-sm">{countdown}s</span>
-            </div>
+      {/* 3. Real In-Stream Video Ad (VAST MP4) */}
+      {isPlaying && showPreRoll && adData?.mediaUrl && (
+        <div className="absolute inset-0 z-30 bg-black flex items-center justify-center overflow-hidden">
+          <video
+            src={adData.mediaUrl}
+            autoPlay
+            playsInline
+            onEnded={() => setShowPreRoll(false)}
+            className="w-full h-full object-contain cursor-pointer"
+            onClick={handleAdClick}
+          />
+
+          {/* Top-Left Sponsor Badge */}
+          <div className="absolute top-4 left-4 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-xs font-bold text-white shadow-lg pointer-events-none">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span>Ad • {countdown > 0 ? `Skip in ${countdown}s` : 'Video Sponsor'}</span>
           </div>
 
-          <div className="my-auto text-center max-w-md mx-auto cursor-pointer" onClick={handleAdClick}>
-            <div className="inline-flex items-center gap-1 px-3 py-1 mb-3 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
-              <i className="ri-sparkling-fill not-italic text-xs"></i> Featured Sponsor
-            </div>
-            <h3 className="text-xl sm:text-2xl font-extrabold text-white mb-2 leading-snug">
-              {preRollSlot?.adTitle || 'Ultra-Fast High Definition Streaming'}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 mb-4 line-clamp-2">
-              {preRollSlot?.adDescription || 'Unlimited access to thousands of daily curated streams worldwide.'}
-            </p>
-            <button className="inline-flex items-center gap-1.5 min-h-[44px] px-6 py-2.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-bold shadow-lg hover:scale-105 active:scale-95 transition-all">
+          {/* Bottom-Left Visit Sponsor Link */}
+          <div className="absolute bottom-4 left-4 z-40">
+            <button
+              onClick={handleAdClick}
+              className="flex items-center gap-1.5 min-h-[40px] px-4 py-2 rounded-full bg-black/85 hover:bg-black backdrop-blur-md border border-white/20 text-white text-xs font-bold transition-all shadow-xl active:scale-95 cursor-pointer"
+            >
               Visit Sponsor <i className="ri-external-link-line not-italic text-xs"></i>
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-white/10">
-            <div className="text-[11px] text-slate-400 font-medium">
-              ✦ SPONSORED • Powered by <strong className="text-slate-200">ExoClick VAST</strong>
-            </div>
-
-            {/* 44px Skip Ad Button */}
+          {/* Bottom-Right Skip Button */}
+          <div className="absolute bottom-4 right-4 z-40">
             <button
               onClick={handleSkipAd}
               disabled={!canSkip}
               className={`flex items-center gap-1.5 min-h-[44px] px-5 py-2.5 rounded-full text-xs font-bold transition-all active:scale-95 ${
                 canSkip
                   ? 'bg-white text-black hover:bg-slate-200 cursor-pointer shadow-xl'
-                  : 'bg-white/10 text-white/50 backdrop-blur-md border border-white/10 cursor-not-allowed'
+                  : 'bg-black/80 text-white/50 backdrop-blur-md border border-white/10 cursor-not-allowed'
               }`}
               aria-label={canSkip ? 'Skip ad now' : `Skip ad in ${countdown} seconds`}
             >
