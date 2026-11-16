@@ -102,3 +102,37 @@ export async function getTotalCount() {
   const { data } = await db.from('videos').select('id');
   return data ? data.length : 0;
 }
+
+/**
+ * Fetch active target sources from database with fallback to sources.json
+ */
+export async function getActiveSources() {
+  try {
+    const db = getDbClient();
+    const { data, error } = await db
+      .from('crawler_sources')
+      .select('*')
+      .eq('is_enabled', true)
+      .order('created_at', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('[DB SOURCES NOTICE] Falling back to sources.json:', err.message);
+  }
+  return config.sources.filter(s => s.enabled);
+}
+
+/**
+ * Record last synced timestamp on crawler source
+ */
+export async function updateSourceLastSynced(id) {
+  try {
+    const db = getDbClient();
+    await db
+      .from('crawler_sources')
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq('id', id);
+  } catch (err) {}
+}

@@ -196,5 +196,71 @@ export const api = {
       } catch (err) {}
     }
     return local;
+  },
+
+  // Crawler Sources Management
+  async getCrawlerSources() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('crawler_sources')
+        .select('*')
+        .order('created_at', { ascending: true });
+      return data || [];
+    } catch (err) {
+      console.warn('Failed to fetch crawler sources:', err);
+      return [];
+    }
+  },
+
+  async addCrawlerSource(sourceData) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('crawler_sources')
+        .insert([{
+          name: sourceData.name,
+          url: sourceData.url,
+          type: sourceData.type || 'hornyleak',
+          category: sourceData.category || 'Trending',
+          video_limit: parseInt(sourceData.video_limit, 10) || 15,
+          is_enabled: sourceData.is_enabled !== false
+        }])
+        .select();
+      return data ? data[0] : null;
+    } catch (err) {
+      console.error('Failed to add crawler source:', err);
+      return null;
+    }
+  },
+
+  async updateCrawlerSource(id, fields) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('crawler_sources')
+        .update(fields)
+        .eq('id', id)
+        .select();
+      return data ? data[0] : null;
+    } catch (err) {
+      console.error('Failed to update crawler source:', err);
+      return null;
+    }
+  },
+
+  async deleteCrawlerSource(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    try {
+      await supabase.from('crawler_sources').delete().eq('id', id);
+      return true;
+    } catch (err) {
+      console.error('Failed to delete crawler source:', err);
+      return false;
+    }
   }
 };

@@ -40,6 +40,18 @@ export default function Admin({ onBack }) {
   const [deadVideos, setDeadVideos] = useState([]);
   const [isPurging, setIsPurging] = useState(false);
 
+  // Crawler & Engine State
+  const [crawlerSources, setCrawlerSources] = useState([]);
+  const [sourceForm, setSourceForm] = useState({
+    name: '',
+    url: '',
+    category: 'Trending',
+    video_limit: 15
+  });
+  const [editingSourceId, setEditingSourceId] = useState(null);
+  const [isSyncingEngine, setIsSyncingEngine] = useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = useState(null);
+
   useEffect(() => {
     if (isLoggedIn) {
       loadData();
@@ -54,6 +66,8 @@ export default function Admin({ onBack }) {
     const ads = await api.getAdSettings();
     setAdSettings(ads);
     setDmcaList(store.getDMCARequests());
+    const sources = await api.getCrawlerSources();
+    setCrawlerSources(sources);
   };
 
   const handleLogin = (e) => {

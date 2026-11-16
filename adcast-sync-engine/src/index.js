@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { config } from './config.js';
-import { syncVideosToDb, getTotalCount } from './db.js';
+import { syncVideosToDb, getTotalCount, getActiveSources, updateSourceLastSynced } from './db.js';
 import { scrapeHornyLeak } from './scrapers/hornyleakScraper.js';
 import { scrapeJsonApi } from './scrapers/jsonApiScraper.js';
 import { scrapeFeed } from './scrapers/feedParser.js';
@@ -27,15 +27,15 @@ export async function runSyncCycle() {
     const initialCount = await getTotalCount();
     console.log(`[DB STATUS] Connected. Current videos in Supabase: ${initialCount}`);
 
-    // Filter sources to run
-    let activeSources = config.sources.filter(s => s.enabled);
+    // Load sources dynamically from Supabase database
+    let activeSources = await getActiveSources();
     if (targetSourceId) {
-      activeSources = activeSources.filter(s => s.id === targetSourceId);
+      activeSources = activeSources.filter(s => s.id === targetSourceId || s.name.toLowerCase().includes(targetSourceId.toLowerCase()));
       console.log(`[FILTER] Targeting single source: ${targetSourceId}`);
     }
 
     if (activeSources.length === 0) {
-      console.log('[WARN] No active sources found in sources.json. Enable at least one source!');
+      console.log('[WARN] No active sources found. Enable or add a source in the Admin Panel!');
       return;
     }
 
@@ -46,23 +46,27 @@ export async function runSyncCycle() {
 
     for (let i = 0; i < activeSources.length; i++) {
       const source = activeSources[i];
-      console.log(`\n--> [SOURCE ${i + 1}/${activeSources.length}] "${source.name}" (${source.type})`);
+      const limit = source.video_limit || config.maxVideosPerRun;
+      console.log(`\n--> [SOURCE ${i + 1}/${activeSources.length}] "${source.name}" (Limit: ${limit})`);
       let scrapedVideos = [];
 
       try {
-        if (source.type === 'hornyleak') {
-          scrapedVideos = await scrapeHornyLeak(source, config.maxVideosPerRun);
+        if (source.type === 'hornyleak' || (source.url && source.url.includes('hornyleak'))) {
+          scrapedVideos = await scrapeHornyLeak(source, limit);
         } else if (source.type === 'json_api') {
-          scrapedVideos = await scrapeJsonApi(source, config.maxVideosPerRun);
+          scrapedVideos = await scrapeJsonApi(source, limit);
         } else if (source.type === 'mrss_feed' || source.type === 'rss_feed') {
-          scrapedVideos = await scrapeFeed(source, config.maxVideosPerRun);
+          scrapedVideos = await scrapeFeed(source, limit);
         } else if (source.type === 'html_scrape') {
-          scrapedVideos = await scrapeHtml(source, config.maxVideosPerRun);
+          scrapedVideos = await scrapeHtml(source, limit);
         } else {
-          console.warn(`    Unknown source type: ${source.type}`);
+          scrapedVideos = await scrapeHornyLeak(source, limit);
         }
 
         console.log(`    Scraped ${scrapedVideos.length} candidate video(s)`);
+        if (source.id) {
+          await updateSourceLastSynced(source.id);
+        }
 
         if (scrapedVideos.length > 0) {
           const result = await syncVideosToDb(scrapedVideos);
