@@ -486,7 +486,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick Sticky Banner',
     dimensions: '300x50 / 728x90',
     isActive: true,
-    code: '<div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-weight: 700; font-size: 13px; color: #06B6D4; letter-spacing: 0.5px;">★ EXOCLICK STICKY BOTTOM BANNER (300x50) — High Impression Slot</div>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6091570"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_below_player: {
     id: 'slot_below_player',
@@ -686,6 +686,9 @@ export const store = {
       const data = localStorage.getItem(STORAGE_KEYS.AD_SETTINGS);
       if (data) {
         const parsed = JSON.parse(data);
+        if (parsed.slot_sticky_footer?.code?.includes('EXOCLICK STICKY BOTTOM BANNER')) {
+          parsed.slot_sticky_footer.code = DEFAULT_AD_SETTINGS.slot_sticky_footer.code;
+        }
         return {
           ...DEFAULT_AD_SETTINGS,
           ...parsed,
