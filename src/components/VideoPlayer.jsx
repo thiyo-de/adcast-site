@@ -6,6 +6,7 @@ export default function VideoPlayer({ video, onEnded }) {
   const [showPreRoll, setShowPreRoll] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
+  const [vastClickUrl, setVastClickUrl] = useState(null);
   const videoRef = useRef(null);
 
   const adSettings = store.getAdSettings();
@@ -25,6 +26,7 @@ export default function VideoPlayer({ video, onEnded }) {
     setShowPreRoll(hasPreRoll);
     setCountdown(preRollSlot?.durationSeconds || 5);
     setCanSkip(false);
+    setVastClickUrl(null);
   }, [video?.id]);
 
   useEffect(() => {
@@ -47,6 +49,25 @@ export default function VideoPlayer({ video, onEnded }) {
     setIsPlaying(true);
     if (!hasPreRoll) {
       setShowPreRoll(false);
+    } else if (preRollSlot?.vastUrl) {
+      // Fetch live VAST tag from ExoClick, fire impression beacon, and extract click URL
+      fetch(preRollSlot.vastUrl)
+        .then(res => res.text())
+        .then(xmlText => {
+          const impMatch = xmlText.match(/<Impression[^>]*><!\[CDATA\[(.*?)\]\]><\/Impression>/i) ||
+                           xmlText.match(/<Impression[^>]*>(.*?)<\/Impression>/i);
+          if (impMatch && impMatch[1]) {
+            const beacon = new Image();
+            beacon.src = impMatch[1].trim();
+          }
+          const clickMatch = xmlText.match(/<ClickTracking><!\[CDATA\[(.*?)\]\]><\/ClickTracking>/i) ||
+                             xmlText.match(/<ClickThrough><!\[CDATA\[(.*?)\]\]><\/ClickThrough>/i) ||
+                             xmlText.match(/<VASTAdTagURI><!\[CDATA\[(.*?)\]\]><\/VASTAdTagURI>/i);
+          if (clickMatch && clickMatch[1]) {
+            setVastClickUrl(clickMatch[1].trim());
+          }
+        })
+        .catch(() => {});
     }
     if (video) {
       store.addToHistory(video);
@@ -120,8 +141,9 @@ export default function VideoPlayer({ video, onEnded }) {
   };
 
   const handleAdClick = () => {
-    if (preRollSlot?.targetUrl) {
-      window.open(preRollSlot.targetUrl, '_blank', 'noopener,noreferrer');
+    const dest = vastClickUrl || preRollSlot?.targetUrl || 'https://s.magsrv.com/v1/vast.php?idz=6091580';
+    if (dest) {
+      window.open(dest, '_blank', 'noopener,noreferrer');
     }
   };
 

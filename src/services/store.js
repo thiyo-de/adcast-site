@@ -503,9 +503,10 @@ const DEFAULT_AD_SETTINGS = {
     dimensions: 'Video Overlay',
     isActive: true,
     durationSeconds: 5,
-    adTitle: 'Featured Sponsor — High Speed Premium Network',
-    adDescription: 'Experience lightning fast streaming worldwide. Your video starts in 5s.',
-    targetUrl: 'https://example.com'
+    adTitle: 'Featured Sponsor — High Speed Premium Streaming',
+    adDescription: 'Instant HD access worldwide. Video starts in 5s.',
+    targetUrl: 'https://s.magsrv.com/v1/vast.php?idz=6091580',
+    vastUrl: 'https://s.magsrv.com/v1/vast.php?idz=6091580'
   },
   slot_popunder: {
     id: 'slot_popunder',
@@ -688,6 +689,14 @@ export const store = {
         const parsed = JSON.parse(data);
         if (parsed.slot_sticky_footer?.code?.includes('EXOCLICK STICKY BOTTOM BANNER')) {
           parsed.slot_sticky_footer.code = DEFAULT_AD_SETTINGS.slot_sticky_footer.code;
+        }
+        if (!parsed.slot_video_preroll?.vastUrl || parsed.slot_video_preroll?.targetUrl?.includes('example.com')) {
+          parsed.slot_video_preroll = {
+            ...DEFAULT_AD_SETTINGS.slot_video_preroll,
+            ...(parsed.slot_video_preroll || {}),
+            vastUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.vastUrl,
+            targetUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.targetUrl
+          };
         }
         return {
           ...DEFAULT_AD_SETTINGS,
