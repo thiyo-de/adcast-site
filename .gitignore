@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+adcast-sync-engine/node_modules/
+
+# Production builds
+dist/
+dist-ssr/
+
+# Environment secrets (NEVER COMMIT)
+.env
+.env.*
+*.local
+adcast-sync-engine/.env
+
+# Logs & OS artifacts
+*.log
+.DS_Store
+Thumbs.db

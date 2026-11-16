@@ -1,0 +1,31 @@
+name: AdCast Auto Sync
+
+on:
+  schedule:
+    # Runs automatically every 4 hours (UTC)
+    - cron: '0 */4 * * *'
+  # Allows manual 1-click trigger from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Run Video Synchronization Engine
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MAX_VIDEOS_PER_RUN: 15
+        run: npm run sync

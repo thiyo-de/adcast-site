@@ -1,0 +1,26 @@
+[
+  {
+    "id": "hornyleak-latest",
+    "name": "HornyLeak.tv (Latest Updates)",
+    "type": "hornyleak",
+    "url": "https://www.hornyleak.tv/latest-updates/",
+    "enabled": true,
+    "category": "Trending"
+  },
+  {
+    "id": "hornyleak-popular",
+    "name": "HornyLeak.tv (Most Popular)",
+    "type": "hornyleak",
+    "url": "https://www.hornyleak.tv/most-popular/",
+    "enabled": true,
+    "category": "Featured"
+  },
+  {
+    "id": "hornyleak-top-rated",
+    "name": "HornyLeak.tv (Top Rated)",
+    "type": "hornyleak",
+    "url": "https://www.hornyleak.tv/top-rated/",
+    "enabled": true,
+    "category": "Action"
+  }
+]

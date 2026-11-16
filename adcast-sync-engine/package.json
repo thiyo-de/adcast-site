@@ -1,0 +1,20 @@
+{
+  "name": "adcast-sync-engine",
+  "version": "1.0.0",
+  "description": "Automated video scraping and syndication engine for AdCast",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "sync": "node src/index.js --now",
+    "cron": "node src/index.js --schedule",
+    "health-check": "node src/healthChecker.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.10",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3"
+  }
+}
