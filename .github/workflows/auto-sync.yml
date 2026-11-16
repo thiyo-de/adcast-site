@@ -1,0 +1,42 @@
+name: HornyLeaks Auto Sync & Health Check
+
+on:
+  schedule:
+    # Runs automatically every 4 hours (UTC)
+    - cron: '0 */4 * * *'
+  # Allows 1-click manual trigger anytime from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Sync Engine Dependencies
+        run: |
+          cd adcast-sync-engine
+          npm ci || npm install
+
+      - name: Run Video Synchronization Engine
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          MAX_VIDEOS_PER_RUN: 15
+        run: |
+          cd adcast-sync-engine
+          npm run sync
+
+      - name: Run Stream Health Audit (Auto Soft-Delete Dead Streams)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          cd adcast-sync-engine
+          npm run health-check
