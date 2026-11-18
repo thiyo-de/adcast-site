@@ -80,7 +80,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
               e.stopPropagation();
               onBookmarkToggle(video.id);
             }}
-            className={`p-1.5 rounded-full backdrop-blur-md transition-all ${
+            className={`w-7 h-7 flex items-center justify-center rounded-full backdrop-blur-md transition-all ${
               isBookmarked
                 ? 'bg-rose-600 text-white shadow'
                 : 'bg-black/50 text-white/80 hover:text-white hover:bg-black/80'
@@ -100,7 +100,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
             e.stopPropagation();
             setIsRevealed(!isRevealed);
           }}
-          className="absolute bottom-2 left-2 p-1.5 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white backdrop-blur-md transition-all z-10"
+          className="absolute bottom-2 left-2 w-7 h-7 flex items-center justify-center rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white backdrop-blur-md transition-all z-10"
           title={isRevealed ? 'Hide thumbnail' : 'Preview thumbnail'}
           aria-label={isRevealed ? 'Hide thumbnail' : 'Preview thumbnail'}
         >

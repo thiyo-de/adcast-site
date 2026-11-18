@@ -91,10 +91,11 @@ export default function Watch({
 
   useEffect(() => {
     if (video) {
-      const related = store.getRelatedVideos(video, recommendationMode, 8);
+      const pool = allVideos && allVideos.length > 0 ? allVideos : store.getVideos();
+      const related = store.getRelatedVideos(video, recommendationMode, 12, pool);
       setRelatedVideos(related);
     }
-  }, [video?.id, recommendationMode]);
+  }, [video?.id, recommendationMode, allVideos]);
 
   const handleLike = () => {
     if (!video) return;
@@ -208,170 +209,170 @@ export default function Watch({
         </div>
       </div>
 
-      {/* Main Grid Container */}
+      {/* Main Player & Stream Details Container */}
       <div className={`space-y-6 ${isCinemaMode ? 'relative z-50' : ''}`}>
-        <div className={`grid grid-cols-1 ${isTheaterMode ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6 lg:gap-8`}>
-          {/* Main Player Column */}
-          <div className={isTheaterMode ? 'col-span-1 space-y-4' : 'lg:col-span-2 space-y-4'}>
-            {/* Player Container */}
-            <VideoPlayer video={video} />
+        {/* Centered / Theater-aware Player Section */}
+        <div className={`space-y-4 ${isTheaterMode ? 'w-full' : 'max-w-5xl mx-auto'}`}>
+          {/* Player Container */}
+          <VideoPlayer video={video} />
 
-            {/* Video Title & Badges */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {video.quality && (
-                <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-cyan-500 text-black shadow-sm">
-                  {video.quality}
-                </span>
-              )}
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                {video.category}
+          {/* Video Title & Badges */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {video.quality && (
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-cyan-500 text-black shadow-sm">
+                {video.quality}
               </span>
-              <h1 className="text-base sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug w-full mt-1">
-                {video.title}
-              </h1>
-            </div>
-
-            {/* Action Bar & Stats */}
-            <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-y border-slate-200/80 dark:border-white/[0.08]">
-              <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1.5 text-slate-800 dark:text-white font-bold">
-                  <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
-                  {(video.views || 0).toLocaleString()} views
-                </span>
-                <span>•</span>
-                <span className="text-emerald-500 dark:text-emerald-400 font-extrabold flex items-center gap-1">
-                  <i className="ri-thumb-up-fill not-italic text-xs"></i>
-                  {rating}% Rating
-                </span>
-              </div>
-
-              {/* Action Buttons (Frosted glass pills with 44px+ touch targets) */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleLike}
-                  className={`flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full text-xs font-bold active:scale-95 transition-all ${
-                    isLiked
-                      ? 'bg-rose-600 text-white shadow-sm'
-                      : 'glass-button'
-                  }`}
-                  aria-label="Like video"
-                >
-                  <i className="ri-thumb-up-fill not-italic text-sm"></i>
-                  <span>{likeCount}</span>
-                </button>
-
-                <button
-                  onClick={() => onBookmarkToggle(video.id)}
-                  className={`flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full text-xs font-bold active:scale-95 transition-all ${
-                    isBookmarked(video.id)
-                      ? 'bg-rose-600 text-white shadow-sm'
-                      : 'glass-button'
-                  }`}
-                  aria-label="Bookmark video"
-                >
-                  <i className={`ri-bookmark-${isBookmarked(video.id) ? 'fill' : 'line'} not-italic text-sm`}></i>
-                  <span>
-                    {isBookmarked(video.id) ? 'Saved' : 'Save'}
-                  </span>
-                </button>
-
-                <button
-                  onClick={handleShare}
-                  className="flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full glass-button text-xs font-bold active:scale-95 transition-all"
-                  aria-label="Share video link"
-                >
-                  <i className={`${copied ? 'ri-check-line text-emerald-500' : 'ri-share-forward-line'} not-italic text-sm`}></i>
-                  <span>{copied ? 'Copied!' : 'Share'}</span>
-                </button>
-
-                {/* Direct Platform Fallback (Bypasses Safari 3rd-party cookie restrictions) */}
-                {video.embed_url && (video.embed_url.includes('youtube.com') || video.embed_url.includes('instagram.com') || video.embed_url.includes('facebook.com')) && (
-                  <a
-                    href={
-                      video.embed_url.includes('youtube.com/embed/')
-                        ? video.embed_url.replace('/embed/', '/watch?v=').split('?')[0]
-                        : video.embed_url.includes('facebook.com')
-                        ? decodeURIComponent(video.embed_url.split('href=')[1]?.split('&')[0] || video.embed_url)
-                        : video.embed_url.replace('/embed/', '/')
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full glass-button text-xs font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 transition-all"
-                    title="Watch original on platform"
-                  >
-                    <i className={
-                      video.embed_url.includes('youtube')
-                        ? 'ri-youtube-fill text-rose-500 text-sm'
-                        : video.embed_url.includes('instagram')
-                        ? 'ri-instagram-line text-pink-500 text-sm'
-                        : 'ri-facebook-circle-fill text-blue-500 text-sm'
-                    }></i>
-                    <span className="hidden sm:inline">
-                      {video.embed_url.includes('youtube') ? 'YouTube' : video.embed_url.includes('instagram') ? 'Instagram' : 'Facebook'}
-                    </span>
-                    <i className="ri-external-link-line not-italic text-[10px] text-slate-400"></i>
-                  </a>
-                )}
-
-                <button
-                  onClick={() => setIsReportModalOpen(true)}
-                  className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-slate-400 hover:text-rose-500 active:scale-95 transition-all"
-                  title="Report Issue / Broken Stream"
-                  aria-label="Report issue"
-                >
-                  <i className="ri-flag-line not-italic text-sm"></i>
-                </button>
-              </div>
-            </div>
-
-            {/* Satisfaction Ratio Bar (Rendered only when real rating exists) */}
-            {rating && (
-              <div className="w-full bg-slate-200 dark:bg-white/[0.08] h-1.5 rounded-full overflow-hidden flex">
-                <div
-                  className="bg-emerald-500 h-full transition-all duration-500"
-                  style={{ width: `${rating}%` }}
-                />
-                <div
-                  className="bg-rose-500 h-full transition-all duration-500"
-                  style={{ width: `${100 - rating}%` }}
-                />
-              </div>
             )}
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20">
+              {video.category}
+            </span>
+            <h1 className="text-base sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug w-full mt-1">
+              {video.title}
+            </h1>
+          </div>
 
-            {/* Ad Slot 4: Below-Player High CTR Banner (24px Safe-Spacing Buffer) */}
-            <div className="w-full my-6 sm:my-8">
-              <AdSlot slotId="slot_below_player" className="w-full rounded-2xl overflow-hidden" />
+          {/* Action Bar & Stats */}
+          <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-y border-slate-200/80 dark:border-white/[0.08]">
+            <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1.5 text-slate-800 dark:text-white font-bold">
+                <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
+                {(video.views || 0).toLocaleString()} views
+              </span>
+              <span>•</span>
+              <span className="text-emerald-500 dark:text-emerald-400 font-extrabold flex items-center gap-1">
+                <i className="ri-thumb-up-fill not-italic text-xs"></i>
+                {rating}% Rating
+              </span>
             </div>
 
-            {/* Video Tags & Description */}
-            <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3">
-              <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Stream Information & Tags
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Indexed from public external media networks. HornyLeaks does not host video files on its servers.
-              </p>
-              {video.tags && video.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {video.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-white/[0.05] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08]"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
+            {/* Action Buttons (Frosted glass pills with 44px+ touch targets) */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full text-xs font-bold active:scale-95 transition-all ${
+                  isLiked
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'glass-button'
+                }`}
+                aria-label="Like video"
+              >
+                <i className="ri-thumb-up-fill not-italic text-sm"></i>
+                <span>{likeCount}</span>
+              </button>
+
+              <button
+                onClick={() => onBookmarkToggle(video.id)}
+                className={`flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full text-xs font-bold active:scale-95 transition-all ${
+                  isBookmarked(video.id)
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'glass-button'
+                }`}
+                aria-label="Bookmark video"
+              >
+                <i className={`ri-bookmark-${isBookmarked(video.id) ? 'fill' : 'line'} not-italic text-sm`}></i>
+                <span>
+                  {isBookmarked(video.id) ? 'Saved' : 'Save'}
+                </span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full glass-button text-xs font-bold active:scale-95 transition-all"
+                aria-label="Share video link"
+              >
+                <i className={`${copied ? 'ri-check-line text-emerald-500' : 'ri-share-forward-line'} not-italic text-sm`}></i>
+                <span>{copied ? 'Copied!' : 'Share'}</span>
+              </button>
+
+              {/* Direct Platform Fallback (Bypasses Safari 3rd-party cookie restrictions) */}
+              {video.embed_url && (video.embed_url.includes('youtube.com') || video.embed_url.includes('instagram.com') || video.embed_url.includes('facebook.com')) && (
+                <a
+                  href={
+                    video.embed_url.includes('youtube.com/embed/')
+                      ? video.embed_url.replace('/embed/', '/watch?v=').split('?')[0]
+                      : video.embed_url.includes('facebook.com')
+                      ? decodeURIComponent(video.embed_url.split('href=')[1]?.split('&')[0] || video.embed_url)
+                      : video.embed_url.replace('/embed/', '/')
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full glass-button text-xs font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 transition-all"
+                  title="Watch original on platform"
+                >
+                  <i className={
+                    video.embed_url.includes('youtube')
+                      ? 'ri-youtube-fill text-rose-500 text-sm'
+                      : video.embed_url.includes('instagram')
+                      ? 'ri-instagram-line text-pink-500 text-sm'
+                      : 'ri-facebook-circle-fill text-blue-500 text-sm'
+                  }></i>
+                  <span className="hidden sm:inline">
+                    {video.embed_url.includes('youtube') ? 'YouTube' : video.embed_url.includes('instagram') ? 'Instagram' : 'Facebook'}
+                  </span>
+                  <i className="ri-external-link-line not-italic text-[10px] text-slate-400"></i>
+                </a>
               )}
+
+              <button
+                onClick={() => setIsReportModalOpen(true)}
+                className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-slate-400 hover:text-rose-500 active:scale-95 transition-all"
+                title="Report Issue / Broken Stream"
+                aria-label="Report issue"
+              >
+                <i className="ri-flag-line not-italic text-sm"></i>
+              </button>
             </div>
           </div>
 
-          {/* Right Column: Related Streams */}
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
+          {/* Satisfaction Ratio Bar (Rendered only when real rating exists) */}
+          {rating && (
+            <div className="w-full bg-slate-200 dark:bg-white/[0.08] h-1.5 rounded-full overflow-hidden flex">
+              <div
+                className="bg-emerald-500 h-full transition-all duration-500"
+                style={{ width: `${rating}%` }}
+              />
+              <div
+                className="bg-rose-500 h-full transition-all duration-500"
+                style={{ width: `${100 - rating}%` }}
+              />
+            </div>
+          )}
+
+          {/* Ad Slot 4: Below-Player High CTR Banner (24px Safe-Spacing Buffer) */}
+          <div className="w-full my-6 sm:my-8">
+            <AdSlot slotId="slot_below_player" className="w-full rounded-2xl overflow-hidden" />
+          </div>
+
+          {/* Video Tags & Description */}
+          <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3">
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Stream Information & Tags
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Indexed from public external media networks. HornyLeaks does not host video files on its servers.
+            </p>
+            {video.tags && video.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {video.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-white/[0.05] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08]"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recommended Streams Grid (Full-Width directly underneath player & details) */}
+        <div className="space-y-4 pt-6 border-t border-slate-200/80 dark:border-white/[0.08]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
                 <i className="ri-sparkling-fill not-italic text-rose-500 text-sm"></i>
-                Recommended
+                Recommended Streams
               </h3>
               <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full inline-flex items-center">
                 {relatedVideos.length} streams
@@ -403,33 +404,33 @@ export default function Watch({
                 );
               })}
             </div>
-
-            {/* Stream List */}
-            {relatedVideos.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl glass-card">
-                <i className="ri-film-line not-italic text-2xl text-slate-400 mb-1 block"></i>
-                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No related streams in this filter</p>
-                <button
-                  onClick={() => setRecommendationMode('smart')}
-                  className="mt-2 text-[11px] font-bold text-rose-500 hover:underline"
-                >
-                  Reset to All Related
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {relatedVideos.map((item) => (
-                  <VideoCard
-                    key={item.id}
-                    video={item}
-                    onSelect={onSelectVideo}
-                    onBookmarkToggle={onBookmarkToggle}
-                    isBookmarked={typeof isBookmarked === 'function' ? isBookmarked(item.id) : false}
-                  />
-                ))}
-              </div>
-            )}
           </div>
+
+          {/* Stream List Grid */}
+          {relatedVideos.length === 0 ? (
+            <div className="p-10 text-center rounded-2xl glass-card space-y-2">
+              <i className="ri-film-line not-italic text-3xl text-slate-400 mb-1 block"></i>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No related streams in this filter</p>
+              <button
+                onClick={() => setRecommendationMode('smart')}
+                className="mt-2 text-xs font-bold text-rose-500 hover:underline"
+              >
+                Reset to All Related
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {relatedVideos.map((item) => (
+                <VideoCard
+                  key={item.id}
+                  video={item}
+                  onSelect={onSelectVideo}
+                  onBookmarkToggle={onBookmarkToggle}
+                  isBookmarked={typeof isBookmarked === 'function' ? isBookmarked(item.id) : false}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

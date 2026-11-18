@@ -687,16 +687,24 @@ export const store = {
     return list.find(v => v.id === id) || null;
   },
 
-  getRelatedVideos(currentVideo, mode = 'smart', limit = 10) {
+  getRelatedVideos(currentVideo, mode = 'smart', limit = 10, sourceList = null) {
     if (!currentVideo) return [];
-    const all = this.getVideos().filter(v => v.id !== currentVideo.id);
+    const pool = (Array.isArray(sourceList) && sourceList.length > 0)
+      ? sourceList
+      : this.getVideos();
+    const all = pool.filter(v => v && v.id !== currentVideo.id);
+    if (all.length === 0) return [];
 
-    // 1. Same Category Tab (strictly filtered to category, sorted by popularity)
+    // 1. Same Category Tab (strictly filtered to category, falling back to popular if sparse)
     if (mode === 'category') {
-      return all
-        .filter(v => v.category && v.category === currentVideo.category)
-        .sort((a, b) => (b.views || 0) - (a.views || 0))
-        .slice(0, limit);
+      const match = all
+        .filter(v => v.category && v.category.toLowerCase() === (currentVideo.category || '').toLowerCase())
+        .sort((a, b) => (b.views || 0) - (a.views || 0));
+      if (match.length >= limit) return match.slice(0, limit);
+      const others = all
+        .filter(v => !match.some(m => m.id === v.id))
+        .sort((a, b) => (b.views || 0) - (a.views || 0));
+      return [...match, ...others].slice(0, limit);
     }
 
     // 2. Most Viewed Tab (strictly sorted by total views)
