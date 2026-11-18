@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import VideoCard from '../components/VideoCard';
 import AdSlot from '../components/AdSlot';
-import { store } from '../services/store';
+import { store, parseDurationToSeconds } from '../services/store';
 import { resetDefaultSEO } from '../utils/seo';
 
 const CATEGORIES = ['All', 'Trending', 'Cinematic', 'Music', 'Action', 'Tutorials', 'Featured'];
@@ -23,6 +23,12 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
     setHistory([]);
   };
 
+  const handleRemoveHistoryItem = (e, videoId) => {
+    e.stopPropagation();
+    const updated = store.removeFromHistory(videoId);
+    setHistory(updated);
+  };
+
   // Filter and Sort Videos
   let processedVideos = videos.filter((v) => {
     const matchesCategory = selectedCategory === 'All' || v.category === selectedCategory;
@@ -33,7 +39,8 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
       (v.tags && v.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
 
     let matchesDuration = true;
-    const durMin = v.durationMinutes || 10;
+    const durSec = v.duration_seconds || parseDurationToSeconds(v.duration);
+    const durMin = durSec / 60;
     if (durationFilter === 'short') matchesDuration = durMin < 10;
     if (durationFilter === 'medium') matchesDuration = durMin >= 10 && durMin <= 20;
     if (durationFilter === 'long') matchesDuration = durMin > 20;
@@ -121,6 +128,15 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
                       <i className="ri-play-fill not-italic text-lg ml-0.5"></i>
                     </div>
                   </div>
+                  {/* Single item remove button */}
+                  <button
+                    onClick={(e) => handleRemoveHistoryItem(e, item.id)}
+                    className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md"
+                    title="Remove from history"
+                    aria-label="Remove from history"
+                  >
+                    <i className="ri-close-line text-xs"></i>
+                  </button>
                   {/* Progress Indicator Bar */}
                   <div className="absolute bottom-0 inset-x-0 h-1 bg-black/60">
                     <div

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { store, parseToEmbedUrl, getThumbnailForUrl } from '../services/store';
+import { store, parseToEmbedUrl, getThumbnailForUrl, parseDurationToSeconds, formatDuration } from '../services/store';
 import { api, auth, getSupabaseConfig, saveSupabaseConfig, getSupabaseClient } from '../services/supabase';
 
 export default function Admin({ onBack }) {
@@ -156,11 +156,14 @@ export default function Admin({ onBack }) {
   const handleSaveVideo = async (e) => {
     e.preventDefault();
     const tagArray = videoForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    const durSec = parseDurationToSeconds(videoForm.duration);
+    const formattedDur = formatDuration(durSec);
     const payload = {
       title: videoForm.title,
       embed_url: videoForm.embed_url,
       thumbnail_url: videoForm.thumbnail_url,
-      duration: videoForm.duration,
+      duration: formattedDur,
+      duration_seconds: durSec,
       category: videoForm.category,
       quality: videoForm.quality || '4K UHD',
       rating: parseInt(videoForm.rating, 10) || 98,

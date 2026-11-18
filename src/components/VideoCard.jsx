@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDuration } from '../services/store';
 
 export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmarked }) {
   const formatViews = (num) => {
@@ -85,7 +86,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
 
         {/* Duration Pill (Bottom Right) */}
         <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/10">
-          {video.duration || '12:00'}
+          {formatDuration(video.duration_seconds || video.duration)}
         </div>
       </div>
 

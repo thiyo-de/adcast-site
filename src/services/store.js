@@ -50,6 +50,62 @@ export function getThumbnailForUrl(url, fallbackThumbnail = '') {
   return fallbackThumbnail;
 }
 
+/**
+ * Universal Video Duration Parser & Normalizer (C10)
+ * Parses "12:34", "1:23:45", "10m", "45s", or numbers into integer seconds.
+ */
+export function parseDurationToSeconds(input) {
+  if (typeof input === 'number' && !isNaN(input)) {
+    return Math.floor(input);
+  }
+  if (!input || typeof input !== 'string') return 600;
+
+  const trimmed = input.trim();
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':').map((p) => parseInt(p, 10) || 0);
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+  }
+
+  const minMatch = trimmed.match(/^(\d+)\s*(?:m|min|mins)$/i);
+  if (minMatch) {
+    return parseInt(minMatch[1], 10) * 60;
+  }
+
+  const secMatch = trimmed.match(/^(\d+)\s*(?:s|sec|secs)$/i);
+  if (secMatch) {
+    return parseInt(secMatch[1], 10);
+  }
+
+  const num = parseInt(trimmed, 10);
+  if (!isNaN(num)) {
+    return num > 120 ? num : num * 60;
+  }
+
+  return 600;
+}
+
+/**
+ * Universal Video Duration Formatter (C10)
+ * Formats seconds into MM:SS or H:MM:SS string.
+ */
+export function formatDuration(input) {
+  const seconds = typeof input === 'number' ? input : parseDurationToSeconds(input);
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 const STORAGE_KEYS = {
   VIDEOS: 'adcast_videos_v4',
   AD_SETTINGS: 'adcast_ad_settings_v1',
@@ -641,6 +697,8 @@ export const store = {
     const list = this.getVideos();
     const parsedEmbedUrl = parseToEmbedUrl(videoData.embed_url);
     const resolvedThumb = videoData.thumbnail_url || getThumbnailForUrl(videoData.embed_url, 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&auto=format&fit=crop&q=80');
+    const durSec = videoData.duration_seconds || parseDurationToSeconds(videoData.duration);
+    const formattedDur = formatDuration(durSec);
 
     const newVideo = {
       id: 'vid-' + Date.now(),
@@ -652,7 +710,9 @@ export const store = {
       created_at: new Date().toISOString(),
       ...videoData,
       embed_url: parsedEmbedUrl,
-      thumbnail_url: resolvedThumb
+      thumbnail_url: resolvedThumb,
+      duration_seconds: durSec,
+      duration: formattedDur
     };
     list.unshift(newVideo);
     this.saveVideos(list);
@@ -660,7 +720,21 @@ export const store = {
   },
 
   updateVideo(id, updatedFields) {
-    const list = this.getVideos().map(v => (v.id === id ? { ...v, ...updatedFields } : v));
+    const durSec = updatedFields.duration !== undefined || updatedFields.duration_seconds !== undefined
+      ? (updatedFields.duration_seconds || parseDurationToSeconds(updatedFields.duration))
+      : undefined;
+    const formattedDur = durSec !== undefined ? formatDuration(durSec) : undefined;
+
+    const list = this.getVideos().map(v => {
+      if (v.id === id) {
+        return {
+          ...v,
+          ...updatedFields,
+          ...(durSec !== undefined ? { duration_seconds: durSec, duration: formattedDur } : {})
+        };
+      }
+      return v;
+    });
     this.saveVideos(list);
     return list.find(v => v.id === id);
   },
@@ -879,6 +953,18 @@ export const store = {
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
     } catch (e) {}
     return [];
+  },
+
+  removeFromHistory(videoId) {
+    if (!videoId) return this.getHistory();
+    try {
+      const current = this.getHistory();
+      const updated = current.filter(item => item.id !== videoId);
+      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      return [];
+    }
   },
 
   // DMCA Requests
