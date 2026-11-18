@@ -174,9 +174,15 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     <div className={`relative overflow-hidden transition-all duration-200 ${getSlotContainerClasses()} ${className}`}>
       {/* Dev Mode Badge */}
       {isDevMode && devBadge && (
-        <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-black/85 text-cyan-400 border border-cyan-500/40 shadow-md">
+        <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-cyan-400 border border-cyan-500/40 shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-          {isBlocked ? '⚡ Affiliate Fallback' : `${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
+          {isBlocked ? (
+            <span className="flex items-center gap-1">
+              <i className="ri-flashlight-line text-xs"></i> Affiliate Fallback
+            </span>
+          ) : (
+            `${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`
+          )}
         </div>
       )}
 
@@ -204,7 +210,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-lg">
                       {campaign.badge || 'VERIFIED DEAL'}
                     </span>
                     <span className="text-xs text-slate-400 font-semibold">{campaign.network}</span>
@@ -214,8 +220,9 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
                   </h4>
                 </div>
               </div>
-              <button className="min-h-[44px] px-5 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-lg group-hover:scale-105 active:scale-95 transition-all shrink-0">
-                {campaign.cta} ➔
+              <button className="min-h-[44px] px-5 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-lg group-hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center gap-1">
+                <span>{campaign.cta}</span>
+                <i className="ri-arrow-right-line text-sm"></i>
               </button>
             </div>
           )}
@@ -235,18 +242,18 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30" />
                 <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase bg-rose-600 text-white shadow-md">
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-md">
                     {campaign.badge || 'SPONSORED'}
                   </span>
                 </div>
-                <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/85 border border-white/10 text-[10px] font-bold text-cyan-400">
+                <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/85 backdrop-blur-md border border-white/10 text-[10px] font-sans font-bold tabular-nums text-cyan-400">
                   Featured Offer
                 </div>
               </div>
 
               <div className="p-4 flex flex-col justify-between flex-1 space-y-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-rose-400 transition-colors">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-rose-400 transition-colors min-h-[2.5rem]">
                     {campaign.title}
                   </h3>
                   <p className="text-xs text-slate-400 line-clamp-2 mt-1">
@@ -254,7 +261,8 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
                   </p>
                 </div>
                 <button className="min-h-[44px] w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-all">
-                  {campaign.cta} ➔
+                  <span>{campaign.cta}</span>
+                  <i className="ri-arrow-right-line text-sm"></i>
                 </button>
               </div>
             </div>
@@ -275,8 +283,9 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
               <p className="text-xs sm:text-sm text-slate-300 max-w-lg mb-4">
                 {campaign.description}
               </p>
-              <button className="min-h-[44px] px-8 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-xl hover:scale-105 active:scale-95 transition-all">
-                {campaign.cta} ➔
+              <button className="min-h-[44px] px-8 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                <span>{campaign.cta}</span>
+                <i className="ri-arrow-right-line text-sm"></i>
               </button>
             </div>
           )}

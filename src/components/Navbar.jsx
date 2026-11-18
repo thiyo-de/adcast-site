@@ -13,11 +13,6 @@ export default function Navbar({
   onToggleTheme
 }) {
   const [isSearchOpenMobile, setIsSearchOpenMobile] = useState(false);
-
-  const handlePanicExit = () => {
-    window.location.replace('https://www.google.com');
-  };
-
   const isDark = theme === 'dark';
 
   return (
@@ -98,7 +93,7 @@ export default function Navbar({
             <i className="ri-bookmark-fill not-italic text-rose-500 text-xs"></i>
             <span className="hidden sm:inline">Saved</span>
             {bookmarkCount > 0 && (
-              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-bold">
+              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-sans font-bold tabular-nums">
                 {bookmarkCount}
               </span>
             )}

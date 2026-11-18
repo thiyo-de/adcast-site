@@ -31,7 +31,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         e.preventDefault();
         onSelect(video.id);
       }}
-      className="group relative flex flex-col rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-rose-500"
+      className="group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-rose-500"
     >
       {/* Thumbnail Container (16:9) */}
       <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
@@ -56,15 +56,15 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         {/* Subtle Gradient Shadow */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20 opacity-80 pointer-events-none" />
 
-        {/* Top Badges (Frosted Glass Pills) */}
+        {/* Top Badges (Standardized rounded-lg Pills) */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5">
           {video.quality && (
-            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
               {video.quality}
             </span>
           )}
           {video.is_featured && (
-            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
               <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
             </span>
           )}
@@ -107,28 +107,28 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
           <i className={`${isRevealed ? 'ri-eye-line text-rose-400' : 'ri-eye-off-line'} not-italic text-xs`}></i>
         </button>
 
-        {/* Duration Pill (Bottom Right) */}
-        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/10">
+        {/* Duration Pill (Bottom Right - Plus Jakarta Sans tabular) */}
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm">
           {formatDuration(video.duration_seconds || video.duration)}
         </div>
       </div>
 
       {/* Video Info Section */}
-      <div className="p-3.5 flex flex-col gap-2.5">
+      <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
         <div>
           {/* Category Tag */}
           <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
             {video.category || 'General'}
           </span>
 
-          {/* Title */}
-          <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors">
+          {/* Title (Locked to 2 lines so all cards equalize perfectly) */}
+          <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
             {video.title}
           </h3>
         </div>
 
         {/* Meta Stats Bar */}
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06]">
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
           <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
             <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
             <span>{formatViews(video.views)}</span>

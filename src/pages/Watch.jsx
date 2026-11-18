@@ -219,11 +219,11 @@ export default function Watch({
             {/* Video Title & Badges */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {video.quality && (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-cyan-500 text-black shadow-sm">
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-cyan-500 text-black shadow-sm">
                   {video.quality}
                 </span>
               )}
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-rose-500/10 text-rose-500 border border-rose-500/20">
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20">
                 {video.category}
               </span>
               <h1 className="text-base sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug w-full mt-1">
@@ -373,7 +373,7 @@ export default function Watch({
                 <i className="ri-sparkling-fill not-italic text-rose-500 text-sm"></i>
                 Recommended
               </h3>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full inline-flex items-center">
                 {relatedVideos.length} streams
               </span>
             </div>
@@ -417,7 +417,7 @@ export default function Watch({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {relatedVideos.map((item) => (
                   <VideoCard
                     key={item.id}

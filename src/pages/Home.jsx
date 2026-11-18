@@ -93,8 +93,8 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
                   : 'glass-button'
               }`}
             >
-              {cat === 'Trending' && '🔥 '}
-              {cat === 'Featured' && '✦ '}
+              {cat === 'Trending' && <i className="ri-fire-fill mr-1 text-xs"></i>}
+              {cat === 'Featured' && <i className="ri-sparkling-fill mr-1 text-xs"></i>}
               {cat}
             </button>
           );
@@ -113,7 +113,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
             <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <i className="ri-history-line not-italic text-rose-500 text-base"></i>
               Pick Up Where You Left Off
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20 font-bold">
+              <span className="text-[10px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
                 {history.length}
               </span>
             </h3>
@@ -170,7 +170,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
                   </h4>
                   <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-medium">
                     <span className="text-cyan-400 font-semibold">{item.category || 'Stream'}</span>
-                    <span className="font-mono">{item.duration || 'Resume'}</span>
+                    <span className="font-sans font-semibold tabular-nums">{item.duration || 'Resume'}</span>
                   </div>
                 </div>
               </div>
@@ -268,7 +268,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
       <div className="flex items-center justify-between pt-1">
         <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
           {selectedCategory === 'All' ? 'Curated Streams' : `${selectedCategory} Streams`}
-          <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full inline-flex items-center">
             {processedVideos.length} Available
           </span>
         </h2>
@@ -302,43 +302,43 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {processedVideos.map((video, index) => {
             const showNativeAd = index > 0 && index % 6 === 0;
 
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="group relative flex flex-col rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl col-span-1 self-start">
+                  <div className="group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl col-span-1">
                     {/* 1. Thumbnail Container (16:9) framing the ad creative */}
                     <div className="relative aspect-video w-full overflow-hidden bg-slate-950 flex items-center justify-center">
                       <AdSlot slotId="slot_native_feed" className="w-full h-full flex items-center justify-center" devBadge={false} />
 
                       {/* Promoted Badge */}
                       <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
-                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-amber-500 text-black shadow-sm">
                           Promoted
                         </span>
                       </div>
 
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/10 z-10 pointer-events-none">
+                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm z-10 pointer-events-none">
                         Ad
                       </div>
                     </div>
 
                     {/* 2. Matching Card Info Section */}
-                    <div className="p-3.5 flex flex-col gap-2.5">
+                    <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
                       <div>
                         <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
                           SPONSORED
                         </span>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
                           Featured Partner Media Stream
                         </h3>
                       </div>
 
                       {/* Matching Meta Stats Bar */}
-                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06]">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
                         <div className="flex items-center gap-1 font-semibold text-amber-500 dark:text-amber-400">
                           <i className="ri-external-link-line not-italic text-xs"></i>
                           <span>Visit Partner</span>

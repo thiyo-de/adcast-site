@@ -223,7 +223,7 @@ export default function VideoPlayer({ video, onEnded }) {
             <span>{video.category || 'Stream'}</span>
           </div>
 
-          <div className="absolute bottom-4 right-4 z-10 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-white/10 text-xs font-mono font-bold text-white shadow-md">
+          <div className="absolute bottom-4 right-4 z-10 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-white/10 text-xs font-sans font-bold tabular-nums tracking-tight text-white shadow-md">
             {video.duration || 'HD'}
           </div>
         </div>
