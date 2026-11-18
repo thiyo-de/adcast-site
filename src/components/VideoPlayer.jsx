@@ -9,6 +9,7 @@ export default function VideoPlayer({ video, onEnded }) {
   const [canSkip, setCanSkip] = useState(false);
   const [adData, setAdData] = useState(null);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
   const videoRef = useRef(null);
   const firedTrackingRef = useRef(new Set());
 
@@ -44,6 +45,7 @@ export default function VideoPlayer({ video, onEnded }) {
     setCountdown(5);
     setCanSkip(false);
     setIsLoadingAd(false);
+    setPlaybackError(false);
     firedTrackingRef.current.clear();
   }, [video?.id]);
 
@@ -206,12 +208,14 @@ export default function VideoPlayer({ video, onEnded }) {
             <i className="ri-play-fill not-italic text-3xl sm:text-4xl ml-1"></i>
           </button>
 
-          {/* Top-Left Quality Badge */}
-          <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5">
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500 text-black shadow-md">
-              {video.quality || '4K UHD'}
-            </span>
-          </div>
+          {/* Top-Left Quality Badge (Render only when factual quality data exists - UX01) */}
+          {video.quality && (
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5">
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500 text-black shadow-md">
+                {video.quality}
+              </span>
+            </div>
+          )}
 
           {/* Bottom Badges */}
           <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-xs font-bold text-white shadow-md">
@@ -295,7 +299,28 @@ export default function VideoPlayer({ video, onEnded }) {
       {/* 3. Actual Video Playback (Optimized for Mobile) */}
       {isPlaying && !showPreRoll && (
         <>
-          {isDirectVideo(resolvedEmbedUrl) ? (
+          {playbackError ? (
+            <div className="absolute inset-0 z-30 bg-black/95 flex flex-col items-center justify-center p-6 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center text-2xl">
+                <i className="ri-error-warning-line not-italic"></i>
+              </div>
+              <h4 className="text-sm font-bold text-white">Stream Source Unavailable</h4>
+              <p className="text-xs text-slate-400 max-w-sm">
+                This media source could not be played or returned an error. The stream may be offline.
+              </p>
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setPlaybackError(false);
+                    setIsPlaying(false);
+                  }}
+                  className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow active:scale-95 cursor-pointer"
+                >
+                  <i className="ri-refresh-line not-italic mr-1"></i> Retry
+                </button>
+              </div>
+            </div>
+          ) : isDirectVideo(resolvedEmbedUrl) ? (
             <video
               ref={videoRef}
               src={resolvedEmbedUrl}
@@ -305,6 +330,7 @@ export default function VideoPlayer({ video, onEnded }) {
               webkit-playsinline="true"
               preload="metadata"
               onEnded={onEnded}
+              onError={() => setPlaybackError(true)}
               className="w-full h-full object-contain bg-black"
             />
           ) : (

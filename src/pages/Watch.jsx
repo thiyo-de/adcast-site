@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import VideoPlayer from '../components/VideoPlayer';
 import AdSlot from '../components/AdSlot';
-import { store } from '../services/store';
+import { store, FALLBACK_THUMB } from '../services/store';
 import { api } from '../services/supabase';
 import { updateVideoSEO, resetDefaultSEO } from '../utils/seo';
 
@@ -440,7 +440,7 @@ export default function Watch({
                           loading="lazy"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&auto=format&fit=crop&q=80';
+                            e.currentTarget.src = FALLBACK_THUMB;
                           }}
                           className="w-full h-full object-cover filter blur-[10px] scale-110 opacity-25 transition-all duration-300"
                         />

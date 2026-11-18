@@ -23,7 +23,7 @@ export default function Admin({ onBack }) {
     thumbnail_url: '',
     duration: '10:00',
     category: 'Trending',
-    quality: '4K UHD',
+    quality: '1080p',
     rating: 98,
     tags: 'trending, viral',
     is_featured: false
@@ -147,7 +147,10 @@ export default function Admin({ onBack }) {
   };
 
   const handleLogout = async () => {
-    await auth.signOut();
+    try {
+      await auth.signOut();
+    } catch (e) {}
+    store.adminLogout();
     setUser(null);
     setIsLoggedIn(false);
   };

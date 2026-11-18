@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { formatDuration } from '../services/store';
-
-// Neutral local SVG thumbnail placeholder (zero external network dependency)
-const FALLBACK_THUMB = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 360' fill='%230b0e14'%3E%3Crect width='640' height='360' fill='%230b0e14'/%3E%3Ccircle cx='320' cy='180' r='36' fill='%231e293b'/%3E%3Cpath d='M312 165l24 15-24 15z' fill='%23e11d48'/%3E%3C/svg%3E";
+import { formatDuration, FALLBACK_THUMB } from '../services/store';
 
 export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmarked }) {
   const [isRevealed, setIsRevealed] = useState(false);

@@ -67,17 +67,20 @@ export function parseToEmbedUrl(url) {
   return trimmed;
 }
 
+// Neutral local SVG thumbnail placeholder (zero external network dependency - UX04)
+export const FALLBACK_THUMB = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 360' fill='%230b0e14'%3E%3Crect width='640' height='360' fill='%230b0e14'/%3E%3Ccircle cx='320' cy='180' r='36' fill='%231e293b'/%3E%3Cpath d='M312 165l24 15-24 15z' fill='%23e11d48'/%3E%3C/svg%3E";
+
 /**
  * Universal Thumbnail Resolver
  * Automatically resolves high-res thumbnails for YouTube videos if not explicitly provided.
  */
-export function getThumbnailForUrl(url, fallbackThumbnail = '') {
+export function getThumbnailForUrl(url, fallbackThumbnail = FALLBACK_THUMB) {
   if (!url || typeof url !== 'string') return fallbackThumbnail;
   const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (ytMatch && ytMatch[1]) {
     return `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
   }
-  return fallbackThumbnail;
+  return fallbackThumbnail || FALLBACK_THUMB;
 }
 
 /**
@@ -753,7 +756,7 @@ export const store = {
   addVideo(videoData) {
     const list = this.getVideos();
     const parsedEmbedUrl = parseToEmbedUrl(videoData.embed_url);
-    const resolvedThumb = videoData.thumbnail_url || getThumbnailForUrl(videoData.embed_url, 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&auto=format&fit=crop&q=80');
+    const resolvedThumb = videoData.thumbnail_url || getThumbnailForUrl(videoData.embed_url, FALLBACK_THUMB);
     const durSec = videoData.duration_seconds || parseDurationToSeconds(videoData.duration);
     const formattedDur = formatDuration(durSec);
 

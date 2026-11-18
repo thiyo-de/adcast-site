@@ -12,20 +12,26 @@ export default function DMCA({ initialVideoId, onBack }) {
   const [notes, setNotes] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
 
-    await api.submitTakedown({
-      video_url: videoUrl,
-      claimant_name: claimantName,
-      claimant_email: claimantEmail,
-      notes: notes
-    });
-
-    setIsSubmitting(false);
-    setIsSubmitted(true);
+    try {
+      await api.submitTakedown({
+        video_url: videoUrl,
+        claimant_name: claimantName,
+        claimant_email: claimantEmail,
+        notes: notes
+      });
+      setIsSubmitted(true);
+    } catch (err) {
+      setSubmitError(err?.message || 'Failed to submit takedown request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -163,6 +169,13 @@ export default function DMCA({ initialVideoId, onBack }) {
                 className="w-full p-3.5 bg-slate-100/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 transition-colors"
               />
             </div>
+
+            {submitError && (
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-semibold flex items-center gap-2">
+                <i className="ri-error-warning-line not-italic text-sm"></i>
+                <span>{submitError}</span>
+              </div>
+            )}
 
             <button
               type="submit"
