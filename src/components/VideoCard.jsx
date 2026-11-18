@@ -44,15 +44,13 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
             e.currentTarget.src = FALLBACK_THUMB;
           }}
           className={`w-full h-full object-cover transition-all duration-300 ${
-            isRevealed ? 'opacity-90' : 'filter blur-[10px] scale-110 opacity-25'
+            isRevealed ? 'opacity-100' : 'filter blur-[5px] scale-105 opacity-65'
           }`}
         />
 
-        {/* 75% Dark Privacy Veil Overlay (Default obscured until user toggles preview) */}
+        {/* Soft Privacy Veil Overlay (Clean blur without pitch-black veil) */}
         {!isRevealed && (
-          <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm pointer-events-none flex items-center justify-center">
-            <i className="ri-eye-off-line not-italic text-slate-500/40 text-xl"></i>
-          </div>
+          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] pointer-events-none" />
         )}
 
         {/* Subtle Gradient Shadow */}
@@ -72,14 +70,8 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
           )}
         </div>
 
-        {/* Top Right: Rating & Bookmark Pill */}
+        {/* Top Right: Bookmark Pill */}
         <div className="absolute top-2 right-2 flex items-center gap-1">
-          {video.rating && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/90 text-white backdrop-blur-md shadow-sm">
-              <i className="ri-thumb-up-fill not-italic text-[10px]"></i>
-              {video.rating}%
-            </span>
-          )}
 
           <button
             type="button"
@@ -122,15 +114,15 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
       </div>
 
       {/* Video Info Section */}
-      <div className="p-3.5 flex flex-col flex-1 justify-between">
+      <div className="p-3.5 flex flex-col gap-2.5">
         <div>
           {/* Category Tag */}
-          <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-1">
+          <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
             {video.category || 'General'}
           </span>
 
           {/* Title */}
-          <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug mb-2 transition-colors">
+          <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors">
             {video.title}
           </h3>
         </div>

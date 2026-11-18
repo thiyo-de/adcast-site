@@ -254,15 +254,15 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 items-start">
           {processedVideos.map((video, index) => {
             const showNativeAd = index > 0 && index % 6 === 0;
 
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="col-span-1">
-                    <AdSlot slotId="slot_native_feed" className="h-full rounded-2xl overflow-hidden" />
+                  <div className="col-span-1 self-start rounded-2xl glass-card overflow-hidden">
+                    <AdSlot slotId="slot_native_feed" className="w-full" />
                   </div>
                 )}
 

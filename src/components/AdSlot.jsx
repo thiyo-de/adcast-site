@@ -160,7 +160,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       case 'slot_below_player':
         return 'min-h-[250px] w-full flex flex-col items-center justify-center';
       case 'slot_native_feed':
-        return 'min-h-[300px] h-full w-full flex flex-col justify-between';
+        return 'w-full flex flex-col items-center justify-center max-h-[360px] overflow-hidden';
       case 'slot_sticky_footer':
         return 'min-h-[50px] sm:min-h-[60px] w-full flex items-center justify-center';
       default:
