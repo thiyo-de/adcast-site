@@ -27,6 +27,10 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const campaign = getCampaign();
 
   useEffect(() => {
+    let isMounted = true;
+    let probeTimeout = null;
+    let bait = null;
+
     if (!slot || !slot.isActive) return;
 
     // 1. Detect unconfigured placeholder codes
@@ -47,63 +51,73 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     }
 
     // 2. Active Ad-Blocker Probe
-    const probeAdBlock = () => {
-      const bait = document.createElement('div');
-      bait.setAttribute(
-        'class',
-        'pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text-ads text-ad-links ad-text ad-placement banner-ad'
-      );
-      bait.setAttribute(
-        'style',
-        'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important;'
-      );
-      document.body.appendChild(bait);
+    bait = document.createElement('div');
+    bait.setAttribute(
+      'class',
+      'pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text-ads text-ad-links ad-text ad-placement banner-ad'
+    );
+    bait.setAttribute(
+      'style',
+      'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important;'
+    );
+    document.body.appendChild(bait);
 
-      window.setTimeout(() => {
-        if (
-          !bait.offsetParent ||
-          bait.offsetHeight === 0 ||
-          bait.offsetWidth === 0 ||
-          window.getComputedStyle(bait).getPropertyValue('display') === 'none' ||
-          window.getComputedStyle(bait).getPropertyValue('visibility') === 'hidden'
-        ) {
-          setIsBlocked(true);
-        }
-        if (bait.parentNode) {
-          bait.parentNode.removeChild(bait);
-        }
-      }, 150);
-    };
+    probeTimeout = window.setTimeout(() => {
+      if (!isMounted) return;
+      if (
+        !bait.offsetParent ||
+        bait.offsetHeight === 0 ||
+        bait.offsetWidth === 0 ||
+        window.getComputedStyle(bait).getPropertyValue('display') === 'none' ||
+        window.getComputedStyle(bait).getPropertyValue('visibility') === 'hidden'
+      ) {
+        setIsBlocked(true);
+      }
+      if (bait.parentNode) {
+        bait.parentNode.removeChild(bait);
+      }
+    }, 150);
 
-    probeAdBlock();
+    // 3. Inject ad tags safely
+    if (containerRef.current && !isBlocked) {
+      const container = containerRef.current;
+      container.innerHTML = '';
 
-    if (!containerRef.current || isBlocked) return;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = slot.code;
 
-    const container = containerRef.current;
-    container.innerHTML = '';
+      const scripts = tempDiv.querySelectorAll('script');
+      if (scripts.length > 0) {
+        const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        container.innerHTML = nonScripts;
 
-    // Check if code contains script tags
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = slot.code;
-
-    const scripts = tempDiv.querySelectorAll('script');
-    if (scripts.length > 0) {
-      const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-      container.innerHTML = nonScripts;
-
-      scripts.forEach((oldScript) => {
-        const newScript = document.createElement('script');
-        Array.from(oldScript.attributes).forEach((attr) => {
-          newScript.setAttribute(attr.name, attr.value);
+        scripts.forEach((oldScript) => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach((attr) => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.textContent = oldScript.textContent;
+          newScript.onerror = () => {
+            if (isMounted) setIsBlocked(true);
+          };
+          container.appendChild(newScript);
         });
-        newScript.textContent = oldScript.textContent;
-        newScript.onerror = () => setIsBlocked(true);
-        container.appendChild(newScript);
-      });
-    } else {
-      container.innerHTML = slot.code;
+      } else {
+        container.innerHTML = slot.code;
+      }
     }
-  }, [slot?.code, slot?.isActive]);
+
+    return () => {
+      isMounted = false;
+      if (probeTimeout) clearTimeout(probeTimeout);
+      if (bait && bait.parentNode) {
+        bait.parentNode.removeChild(bait);
+      }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
+  }, [slot?.code, slot?.isActive, isBlocked]);
 
   if (!slot || !slot.isActive) return null;
 

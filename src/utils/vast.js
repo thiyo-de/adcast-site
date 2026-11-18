@@ -1,9 +1,90 @@
 /**
  * VAST 3.0 / 4.x Video Ad Resolver
  * Parses ExoClick VAST XML and extracts the live MP4 video stream,
- * tracking impressions, and click-through destination URLs.
+ * tracking impressions, quartiles, and click-through destination URLs using native DOMParser.
  */
-export async function resolveVastAd(vastUrl, maxTimeoutMs = 3000) {
+
+function getTextContent(element) {
+  if (!element) return null;
+  const text = element.textContent || '';
+  return text.trim() || null;
+}
+
+function parseVastXmlDocument(xmlText) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'text/xml');
+
+    const parseError = doc.querySelector('parsererror');
+    if (parseError) {
+      console.warn('VAST XML parser warning:', parseError.textContent);
+      return null;
+    }
+
+    // 1. Impression URLs
+    const impressionEls = doc.querySelectorAll('Impression');
+    const impressionUrls = Array.from(impressionEls)
+      .map(getTextContent)
+      .filter(Boolean);
+
+    // 2. MediaFiles (prefer MP4)
+    const mediaFileEls = doc.querySelectorAll('MediaFile');
+    let mediaUrl = null;
+    let fallbackMediaUrl = null;
+
+    for (const el of mediaFileEls) {
+      const type = (el.getAttribute('type') || '').toLowerCase();
+      const url = getTextContent(el);
+      if (!url) continue;
+
+      if (!fallbackMediaUrl) fallbackMediaUrl = url;
+      if (type.includes('mp4') || url.includes('.mp4')) {
+        mediaUrl = url;
+        break;
+      }
+    }
+    if (!mediaUrl) mediaUrl = fallbackMediaUrl;
+
+    // 3. ClickThrough & ClickTracking
+    const clickThroughEl = doc.querySelector('ClickThrough');
+    const clickTrackingEls = doc.querySelectorAll('ClickTracking');
+    const clickUrl = getTextContent(clickThroughEl);
+    const clickTrackingUrls = Array.from(clickTrackingEls)
+      .map(getTextContent)
+      .filter(Boolean);
+
+    // 4. Tracking events (start, firstQuartile, midpoint, thirdQuartile, complete)
+    const trackingEls = doc.querySelectorAll('Tracking');
+    const trackingEvents = {};
+    trackingEls.forEach((el) => {
+      const event = el.getAttribute('event');
+      const url = getTextContent(el);
+      if (event && url) {
+        if (!trackingEvents[event]) trackingEvents[event] = [];
+        trackingEvents[event].push(url);
+      }
+    });
+
+    // 5. VASTAdTagURI (Wrapper)
+    const wrapperTag = doc.querySelector('VASTAdTagURI');
+    const wrapperUrl = getTextContent(wrapperTag);
+
+    return {
+      mediaUrl,
+      clickUrl,
+      clickTrackingUrls,
+      impressionUrls,
+      impressionUrl: impressionUrls[0] || null,
+      trackingEvents,
+      wrapperUrl
+    };
+  } catch (err) {
+    console.warn('Failed to parse VAST XML with DOMParser:', err);
+    return null;
+  }
+}
+
+export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
   if (!vastUrl || typeof vastUrl !== 'string') return null;
 
   const controller = new AbortController();
@@ -15,62 +96,50 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3000) {
     if (!res.ok) return null;
 
     const xml = await res.text();
+    const parsed = parseVastXmlDocument(xml);
+    if (!parsed) return null;
 
-    // Check for empty VAST (no-bid or frequency capped)
-    if (!xml.includes('<MediaFile') && !xml.includes('<VASTAdTagURI')) {
-      return null;
-    }
-
-    // 1. Extract Impression URL
-    const impMatch = xml.match(/<Impression[^>]*><!\[CDATA\[(.*?)\]\]><\/Impression>/i) ||
-                     xml.match(/<Impression[^>]*>(.*?)<\/Impression>/i);
-    let impressionUrl = impMatch ? impMatch[1].trim() : null;
-
-    // 2. Check for VAST Wrapper (secondary tag)
-    const wrapMatch = xml.match(/<VASTAdTagURI><!\[CDATA\[(.*?)\]\]><\/VASTAdTagURI>/i) ||
-                      xml.match(/<VASTAdTagURI>(.*?)<\/VASTAdTagURI>/i);
-
-    let mediaUrl = null;
-    let clickUrl = null;
-
-    if (wrapMatch) {
+    // Handle Wrapper if present
+    if (parsed.wrapperUrl && !parsed.mediaUrl) {
       try {
-        const wrapUrl = wrapMatch[1].trim();
-        const wrapRes = await fetch(wrapUrl);
+        const wrapRes = await fetch(parsed.wrapperUrl);
         if (wrapRes.ok) {
           const wrapXml = await wrapRes.text();
-          const wrapMedia = wrapXml.match(/<MediaFile[^>]*><!\[CDATA\[(.*?)\]\]><\/MediaFile>/i) ||
-                            wrapXml.match(/<MediaFile[^>]*>(.*?)<\/MediaFile>/i);
-          const wrapClick = wrapXml.match(/<ClickThrough><!\[CDATA\[(.*?)\]\]><\/ClickThrough>/i) ||
-                            wrapXml.match(/<ClickThrough>(.*?)<\/ClickThrough>/i) ||
-                            wrapXml.match(/<ClickTracking><!\[CDATA\[(.*?)\]\]><\/ClickTracking>/i);
-          const wrapImp = wrapXml.match(/<Impression[^>]*><!\[CDATA\[(.*?)\]\]><\/Impression>/i) ||
-                          wrapXml.match(/<Impression[^>]*>(.*?)<\/Impression>/i);
-
-          if (wrapMedia) mediaUrl = wrapMedia[1].trim();
-          if (wrapClick) clickUrl = wrapClick[1].trim();
-          if (wrapImp && !impressionUrl) impressionUrl = wrapImp[1].trim();
+          const wrapParsed = parseVastXmlDocument(wrapXml);
+          if (wrapParsed && wrapParsed.mediaUrl) {
+            return {
+              mediaUrl: wrapParsed.mediaUrl,
+              clickUrl: wrapParsed.clickUrl || parsed.clickUrl || vastUrl,
+              clickTrackingUrls: [
+                ...parsed.clickTrackingUrls,
+                ...wrapParsed.clickTrackingUrls
+              ],
+              impressionUrl: wrapParsed.impressionUrl || parsed.impressionUrl,
+              impressionUrls: [
+                ...parsed.impressionUrls,
+                ...wrapParsed.impressionUrls
+              ],
+              trackingEvents: {
+                ...parsed.trackingEvents,
+                ...wrapParsed.trackingEvents
+              }
+            };
+          }
         }
       } catch (e) {
         console.warn('VAST wrapper resolution failed:', e);
       }
-    } else {
-      const mediaMatch = xml.match(/<MediaFile[^>]*><!\[CDATA\[(.*?)\]\]><\/MediaFile>/i) ||
-                         xml.match(/<MediaFile[^>]*>(.*?)<\/MediaFile>/i);
-      const clickMatch = xml.match(/<ClickThrough><!\[CDATA\[(.*?)\]\]><\/ClickThrough>/i) ||
-                         xml.match(/<ClickThrough>(.*?)<\/ClickThrough>/i) ||
-                         xml.match(/<ClickTracking><!\[CDATA\[(.*?)\]\]><\/ClickTracking>/i);
-
-      if (mediaMatch) mediaUrl = mediaMatch[1].trim();
-      if (clickMatch) clickUrl = clickMatch[1].trim();
     }
 
-    if (!mediaUrl) return null;
+    if (!parsed.mediaUrl) return null;
 
     return {
-      mediaUrl,
-      clickUrl: clickUrl || vastUrl,
-      impressionUrl
+      mediaUrl: parsed.mediaUrl,
+      clickUrl: parsed.clickUrl || vastUrl,
+      clickTrackingUrls: parsed.clickTrackingUrls,
+      impressionUrl: parsed.impressionUrl,
+      impressionUrls: parsed.impressionUrls,
+      trackingEvents: parsed.trackingEvents
     };
   } catch (err) {
     clearTimeout(timeoutId);

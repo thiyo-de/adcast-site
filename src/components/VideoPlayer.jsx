@@ -10,6 +10,7 @@ export default function VideoPlayer({ video, onEnded }) {
   const [adData, setAdData] = useState(null);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const videoRef = useRef(null);
+  const firedTrackingRef = useRef(new Set());
 
   const adSettings = store.getAdSettings();
   const preRollSlot = adSettings['slot_video_preroll'];
@@ -23,6 +24,19 @@ export default function VideoPlayer({ video, onEnded }) {
     return url.endsWith('.mp4') || url.endsWith('.m3u8') || url.endsWith('.webm') || url.includes('.mp4?');
   };
 
+  const fireTrackingEvents = (eventKey) => {
+    if (!adData?.trackingEvents || !adData.trackingEvents[eventKey]) return;
+    if (firedTrackingRef.current.has(eventKey)) return;
+    firedTrackingRef.current.add(eventKey);
+
+    adData.trackingEvents[eventKey].forEach((url) => {
+      try {
+        const img = new Image();
+        img.src = url;
+      } catch {}
+    });
+  };
+
   useEffect(() => {
     setIsPlaying(false);
     setShowPreRoll(false);
@@ -30,6 +44,7 @@ export default function VideoPlayer({ video, onEnded }) {
     setCountdown(5);
     setCanSkip(false);
     setIsLoadingAd(false);
+    firedTrackingRef.current.clear();
   }, [video?.id]);
 
   useEffect(() => {
@@ -59,10 +74,22 @@ export default function VideoPlayer({ video, onEnded }) {
       setIsLoadingAd(false);
 
       if (vastResult?.mediaUrl) {
-        if (vastResult.impressionUrl) {
-          const beacon = new Image();
-          beacon.src = vastResult.impressionUrl;
+        // Fire VAST impression beacons
+        if (vastResult.impressionUrls && Array.isArray(vastResult.impressionUrls)) {
+          vastResult.impressionUrls.forEach((url) => {
+            try {
+              const beacon = new Image();
+              beacon.src = url;
+            } catch {}
+          });
+        } else if (vastResult.impressionUrl) {
+          try {
+            const beacon = new Image();
+            beacon.src = vastResult.impressionUrl;
+          } catch {}
         }
+
+        firedTrackingRef.current.clear();
         setAdData(vastResult);
         setShowPreRoll(true);
         setCountdown(5);
@@ -144,6 +171,14 @@ export default function VideoPlayer({ video, onEnded }) {
   };
 
   const handleAdClick = () => {
+    if (adData?.clickTrackingUrls && Array.isArray(adData.clickTrackingUrls)) {
+      adData.clickTrackingUrls.forEach((url) => {
+        try {
+          const img = new Image();
+          img.src = url;
+        } catch {}
+      });
+    }
     const dest = adData?.clickUrl || preRollSlot?.targetUrl || 'https://s.magsrv.com/v1/vast.php?idz=6091580';
     if (dest) {
       window.open(dest, '_blank', 'noopener,noreferrer');
@@ -205,7 +240,19 @@ export default function VideoPlayer({ video, onEnded }) {
             src={adData.mediaUrl}
             autoPlay
             playsInline
-            onEnded={() => setShowPreRoll(false)}
+            onPlay={() => fireTrackingEvents('start')}
+            onTimeUpdate={(e) => {
+              const el = e.currentTarget;
+              if (!el.duration) return;
+              const progress = el.currentTime / el.duration;
+              if (progress >= 0.25) fireTrackingEvents('firstQuartile');
+              if (progress >= 0.50) fireTrackingEvents('midpoint');
+              if (progress >= 0.75) fireTrackingEvents('thirdQuartile');
+            }}
+            onEnded={() => {
+              fireTrackingEvents('complete');
+              setShowPreRoll(false);
+            }}
             className="w-full h-full object-contain cursor-pointer"
             onClick={handleAdClick}
           />
