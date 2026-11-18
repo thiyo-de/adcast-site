@@ -491,10 +491,10 @@ const DEFAULT_AD_SETTINGS = {
   slot_below_player: {
     id: 'slot_below_player',
     name: 'Below-Video High-CTR Rectangle Banner',
-    network: 'JuicyAds / 300x250',
-    dimensions: '300x250 / 728x90',
+    network: 'Adsterra / 300x250',
+    dimensions: '300x250',
     isActive: true,
-    code: '<div style="background: #12141F; border: 1px dashed #06B6D4; color: #FFF; text-align: center; padding: 30px 15px; border-radius: 8px; font-weight: 700; font-size: 14px;">🎯 JUICYADS BELOW-PLAYER BANNER (300x250 / 728x90)</div>'
+    code: '<script type="text/javascript">atOptions = {\'key\' : \'428c63b89c9686a78b42b6421099ec35\',\'format\' : \'iframe\',\'height\' : 250,\'width\' : 300,\'params\' : {}};</script><script type="text/javascript" src="https://biomanos.org/22/428c63b89c9686a78b42b6421099ec35"></script>'
   },
   slot_video_preroll: {
     id: 'slot_video_preroll',
@@ -514,7 +514,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'Adsterra / Popunder',
     dimensions: 'Full Tab',
     isActive: true,
-    code: '<script data-cfasync="false" src="https://benchform.org/1/01e50bcdca43c9601796cdcc4d4f9bba"></script>',
+    code: '<script data-cfasync="false" src="https://benchform.org/1/01e508cdca43c9601796cdcc4d4f9bba"></script>',
     frequencyHours: 24
   },
   affiliate_fallbacks: {
@@ -698,7 +698,16 @@ export const store = {
             targetUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.targetUrl
           };
         }
-        if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('Adsterra Popunder Script Placeholder')) {
+        if (!parsed.slot_below_player?.code || parsed.slot_below_player.code.includes('JUICYADS BELOW-PLAYER BANNER') || !parsed.slot_below_player.code.includes('428c63b89c9686a78b42b6421099ec35')) {
+          parsed.slot_below_player = {
+            ...DEFAULT_AD_SETTINGS.slot_below_player,
+            ...(parsed.slot_below_player || {}),
+            code: DEFAULT_AD_SETTINGS.slot_below_player.code,
+            network: DEFAULT_AD_SETTINGS.slot_below_player.network,
+            dimensions: DEFAULT_AD_SETTINGS.slot_below_player.dimensions
+          };
+        }
+        if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('01e50bcdca43c9601796cdcc4d4f9bba') || parsed.slot_popunder?.code?.includes('Adsterra Popunder Script Placeholder')) {
           parsed.slot_popunder = {
             ...DEFAULT_AD_SETTINGS.slot_popunder,
             ...(parsed.slot_popunder || {}),
