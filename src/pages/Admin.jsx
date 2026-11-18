@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { store, parseToEmbedUrl, getThumbnailForUrl } from '../services/store';
-import { api, getSupabaseConfig, saveSupabaseConfig, getSupabaseClient } from '../services/supabase';
+import { api, auth, getSupabaseConfig, saveSupabaseConfig, getSupabaseClient } from '../services/supabase';
 
 export default function Admin({ onBack }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(store.isAdminLoggedIn());
+  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => store.isAdminLoggedIn());
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+  const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [authError, setAuthError] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authErrorMsg, setAuthErrorMsg] = useState(null);
+  const [authSuccessMsg, setAuthSuccessMsg] = useState(null);
   const [activeTab, setActiveTab] = useState('videos');
 
   // Video Management State
@@ -53,6 +58,37 @@ export default function Admin({ onBack }) {
   const [syncStatusMsg, setSyncStatusMsg] = useState(null);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Check active Supabase Auth session on mount
+    auth.getSession().then((session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setUser(session.user);
+        setIsLoggedIn(true);
+      } else if (store.isAdminLoggedIn()) {
+        setIsLoggedIn(true);
+      }
+    });
+
+    const subscription = auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setUser(session.user);
+        setIsLoggedIn(true);
+      } else if (!store.isAdminLoggedIn()) {
+        setUser(null);
+        setIsLoggedIn(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      if (subscription?.unsubscribe) subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (isLoggedIn) {
       loadData();
     }
@@ -65,23 +101,54 @@ export default function Admin({ onBack }) {
     setDeadVideos(deadList);
     const ads = await api.getAdSettings();
     setAdSettings(ads);
-    setDmcaList(store.getDMCARequests());
+    const dmcas = await api.getDMCARequests();
+    setDmcaList(dmcas);
     const sources = await api.getCrawlerSources();
     setCrawlerSources(sources);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (store.adminLogin(passwordInput)) {
-      setIsLoggedIn(true);
-      setAuthError(false);
-    } else {
-      setAuthError(true);
+    setAuthErrorMsg(null);
+    setAuthSuccessMsg(null);
+    setAuthLoading(true);
+
+    try {
+      const email = emailInput.trim();
+      if (email) {
+        if (authMode === 'signup') {
+          const res = await auth.signUp(email, passwordInput);
+          if (res?.session) {
+            setUser(res.user);
+            setIsLoggedIn(true);
+            setAuthSuccessMsg('Account created and authenticated!');
+          } else {
+            setAuthSuccessMsg('Account created! If email confirmation is enabled on your Supabase project, check your inbox to confirm, then sign in.');
+          }
+        } else {
+          const res = await auth.signIn(email, passwordInput);
+          setUser(res.user);
+          setIsLoggedIn(true);
+        }
+      } else {
+        // Fallback local PIN
+        if (store.adminLogin(passwordInput)) {
+          setUser(null);
+          setIsLoggedIn(true);
+        } else {
+          throw new Error('Invalid master password. For Supabase Cloud write access, provide your admin email and password.');
+        }
+      }
+    } catch (err) {
+      setAuthErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    store.adminLogout();
+  const handleLogout = async () => {
+    await auth.signOut();
+    setUser(null);
     setIsLoggedIn(false);
   };
 
@@ -274,9 +341,10 @@ export default function Admin({ onBack }) {
     }
   };
 
-  const handleResolveDMCA = (id) => {
-    store.resolveDMCARequest(id);
-    setDmcaList(store.getDMCARequests());
+  const handleResolveDMCA = async (id) => {
+    await api.resolveDMCARequest(id);
+    const updated = await api.getDMCARequests();
+    setDmcaList(updated);
   };
 
   // 1. Master Login Gate
@@ -286,41 +354,107 @@ export default function Admin({ onBack }) {
         <div className="w-full max-w-md p-8 rounded-3xl glass-panel shadow-2xl">
           <div className="text-center mb-6">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
-              <i className="ri-lock-2-fill not-italic text-3xl"></i>
+              <i className="ri-shield-keyhole-fill not-italic text-3xl"></i>
             </div>
             <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">HornyLeaks Admin</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Private Dashboard & Ad Network Engine
+              Private Dashboard & Database Management
             </p>
+          </div>
+
+          {/* Mode Switcher */}
+          <div className="flex rounded-2xl bg-slate-100 dark:bg-white/[0.04] p-1 mb-5 border border-slate-200 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setAuthErrorMsg(null);
+                setAuthSuccessMsg(null);
+              }}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                authMode === 'login'
+                  ? 'bg-rose-600 text-white shadow'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('signup');
+                setAuthErrorMsg(null);
+                setAuthSuccessMsg(null);
+              }}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                authMode === 'signup'
+                  ? 'bg-rose-600 text-white shadow'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Create Account
+            </button>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Master Security Password
+                Admin Email <span className="text-[10px] text-slate-400">(Required for Cloud RLS)</span>
+              </label>
+              <input
+                type="email"
+                autoFocus
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="admin@hornyleaks.site"
+                className="w-full px-4 py-3 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Password
               </label>
               <input
                 type="password"
                 required
-                autoFocus
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Enter admin password (default: admin123)"
+                placeholder="Enter password"
                 className="w-full px-4 py-3 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
               />
-              {authError && (
-                <p className="text-xs text-rose-500 mt-1.5 font-semibold flex items-center gap-1">
-                  <i className="ri-error-warning-fill not-italic text-sm"></i> Incorrect password. Try: admin123
-                </p>
-              )}
             </div>
+
+            {authErrorMsg && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-xs text-rose-500 flex items-start gap-2">
+                <i className="ri-error-warning-fill not-italic text-sm mt-0.5 shrink-0"></i>
+                <span>{authErrorMsg}</span>
+              </div>
+            )}
+
+            {authSuccessMsg && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs text-emerald-500 flex items-start gap-2">
+                <i className="ri-checkbox-circle-fill not-italic text-sm mt-0.5 shrink-0"></i>
+                <span>{authSuccessMsg}</span>
+              </div>
+            )}
 
             <button
               type="submit"
-              className="w-full py-3 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer"
+              disabled={authLoading}
+              className="w-full py-3 rounded-full bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              Sign In to Dashboard
+              {authLoading && <i className="ri-loader-4-line not-italic animate-spin"></i>}
+              {authLoading
+                ? 'Authenticating...'
+                : authMode === 'signup'
+                ? 'Create Supabase Admin Account'
+                : 'Sign In to Dashboard'}
             </button>
+
+            <p className="text-[11px] text-center text-slate-400">
+              💡 Tip: Supabase Cloud authentication issues a secure JWT token required for cloud mutations and DMCA management.
+            </p>
 
             <button
               type="button"
@@ -347,9 +481,15 @@ export default function Admin({ onBack }) {
           <div>
             <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               HornyLeaks Administration
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
-                LIVE
-              </span>
+              {user ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
+                  AUTH: {user.email}
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-mono">
+                  LOCAL OFFLINE
+                </span>
+              )}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Manage video catalog, configure ad slots, and control database syncing.
@@ -366,12 +506,30 @@ export default function Admin({ onBack }) {
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white text-xs font-semibold border border-rose-500/20 transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white text-xs font-semibold border border-rose-500/20 transition-all cursor-pointer"
           >
             <i className="ri-logout-box-r-line not-italic text-sm"></i> Logout
           </button>
         </div>
       </div>
+
+      {/* Local Mode Notice Banner */}
+      {!user && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-2">
+            <i className="ri-shield-alert-line text-lg shrink-0"></i>
+            <span>
+              <strong>Local Mode Notice:</strong> You are signed in with local storage credentials. Supabase Cloud RLS requires authentication with your Supabase email & password for cloud writes.
+            </span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300 font-bold text-xs transition-all cursor-pointer"
+          >
+            Switch to Supabase Login
+          </button>
+        </div>
+      )}
 
       {/* Tabs Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-1 border-b border-slate-200/80 dark:border-white/[0.08]">

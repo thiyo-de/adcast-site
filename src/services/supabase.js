@@ -15,6 +15,7 @@ export const getSupabaseConfig = () => {
 export const saveSupabaseConfig = (url, anonKey) => {
   localStorage.setItem(STORAGE_KEY_URL, url || DEFAULT_SUPABASE_URL);
   localStorage.setItem(STORAGE_KEY_ANON, anonKey || '');
+  clientInstance = null;
 };
 
 let clientInstance = null;
@@ -26,6 +27,74 @@ export const getSupabaseClient = () => {
     clientInstance = createClient(url, anonKey);
   }
   return clientInstance;
+};
+
+// Supabase Authentication Service (C01)
+export const auth = {
+  async getSession() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return null;
+      return data?.session || null;
+    } catch {
+      return null;
+    }
+  },
+
+  async getUser() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) return null;
+      return data?.user || null;
+    } catch {
+      return null;
+    }
+  },
+
+  async signIn(email, password) {
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new Error('Supabase client is not configured.');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async signUp(email, password) {
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new Error('Supabase client is not configured.');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async signOut() {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Supabase sign out error:', err);
+      }
+    }
+    store.adminLogout();
+  },
+
+  onAuthStateChange(callback) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return { unsubscribe: () => {} };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+    return subscription;
+  }
 };
 
 // Unified Data Access API
@@ -193,9 +262,42 @@ export const api = {
     if (supabase) {
       try {
         await supabase.from('takedown_requests').insert([req]);
-      } catch (err) {}
+      } catch (err) {
+        console.error('Supabase submit takedown error:', err);
+      }
     }
     return local;
+  },
+
+  async getDMCARequests() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return store.getDMCARequests();
+    try {
+      const { data, error } = await supabase
+        .from('takedown_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error || !data) return store.getDMCARequests();
+      return data;
+    } catch (err) {
+      console.warn('Failed to fetch cloud takedowns, using local store:', err);
+      return store.getDMCARequests();
+    }
+  },
+
+  async resolveDMCARequest(id) {
+    store.resolveDMCARequest(id);
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase
+          .from('takedown_requests')
+          .update({ status: 'resolved' })
+          .eq('id', id);
+      } catch (err) {
+        console.error('Error resolving DMCA request:', err);
+      }
+    }
   },
 
   // Crawler Sources Management
