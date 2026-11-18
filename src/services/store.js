@@ -510,12 +510,12 @@ const DEFAULT_AD_SETTINGS = {
   },
   slot_popunder: {
     id: 'slot_popunder',
-    name: 'Background Popunder (24h Capped)',
+    name: 'Background Popunder (1h Capped)',
     network: 'ExoClick / Popunder',
     dimensions: 'Full Tab',
     isActive: true,
-    code: '<!-- EXOCLICK TABUNDER (Popunder) -->',
-    frequencyHours: 24
+    code: '<!-- EXOCLICK TABUNDER (Zone 6093374 - 1h Capped) -->',
+    frequencyHours: 1
   },
   affiliate_fallbacks: {
     isEnabled: true,
