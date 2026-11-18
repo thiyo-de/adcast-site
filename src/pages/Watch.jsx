@@ -22,12 +22,14 @@ export default function Watch({
       if (fromProps) return fromProps;
       const fromStore = store.getVideoById(videoId);
       if (fromStore) return fromStore;
+      return null;
     }
     // 2. Fallback to first available video if no ID provided
     const fallbackList = allVideos.length > 0 ? allVideos : store.getVideos();
     return fallbackList[0] || null;
   });
 
+  const [notFound, setNotFound] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -38,6 +40,7 @@ export default function Watch({
 
   useEffect(() => {
     let isMounted = true;
+    setNotFound(false);
 
     const resolveVideo = async () => {
       // 1. Check in-memory props
@@ -55,18 +58,23 @@ export default function Watch({
         } catch (err) {}
       }
 
-      // 4. Safe fallback to first available stream
-      if (!found) {
+      // 4. Fallback to first available stream ONLY if no ID was provided
+      if (!found && !videoId) {
         const fallbackList = allVideos.length > 0 ? allVideos : store.getVideos();
         found = fallbackList[0] || null;
       }
 
-      if (isMounted && found) {
-        setVideo(found);
-        setLikeCount(found.likes || 0);
-        setIsLiked(store.isLiked(found.id));
-        store.incrementViews(found.id);
-        updateVideoSEO(found);
+      if (isMounted) {
+        if (found) {
+          setVideo(found);
+          setLikeCount(found.likes || 0);
+          setIsLiked(store.isLiked(found.id));
+          store.incrementViews(found.id);
+          updateVideoSEO(found);
+        } else {
+          setVideo(null);
+          setNotFound(true);
+        }
       }
     };
 
@@ -95,13 +103,34 @@ export default function Watch({
 
   const handleShare = () => {
     try {
-      navigator.clipboard.writeText(window.location.href);
+      const shareUrl = video?.id ? `${window.location.origin}/watch/${video.id}` : window.location.href;
+      navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (e) {
       alert('Link copied to clipboard!');
     }
   };
+
+  if (notFound) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
+          <i className="ri-error-warning-line not-italic text-3xl"></i>
+        </div>
+        <h2 className="text-xl font-bold text-slate-100">Stream Unavailable or Removed</h2>
+        <p className="text-xs text-slate-400 max-w-md mx-auto">
+          The requested video stream could not be found or may have been removed following a compliance review.
+        </p>
+        <button
+          onClick={onBack}
+          className="mt-4 min-h-[44px] px-6 py-2 rounded-full glass-button text-xs font-bold"
+        >
+          Return to Browse
+        </button>
+      </div>
+    );
+  }
 
   if (!video) {
     return (

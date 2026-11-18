@@ -11,14 +11,70 @@ import Legal from './pages/Legal';
 import { store } from './services/store';
 import { api } from './services/supabase';
 
+function parseRoute(pathname = window.location.pathname) {
+  if (pathname.startsWith('/watch/')) {
+    const id = pathname.replace('/watch/', '').split('/')[0].trim();
+    return { view: 'watch', videoId: id || null };
+  }
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return { view: 'admin', videoId: null };
+  }
+  if (pathname === '/dmca' || pathname.startsWith('/dmca/')) {
+    return { view: 'dmca', videoId: null };
+  }
+  if (pathname === '/terms' || pathname.startsWith('/terms/')) {
+    return { view: 'terms', videoId: null };
+  }
+  if (pathname === '/privacy' || pathname.startsWith('/privacy/')) {
+    return { view: 'privacy', videoId: null };
+  }
+  return { view: 'home', videoId: null };
+}
+
 export default function App() {
-  const [currentView, setCurrentView] = useState('home');
-  const [selectedVideoId, setSelectedVideoId] = useState(null);
+  const [routeState, setRouteState] = useState(() => parseRoute());
+  const currentView = routeState.view;
+  const selectedVideoId = routeState.videoId;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [videos, setVideos] = useState([]);
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isDevMode, setIsDevMode] = useState(store.isDevMode());
+
+  const navigate = (view, videoId = null, replace = false) => {
+    let path = '/';
+    if (view === 'watch' && videoId) {
+      path = `/watch/${encodeURIComponent(videoId)}`;
+    } else if (view === 'admin') {
+      path = '/admin';
+    } else if (view === 'dmca') {
+      path = '/dmca';
+    } else if (view === 'terms') {
+      path = '/terms';
+    } else if (view === 'privacy') {
+      path = '/privacy';
+    }
+
+    if (window.location.pathname !== path) {
+      if (replace) {
+        window.history.replaceState({ view, videoId }, '', path);
+      } else {
+        window.history.pushState({ view, videoId }, '', path);
+      }
+    }
+
+    setRouteState({ view, videoId });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRouteState(parseRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Dual Theme State (Dark / Light with System Preference Detection)
   const [theme, setTheme] = useState(() => {
@@ -76,8 +132,7 @@ export default function App() {
   };
 
   const handleSelectVideo = (id) => {
-    setSelectedVideoId(id);
-    setCurrentView('watch');
+    navigate('watch', id);
   };
 
   const handleBookmarkToggle = (id) => {
@@ -102,11 +157,8 @@ export default function App() {
         onSearchChange={setSearchQuery}
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         bookmarkCount={bookmarks.length}
-        onNavigateHome={() => {
-          setSelectedVideoId(null);
-          setCurrentView('home');
-        }}
-        onNavigateAdmin={() => setCurrentView('admin')}
+        onNavigateHome={() => navigate('home')}
+        onNavigateAdmin={() => navigate('admin')}
         isDevMode={isDevMode}
         onToggleDevMode={handleToggleDevMode}
         theme={theme}
@@ -132,34 +184,31 @@ export default function App() {
           <Watch
             videoId={selectedVideoId}
             allVideos={videos}
-            onBack={() => setCurrentView('home')}
+            onBack={() => navigate('home')}
             onSelectVideo={handleSelectVideo}
             isBookmarked={(id) => bookmarks.includes(id)}
             onBookmarkToggle={handleBookmarkToggle}
-            onOpenDMCA={(vidId) => {
-              setSelectedVideoId(vidId);
-              setCurrentView('dmca');
-            }}
+            onOpenDMCA={(vidId) => navigate('dmca', vidId)}
           />
         )}
 
         {currentView === 'admin' && (
           <Admin onBack={() => {
             loadVideos();
-            setCurrentView('home');
+            navigate('home');
           }} />
         )}
 
         {currentView === 'dmca' && (
-          <DMCA initialVideoId={selectedVideoId} onBack={() => setCurrentView('home')} />
+          <DMCA initialVideoId={selectedVideoId} onBack={() => navigate('home')} />
         )}
 
         {currentView === 'terms' && (
-          <Legal defaultTab="terms" onBack={() => setCurrentView('home')} />
+          <Legal defaultTab="terms" onBack={() => navigate('home')} />
         )}
 
         {currentView === 'privacy' && (
-          <Legal defaultTab="privacy" onBack={() => setCurrentView('home')} />
+          <Legal defaultTab="privacy" onBack={() => navigate('home')} />
         )}
       </main>
 
@@ -192,7 +241,7 @@ export default function App() {
           {/* Legal Links */}
           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold">
             <button
-              onClick={() => setCurrentView('dmca')}
+              onClick={() => navigate('dmca')}
               className="hover:text-rose-500 transition-colors flex items-center gap-1"
             >
               <i className="ri-shield-check-fill not-italic text-rose-500 text-sm"></i>
@@ -200,21 +249,21 @@ export default function App() {
             </button>
             <span>•</span>
             <button
-              onClick={() => setCurrentView('terms')}
+              onClick={() => navigate('terms')}
               className="hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               Terms of Service
             </button>
             <span>•</span>
             <button
-              onClick={() => setCurrentView('privacy')}
+              onClick={() => navigate('privacy')}
               className="hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               Privacy Policy
             </button>
             <span>•</span>
             <button
-              onClick={() => setCurrentView('admin')}
+              onClick={() => navigate('admin')}
               className="text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1"
             >
               <i className="ri-lock-line not-italic text-sm"></i> Admin
