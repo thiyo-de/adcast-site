@@ -478,7 +478,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick / Native',
     dimensions: 'Card size',
     isActive: true,
-    code: '<div style="background: #1A1D2D; border: 1px solid #E11D48; border-radius: 12px; padding: 16px; height: 100%; display: flex; flex-direction: column; justify-content: space-between;"><div style="color: #E11D48; font-size: 11px; font-weight: 800; text-transform: uppercase;">✦ SPONSORED CONTENT</div><div style="font-weight: 700; color: #FFF; font-size: 15px; margin: 12px 0;">ExoClick Native Recommendations</div><div style="color: #94A3B8; font-size: 12px;">ExoClick Native Card Slot</div><button style="background: #E11D48; color: #FFF; border: none; padding: 8px 14px; border-radius: 9999px; font-weight: 700; font-size: 12px; margin-top: 12px; cursor: pointer;">Learn More</button></div>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e20" data-zoneid="6093504"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_sticky_footer: {
     id: 'slot_sticky_footer',
@@ -689,6 +689,9 @@ export const store = {
         const parsed = JSON.parse(data);
         if (!parsed.slot_top_banner?.code || !parsed.slot_top_banner.code.includes('6093488')) {
           parsed.slot_top_banner = DEFAULT_AD_SETTINGS.slot_top_banner;
+        }
+        if (!parsed.slot_native_feed?.code || !parsed.slot_native_feed.code.includes('6093504')) {
+          parsed.slot_native_feed = DEFAULT_AD_SETTINGS.slot_native_feed;
         }
         if (!parsed.slot_sticky_footer?.code || !parsed.slot_sticky_footer.code.includes('6093426')) {
           parsed.slot_sticky_footer = DEFAULT_AD_SETTINGS.slot_sticky_footer;

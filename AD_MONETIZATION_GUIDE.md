@@ -13,7 +13,7 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 | **1** | `slot_video_preroll` | Inside Video Player (Watch Page) | **ExoClick** | In-Stream Video (VAST 3.0 Linear) | **$2.00 – $8.00+** | 🥇 **Highest revenue.** Largest advertiser pool for video pre-rolls with maximum fill rate and top bids. *(Active Now: Zone `6093414`)* |
 | **2** | `slot_popunder` | Global Background Tab (1st Click) | **ExoClick** | Popunder (Capped 1 / 1h) | **$1.50 – $5.00+** | 🥈 **Pure passive income.** Global CPMs, instant automated trigger, and anti-adblock script. *(Active Now: Zone `6093374`)* |
 | **3** | `slot_sticky_footer` | Pinned Screen Bottom (Global) | **ExoClick** | Sticky Banner (728x90 / 300x50) | **$1.50 – $3.50** | 🥉 **100% Viewability.** Stays visible while users scroll; 30s auto-refresh generates ~20 impressions per 10m video. *(Active Now: Zone `6093426`)* |
-| **4** | `slot_native_feed` | Inside Video Catalog Grid | **JuicyAds / ExoClick** | Native Recommendation Widget | Dynamic / CPC | 🎯 **Highest CTR.** Blends seamlessly with video thumbnails; visitors click thinking it's another related video. |
+| **4** | `slot_native_feed` | Inside Video Catalog Grid | **ExoClick** | Native Recommendation Widget (1x1) | Dynamic / CPC | 🎯 **Highest CTR.** Blends seamlessly with video thumbnails; visitors click thinking it's another related video. *(Active Now: Zone `6093504`)* |
 | **5** | `slot_below_player` | Directly Under Video Player | **ExoClick** | 300x250 Medium Rectangle | Dynamic / Flat Rate | High-converting rectangle directly under the player. *(Active Now: Zone `6093362`)* |
 | **6** | `slot_top_banner` | Below Header & Tabs | **ExoClick** | 728x90 Leaderboard | **$1.50 – $4.00+** | Prime top-of-page desktop visibility right under category navigation. *(Active Now: Zone `6093488`)* |
 
@@ -35,8 +35,9 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 
 ## 3. Step-by-Step Network Rollout Plan
 
-### Phase 1: Start with ExoClick Today
+### Phase 1: 100% Unified ExoClick Network
 1. **ExoClick** (Verified & Active: Site ID `1120332` on `hornyleaks.site`)
+   - Native In-Feed Widget 1x1 (`Zone 6093504`)
    - Top Leaderboard 728x90 (`Zone 6093488`)
    - Sticky Bottom Banner (`Zone 6093426`)
    - Below-Player 300x250 Banner (`Zone 6093362`)
