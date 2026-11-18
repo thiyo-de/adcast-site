@@ -15,7 +15,10 @@ export default function PopunderTrigger() {
       return;
     }
 
-    // 2. Inject script into head so its click handler is ready
+    // Skip dynamic injection if already loaded in index.html head
+    if (document.querySelector('script[src*="benchform.org"]')) {
+      return;
+    }
     try {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = slot.code;
