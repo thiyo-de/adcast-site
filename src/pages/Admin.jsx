@@ -929,11 +929,9 @@ export default function Admin({ onBack }) {
                     className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
                   >
                     <option value="Trending" className="bg-white dark:bg-[#0F111A]">Trending</option>
-                    <option value="Featured" className="bg-white dark:bg-[#0F111A]">Featured</option>
-                    <option value="Action" className="bg-white dark:bg-[#0F111A]">Action</option>
-                    <option value="Cinematic" className="bg-white dark:bg-[#0F111A]">Cinematic</option>
-                    <option value="Tutorials" className="bg-white dark:bg-[#0F111A]">Tutorials</option>
-                    <option value="Music" className="bg-white dark:bg-[#0F111A]">Music</option>
+                    <option value="Creator Leaks" className="bg-white dark:bg-[#0F111A]">Creator Leaks</option>
+                    <option value="Amateur" className="bg-white dark:bg-[#0F111A]">Amateur</option>
+                    <option value="Hardcore" className="bg-white dark:bg-[#0F111A]">Hardcore</option>
                   </select>
                 </div>
 

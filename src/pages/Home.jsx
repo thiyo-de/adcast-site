@@ -23,17 +23,37 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
     setHistory(store.getHistory());
   }, []);
 
-  // Derive categories dynamically from actual published records (UX02)
-  const categories = React.useMemo(() => {
-    const set = new Set();
-    (videos || []).forEach((v) => {
-      if (v.category && typeof v.category === 'string' && v.category.trim()) {
-        set.add(v.category.trim());
-      }
+  // 4 Core High-Demand Categories Taxonomy
+  const CORE_CATEGORIES = React.useMemo(() => [
+    { id: 'All', label: 'All Streams', icon: 'ri-apps-2-line', color: 'text-rose-500' },
+    { id: 'Trending', label: 'Trending', icon: 'ri-fire-fill', color: 'text-amber-500' },
+    { id: 'Creator Leaks', label: 'Creator Leaks', icon: 'ri-shield-star-fill', color: 'text-rose-400' },
+    { id: 'Amateur', label: 'Amateur', icon: 'ri-camera-lens-fill', color: 'text-cyan-400' },
+    { id: 'Hardcore', label: 'Hardcore', icon: 'ri-flashlight-fill', color: 'text-purple-400' },
+  ], []);
+
+  const CATEGORY_TAG_MAP = React.useMemo(() => ({
+    'Creator Leaks': ['onlyfans', 'fansly', 'leak', 'vip', 'stripper', 'patreon', 'model', 'featured'],
+    'Amateur': ['amateur', 'pov', 'homemade', 'couple', 'bedroom', 'ex-girlfriend', 'ex!'],
+    'Hardcore': ['threesome', 'creampie', 'bbc', 'bdsm', 'facial', 'asshole', 'cum', 'anal', 'rough', 'action'],
+    'Trending': ['trending', 'viral', 'hot', 'featured'],
+  }), []);
+
+  // Compute dynamic real-time counts across current catalog (auto-scales with future videos)
+  const categoryCounts = React.useMemo(() => {
+    const counts = { All: (videos || []).length };
+    CORE_CATEGORIES.forEach((cat) => {
+      if (cat.id === 'All') return;
+      const matching = (videos || []).filter((v) => {
+        if (!v) return false;
+        if (v.category === cat.id) return true;
+        const tagKeywords = CATEGORY_TAG_MAP[cat.id] || [];
+        return Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && tagKeywords.includes(t.toLowerCase()));
+      });
+      counts[cat.id] = matching.length;
     });
-    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b));
-    return ['All', ...sorted];
-  }, [videos]);
+    return counts;
+  }, [videos, CORE_CATEGORIES, CATEGORY_TAG_MAP]);
 
   const handleClearHistory = (e) => {
     e.stopPropagation();
@@ -47,10 +67,19 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
     setHistory(updated);
   };
 
-  // Filter and Sort Videos
+  // Filter and Sort Videos (Dual-Match on category and tags)
   const q = (searchQuery || '').trim().toLowerCase();
   let processedVideos = (videos || []).filter((v) => {
-    const matchesCategory = selectedCategory === 'All' || v.category === selectedCategory;
+    let matchesCategory = selectedCategory === 'All';
+    if (!matchesCategory) {
+      if (v.category === selectedCategory) {
+        matchesCategory = true;
+      } else {
+        const tagKeywords = CATEGORY_TAG_MAP[selectedCategory] || [];
+        matchesCategory = Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && tagKeywords.includes(t.toLowerCase()));
+      }
+    }
+
     const matchesSearch =
       !q ||
       (v.title && v.title.toLowerCase().includes(q)) ||
@@ -76,26 +105,36 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-      {/* 1. Category Pill Row (Glassmorphic & Momentum Touch Scrolling) */}
+      {/* 1. Category Pill Row (4 Core Categories + All with Real-Time Badges) */}
       <div
         className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {categories.map((cat) => {
-          const isSelected = selectedCategory === cat;
+        {CORE_CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat.id;
+          const count = categoryCounts[cat.id] ?? 0;
+
           return (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`min-h-[44px] px-4 py-2.5 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-all duration-200 ${
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`min-h-[44px] px-3.5 sm:px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-all duration-200 flex items-center gap-2 ${
                 isSelected
-                  ? 'bg-rose-600 text-white shadow-sm scale-105'
-                  : 'glass-button'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                  : 'glass-button text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {cat === 'Trending' && <i className="ri-fire-fill mr-1 text-xs"></i>}
-              {cat === 'Featured' && <i className="ri-sparkling-fill mr-1 text-xs"></i>}
-              {cat}
+              <i className={`${cat.icon} not-italic text-sm ${isSelected ? 'text-white' : cat.color}`}></i>
+              <span>{cat.label}</span>
+              <span
+                className={`text-[10px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
+                  isSelected
+                    ? 'bg-black/25 text-white'
+                    : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {count}
+              </span>
             </button>
           );
         })}

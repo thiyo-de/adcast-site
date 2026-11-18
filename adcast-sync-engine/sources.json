@@ -13,7 +13,7 @@
     "type": "hornyleak",
     "url": "https://www.hornyleak.tv/most-popular/",
     "enabled": true,
-    "category": "Featured"
+    "category": "Creator Leaks"
   },
   {
     "id": "hornyleak-top-rated",
@@ -21,6 +21,6 @@
     "type": "hornyleak",
     "url": "https://www.hornyleak.tv/top-rated/",
     "enabled": true,
-    "category": "Action"
+    "category": "Hardcore"
   }
 ]

@@ -381,12 +381,23 @@ export default function Watch({
 
             {/* Recommendation Order Tabs (YouTube/Twitch-Style) */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: 'smart', label: 'All Related', icon: 'ri-magic-line' },
-                { id: 'views', label: 'Most Viewed', icon: 'ri-fire-fill' },
-                { id: 'category', label: video.category || 'Category', icon: 'ri-folder-line' },
-                { id: 'newest', label: 'Newest', icon: 'ri-flashlight-line' }
-              ].map((tab) => {
+              {(() => {
+                const categoryIcon =
+                  video.category === 'Hardcore'
+                    ? 'ri-flashlight-fill'
+                    : video.category === 'Creator Leaks'
+                    ? 'ri-shield-star-fill'
+                    : video.category === 'Amateur'
+                    ? 'ri-camera-lens-fill'
+                    : 'ri-fire-fill';
+
+                return [
+                  { id: 'smart', label: 'All Related', icon: 'ri-magic-line' },
+                  { id: 'views', label: 'Most Viewed', icon: 'ri-fire-fill' },
+                  { id: 'category', label: `More in ${video.category || 'Category'}`, icon: categoryIcon },
+                  { id: 'newest', label: 'Newest', icon: 'ri-flashlight-line' }
+                ];
+              })().map((tab) => {
                 const isActive = recommendationMode === tab.id;
                 return (
                   <button

@@ -78,19 +78,39 @@ function randomBetween(min, max) {
 }
 
 /**
+ * Automated 4-Category Classifier for Incoming Video Streams
+ */
+export function classifyAdultCategory(title = '', tags = [], fallback = 'Creator Leaks') {
+  const text = `${title} ${(tags || []).join(' ')}`.toLowerCase();
+
+  // 1. Hardcore
+  if (/threesome|creampie|bbc|bdsm|facial|asshole|pounded|smashed|banged|anal|gangbang|deepthroat|rough|orgy|cum/i.test(text)) {
+    return 'Hardcore';
+  }
+
+  // 2. Amateur
+  if (/bedroom|ex-|ex!|cheating|best friend|vacation|missionary|teasing|college|alone|real life|homemade|couple|pov/i.test(text)) {
+    return 'Amateur';
+  }
+
+  // 3. Trending
+  if (/trending|viral|top rated|hottest|must watch/i.test(text)) {
+    return 'Trending';
+  }
+
+  // 4. Default / Creator Leaks
+  return fallback && ['Trending', 'Creator Leaks', 'Amateur', 'Hardcore'].includes(fallback)
+    ? fallback
+    : 'Creator Leaks';
+}
+
+/**
  * Normalize complete video record strictly matching public.videos schema:
  * Columns: id, title, embed_url, thumbnail_url, duration, category, tags, views, likes, is_featured, created_at
  */
 export function normalizeVideo(raw) {
   const cleanTitle = sanitizeText(raw.title || 'Untitled Stream');
   const duration = normalizeDuration(raw.duration || raw.length_sec);
-
-  // Category normalization
-  let category = raw.category || 'Trending';
-  if (typeof category === 'string') {
-    category = category.trim();
-    if (!category) category = 'Trending';
-  }
 
   // Tags normalization
   let tags = [];
@@ -104,6 +124,9 @@ export function normalizeVideo(raw) {
   if (tags.length === 0) {
     tags = ['trending', 'hot', 'stream'];
   }
+
+  // Automated 4-Category Classifier
+  const category = classifyAdultCategory(cleanTitle, tags, raw.category);
 
   // Default fallback thumbnail if missing
   const thumbnail_url = raw.thumbnail_url || raw.thumb || 
