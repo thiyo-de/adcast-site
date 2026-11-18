@@ -33,6 +33,10 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     const isPlaceholder =
       !slot.code ||
       slot.code.includes('Replace in Admin Panel') ||
+      slot.code.includes('EXOCLICK BELOW-PLAYER BANNER') ||
+      slot.code.includes('EXOCLICK TOP LEADERBOARD') ||
+      slot.code.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
+      slot.code.includes('EXOCLICK TABUNDER') ||
       slot.code.includes('JUICYADS BELOW-PLAYER BANNER') ||
       slot.code.includes('EXOCLICK STICKY BOTTOM BANNER') ||
       slot.code.includes('Adsterra Popunder Script Placeholder');

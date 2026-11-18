@@ -462,23 +462,23 @@ const SEED_VIDEOS = [
   }
 ];
 
-// 6 Core Ad Slots Setup
+// 6 Core Ad Slots Setup (100% ExoClick Dedicated)
 const DEFAULT_AD_SETTINGS = {
   slot_top_banner: {
     id: 'slot_top_banner',
-    name: 'Top Leaderboard Banner (728x90 / 300x100)',
-    network: 'TrafficFactory / Display',
+    name: 'Top Leaderboard Banner (728x90)',
+    network: 'ExoClick / 728x90',
     dimensions: '728x90',
     isActive: true,
-    code: '<div style="background: linear-gradient(90deg, #1A1D2D, #222638); border: 1px dashed #E11D48; color: #F8FAFC; text-align: center; padding: 22px 10px; font-weight: 700; font-size: 14px; border-radius: 8px; letter-spacing: 0.5px;">⚡ TRAFFICFACTORY / TOP BANNER AD (728x90) — Replace in Admin Panel</div>'
+    code: '<div style="background: linear-gradient(90deg, #1A1D2D, #222638); border: 1px dashed #E11D48; color: #F8FAFC; text-align: center; padding: 22px 10px; font-weight: 700; font-size: 14px; border-radius: 8px; letter-spacing: 0.5px;">⚡ EXOCLICK TOP LEADERBOARD (728x90) — Replace in Admin Panel</div>'
   },
   slot_native_feed: {
     id: 'slot_native_feed',
     name: 'Native In-Feed Recommendation Card',
-    network: 'JuicyAds / Native',
+    network: 'ExoClick / Native',
     dimensions: 'Card size',
     isActive: true,
-    code: '<div style="background: #1A1D2D; border: 1px solid #E11D48; border-radius: 12px; padding: 16px; height: 100%; display: flex; flex-direction: column; justify-content: space-between;"><div style="color: #E11D48; font-size: 11px; font-weight: 800; text-transform: uppercase;">✦ SPONSORED CONTENT</div><div style="font-weight: 700; color: #FFF; font-size: 15px; margin: 12px 0;">Exclusive Premium Offers Available Now</div><div style="color: #94A3B8; font-size: 12px;">JuicyAds Native Card Slot</div><button style="background: #E11D48; color: #FFF; border: none; padding: 8px 14px; border-radius: 9999px; font-weight: 700; font-size: 12px; margin-top: 12px; cursor: pointer;">Learn More</button></div>'
+    code: '<div style="background: #1A1D2D; border: 1px solid #E11D48; border-radius: 12px; padding: 16px; height: 100%; display: flex; flex-direction: column; justify-content: space-between;"><div style="color: #E11D48; font-size: 11px; font-weight: 800; text-transform: uppercase;">✦ SPONSORED CONTENT</div><div style="font-weight: 700; color: #FFF; font-size: 15px; margin: 12px 0;">ExoClick Native Recommendations</div><div style="color: #94A3B8; font-size: 12px;">ExoClick Native Card Slot</div><button style="background: #E11D48; color: #FFF; border: none; padding: 8px 14px; border-radius: 9999px; font-weight: 700; font-size: 12px; margin-top: 12px; cursor: pointer;">Learn More</button></div>'
   },
   slot_sticky_footer: {
     id: 'slot_sticky_footer',
@@ -491,10 +491,10 @@ const DEFAULT_AD_SETTINGS = {
   slot_below_player: {
     id: 'slot_below_player',
     name: 'Below-Video High-CTR Rectangle Banner',
-    network: 'Adsterra / 300x250',
+    network: 'ExoClick / 300x250',
     dimensions: '300x250',
     isActive: true,
-    code: '<script type="text/javascript">atOptions = {\'key\' : \'428c63b89c9686a78b42b6421099ec35\',\'format\' : \'iframe\',\'height\' : 250,\'width\' : 300,\'params\' : {}};</script><script type="text/javascript" src="https://biomanos.org/22/428c63b89c9686a78b42b6421099ec35"></script>'
+    code: '<div style="background: #12141F; border: 1px dashed #06B6D4; color: #FFF; text-align: center; padding: 30px 15px; border-radius: 8px; font-weight: 700; font-size: 14px;">🎯 EXOCLICK BELOW-PLAYER BANNER (300x250)</div>'
   },
   slot_video_preroll: {
     id: 'slot_video_preroll',
@@ -511,10 +511,10 @@ const DEFAULT_AD_SETTINGS = {
   slot_popunder: {
     id: 'slot_popunder',
     name: 'Background Popunder (24h Capped)',
-    network: 'Adsterra / Popunder',
+    network: 'ExoClick / Popunder',
     dimensions: 'Full Tab',
     isActive: true,
-    code: '<script data-cfasync="false" src="https://benchform.org/1/01e508cdca43c9601796cdcc4d4f9bba"></script>',
+    code: '<!-- EXOCLICK TABUNDER (Popunder) -->',
     frequencyHours: 24
   },
   affiliate_fallbacks: {
@@ -698,21 +698,11 @@ export const store = {
             targetUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.targetUrl
           };
         }
-        if (!parsed.slot_below_player?.code || parsed.slot_below_player.code.includes('JUICYADS BELOW-PLAYER BANNER') || !parsed.slot_below_player.code.includes('428c63b89c9686a78b42b6421099ec35')) {
-          parsed.slot_below_player = {
-            ...DEFAULT_AD_SETTINGS.slot_below_player,
-            ...(parsed.slot_below_player || {}),
-            code: DEFAULT_AD_SETTINGS.slot_below_player.code,
-            network: DEFAULT_AD_SETTINGS.slot_below_player.network,
-            dimensions: DEFAULT_AD_SETTINGS.slot_below_player.dimensions
-          };
+        if (!parsed.slot_below_player?.code || parsed.slot_below_player.code.includes('JUICYADS') || parsed.slot_below_player.code.includes('biomanos.org')) {
+          parsed.slot_below_player = DEFAULT_AD_SETTINGS.slot_below_player;
         }
-        if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('01e50bcdca43c9601796cdcc4d4f9bba') || parsed.slot_popunder?.code?.includes('Adsterra Popunder Script Placeholder')) {
-          parsed.slot_popunder = {
-            ...DEFAULT_AD_SETTINGS.slot_popunder,
-            ...(parsed.slot_popunder || {}),
-            code: DEFAULT_AD_SETTINGS.slot_popunder.code
-          };
+        if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('benchform.org') || parsed.slot_popunder?.code?.includes('Adsterra')) {
+          parsed.slot_popunder = DEFAULT_AD_SETTINGS.slot_popunder;
         }
         return {
           ...DEFAULT_AD_SETTINGS,

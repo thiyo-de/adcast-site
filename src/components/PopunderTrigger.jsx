@@ -11,12 +11,10 @@ export default function PopunderTrigger() {
       return;
     }
 
-    if (slot.code.includes('Adsterra Popunder Script Placeholder')) {
-      return;
-    }
-
-    // Skip dynamic injection if already loaded in index.html head
-    if (document.querySelector('script[src*="benchform.org"]')) {
+    if (
+      slot.code.includes('Adsterra Popunder Script Placeholder') ||
+      slot.code.includes('EXOCLICK TABUNDER')
+    ) {
       return;
     }
     try {
