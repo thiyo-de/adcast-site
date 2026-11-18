@@ -28,8 +28,8 @@ export default function Navbar({
           onClick={onNavigateHome}
           className="flex items-center gap-2.5 cursor-pointer group shrink-0"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-600 to-rose-500 flex items-center justify-center text-white shadow-md shadow-rose-600/20 group-hover:scale-105 transition-all">
-            <i className="ri-play-fill not-italic text-lg ml-0.5"></i>
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-rose-600/20 group-hover:scale-105 transition-all shrink-0">
+            <img src="/icon.svg" alt="HornyLeaks" className="w-full h-full object-cover" />
           </div>
           <div>
             <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center">
@@ -88,21 +88,6 @@ export default function Navbar({
             <span className="hidden sm:inline font-bold">{isDark ? 'Light' : 'Dark'}</span>
           </button>
 
-          {/* Dev Mode Layout Outlines Toggle (UX09) */}
-          <button
-            onClick={onToggleDevMode}
-            className={`hidden lg:flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full text-xs font-semibold border transition-all ${
-              isDevMode
-                ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-500 dark:text-cyan-400 shadow-sm'
-                : 'glass-button'
-            }`}
-            title="Toggle Visual Layout Outlines (Diagnostic)"
-            aria-label="Toggle visual layout outlines"
-          >
-            <i className="ri-layout-grid-line not-italic text-xs"></i>
-            <span>Outlines: {isDevMode ? 'ON' : 'OFF'}</span>
-          </button>
-
           {/* Saved / Bookmarks Drawer Toggle */}
           <button
             onClick={onOpenBookmarks}
@@ -117,16 +102,6 @@ export default function Navbar({
                 {bookmarkCount}
               </span>
             )}
-          </button>
-
-          {/* Discreet Panic Exit Button */}
-          <button
-            onClick={handlePanicExit}
-            className="min-h-[44px] px-3.5 py-2 rounded-full bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white dark:text-rose-400 text-xs font-bold transition-all border border-rose-500/20 active:scale-95 flex items-center justify-center gap-1"
-            title="Discreet 1-Click Panic Exit (Opens Google)"
-          >
-            <i className="ri-shut-down-line not-italic text-xs"></i>
-            <span className="hidden sm:inline">Quick Exit</span>
           </button>
 
           {/* Admin Dashboard Button */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import VideoPlayer from '../components/VideoPlayer';
+import VideoCard from '../components/VideoCard';
 import AdSlot from '../components/AdSlot';
 import { store, FALLBACK_THUMB } from '../services/store';
 import { api } from '../services/supabase';
@@ -416,78 +417,16 @@ export default function Watch({
                 </button>
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {relatedVideos.map((item, idx) => {
-                  const isSameCategory = item.category === video.category;
-                  const formattedViews =
-                    item.views >= 1000000
-                      ? (item.views / 1000000).toFixed(1) + 'M'
-                      : item.views >= 1000
-                      ? (item.views / 1000).toFixed(1) + 'K'
-                      : (item.views || 0).toString();
-
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => onSelectVideo(item.id)}
-                      className="flex gap-3 p-2.5 rounded-2xl glass-card cursor-pointer group hover:-translate-y-0.5 transition-all duration-200"
-                    >
-                      {/* Thumbnail Container */}
-                      <div className="relative w-32 sm:w-36 aspect-video rounded-xl overflow-hidden bg-slate-950 shrink-0">
-                        <img
-                          src={item.thumbnail_url}
-                          alt={item.title}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = FALLBACK_THUMB;
-                          }}
-                          className="w-full h-full object-cover filter blur-[10px] scale-110 opacity-25 transition-all duration-300"
-                        />
-                        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm pointer-events-none" />
-
-                        {/* Rank Badge for Top 3 Most Viewed */}
-                        {recommendationMode === 'views' && idx < 3 && (
-                          <span className={`absolute top-1 left-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-md ${
-                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : 'bg-amber-700'
-                          }`}>
-                            {idx + 1}
-                          </span>
-                        )}
-
-                        <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/85 backdrop-blur-sm text-[10px] font-mono font-bold text-white border border-white/10">
-                          {item.duration || 'HD'}
-                        </span>
-                      </div>
-
-                      {/* Video Info */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                        <div>
-                          {isSameCategory && recommendationMode === 'smart' && (
-                            <span className="inline-block text-[9px] font-extrabold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
-                              {item.category}
-                            </span>
-                          )}
-                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors">
-                            {item.title}
-                          </h4>
-                        </div>
-
-                        <div className="text-[11px] text-slate-400 flex items-center gap-2 pt-1">
-                          <span className="text-emerald-500 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-                            <i className="ri-thumb-up-fill not-italic text-[10px]"></i>
-                            {item.rating || 97}%
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-0.5 text-slate-600 dark:text-slate-300 font-semibold">
-                            <i className="ri-eye-line not-italic text-[11px] text-cyan-500"></i>
-                            {formattedViews}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+                {relatedVideos.map((item) => (
+                  <VideoCard
+                    key={item.id}
+                    video={item}
+                    onSelect={onSelectVideo}
+                    onBookmarkToggle={onBookmarkToggle}
+                    isBookmarked={typeof isBookmarked === 'function' ? isBookmarked(item.id) : false}
+                  />
+                ))}
               </div>
             )}
           </div>

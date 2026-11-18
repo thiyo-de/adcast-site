@@ -4,10 +4,18 @@ import AdSlot from '../components/AdSlot';
 import { store, parseDurationToSeconds } from '../services/store';
 import { resetDefaultSEO } from '../utils/seo';
 
+const SORT_OPTIONS = [
+  { id: 'newest', label: 'Newest Uploads', icon: 'ri-flashlight-line' },
+  { id: 'trending', label: 'Trending', icon: 'ri-fire-line' },
+  { id: 'top_rated', label: 'Top Rated', icon: 'ri-star-line' },
+  { id: 'views', label: 'Most Viewed', icon: 'ri-eye-line' }
+];
+
 export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isBookmarked, searchQuery, onClearSearch }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [durationFilter, setDurationFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const [history, setHistory] = useState(() => store.getHistory());
 
   useEffect(() => {
@@ -198,21 +206,61 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
           ))}
         </div>
 
-        {/* Sorting Dropdown */}
-        <div className="flex items-center gap-1.5 ml-auto">
-          <span className="text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
-            <i className="ri-equalizer-line not-italic text-sm"></i> Sort:
-          </span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="px-3 py-1.5 bg-slate-100/90 dark:bg-white/[0.05] border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-rose-500 cursor-pointer dark:[color-scheme:dark]"
-          >
-            <option value="trending" className="bg-white dark:bg-[#0F111A] text-slate-800 dark:text-slate-200">Trending 🔥</option>
-            <option value="top_rated" className="bg-white dark:bg-[#0F111A] text-slate-800 dark:text-slate-200">Top Rated ⭐</option>
-            <option value="views" className="bg-white dark:bg-[#0F111A] text-slate-800 dark:text-slate-200">Most Viewed 👁</option>
-            <option value="newest" className="bg-white dark:bg-[#0F111A] text-slate-800 dark:text-slate-200">Newest Uploads ⚡</option>
-          </select>
+        {/* Custom Glassmorphic Sorting Dropdown (No emojis, CDN icons only - UX01) */}
+        <div className="relative ml-auto">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
+              <i className="ri-equalizer-line not-italic text-sm"></i> Sort:
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsSortOpen(!isSortOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100/90 dark:bg-white/[0.05] hover:bg-slate-200/90 dark:hover:bg-white/[0.1] border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 transition-all active:scale-95 cursor-pointer shadow-sm"
+              aria-expanded={isSortOpen}
+            >
+              <i className={`${SORT_OPTIONS.find((o) => o.id === sortBy)?.icon || 'ri-flashlight-line'} not-italic text-rose-500 text-xs`}></i>
+              <span>{SORT_OPTIONS.find((o) => o.id === sortBy)?.label || 'Newest'}</span>
+              <i className={`ri-arrow-down-s-line not-italic text-slate-400 transition-transform duration-200 ${isSortOpen ? 'rotate-180 text-rose-500' : ''}`}></i>
+            </button>
+          </div>
+
+          {/* Floating Dropdown Popover */}
+          {isSortOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setIsSortOpen(false)}
+              />
+              <div className="absolute right-0 mt-2 w-48 py-1.5 rounded-2xl bg-white/95 dark:bg-[#0F111A]/95 backdrop-blur-2xl border border-slate-200 dark:border-white/10 shadow-2xl z-40 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+                {SORT_OPTIONS.map((opt) => {
+                  const isSelected = sortBy === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setSortBy(opt.id);
+                        setIsSortOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-bold transition-all text-left ${
+                        isSelected
+                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <i className={`${opt.icon} not-italic text-sm ${isSelected ? 'text-rose-500' : 'text-slate-400'}`}></i>
+                        <span>{opt.label}</span>
+                      </div>
+                      {isSelected && (
+                        <i className="ri-check-line not-italic text-rose-500 text-sm"></i>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -261,8 +309,46 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="col-span-1 self-start rounded-2xl glass-card overflow-hidden">
-                    <AdSlot slotId="slot_native_feed" className="w-full" />
+                  <div className="group relative flex flex-col rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl col-span-1 self-start">
+                    {/* 1. Thumbnail Container (16:9) framing the ad creative */}
+                    <div className="relative aspect-video w-full overflow-hidden bg-slate-950 flex items-center justify-center">
+                      <AdSlot slotId="slot_native_feed" className="w-full h-full flex items-center justify-center" devBadge={false} />
+
+                      {/* Promoted Badge */}
+                      <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
+                          Promoted
+                        </span>
+                      </div>
+
+                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/10 z-10 pointer-events-none">
+                        Ad
+                      </div>
+                    </div>
+
+                    {/* 2. Matching Card Info Section */}
+                    <div className="p-3.5 flex flex-col gap-2.5">
+                      <div>
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
+                          SPONSORED
+                        </span>
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors">
+                          Featured Partner Media Stream
+                        </h3>
+                      </div>
+
+                      {/* Matching Meta Stats Bar */}
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06]">
+                        <div className="flex items-center gap-1 font-semibold text-amber-500 dark:text-amber-400">
+                          <i className="ri-external-link-line not-italic text-xs"></i>
+                          <span>Visit Partner</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                          <i className="ri-shield-check-line not-italic text-xs text-emerald-500"></i>
+                          <span>Verified</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
