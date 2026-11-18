@@ -10,11 +10,11 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 
 | # | Site Slot ID | Exact Placement | Best Ad Network | Format to Create | Tier 1 eCPM | Why This Network Wins Here |
 | :-: | :--- | :--- | :--- | :--- | :---: | :--- |
-| **1** | `slot_video_preroll` | Inside Video Player (Watch Page) | **ExoClick** | In-Stream Video (VAST 3.0 Linear) | **$2.00 – $8.00+** | 🥇 **Highest revenue.** Largest advertiser pool for video pre-rolls with maximum fill rate and top bids. *(Active Now: Zone `6091580`)* |
-| **2** | `slot_popunder` | Global Background Tab (1st Click) | **Adsterra** | Popunder (Capped 1 / 24h) | **$1.50 – $5.00+** | 🥈 **Pure passive income.** Aggressive global CPMs, instant automated approval, and low $5 minimum payout. *(Active Now: Ad Unit `32308514`)* |
-| **3** | `slot_sticky_footer` | Pinned Screen Bottom (Global) | **ExoClick** | Sticky Banner (728x90 / 300x50) | **$1.50 – $3.50** | 🥉 **100% Viewability.** Stays visible while users scroll; 30s auto-refresh generates ~20 impressions per 10m video. *(Active Now: Zone `6091570`)* |
-| **4** | `slot_native_feed` | Inside Video Catalog Grid | **JuicyAds** | Native Recommendation Widget | Dynamic / CPC | 🎯 **Highest CTR.** Blends seamlessly with video thumbnails; visitors click thinking it's another related video. |
-| **5** | `slot_below_player` | Directly Under Video Player | **JuicyAds** | 300x250 Medium Rectangle | Dynamic / Flat Rate | Allows direct advertisers to rent this prime real-estate for flat monthly fees ($100–$500/mo). |
+| **1** | `slot_video_preroll` | Inside Video Player (Watch Page) | **ExoClick** | In-Stream Video (VAST 3.0 Linear) | **$2.00 – $8.00+** | 🥇 **Highest revenue.** Largest advertiser pool for video pre-rolls with maximum fill rate and top bids. *(Active Now: Zone `6093414`)* |
+| **2** | `slot_popunder` | Global Background Tab (1st Click) | **ExoClick** | Popunder (Capped 1 / 1h) | **$1.50 – $5.00+** | 🥈 **Pure passive income.** Global CPMs, instant automated trigger, and anti-adblock script. *(Active Now: Zone `6093374`)* |
+| **3** | `slot_sticky_footer` | Pinned Screen Bottom (Global) | **ExoClick** | Sticky Banner (728x90 / 300x50) | **$1.50 – $3.50** | 🥉 **100% Viewability.** Stays visible while users scroll; 30s auto-refresh generates ~20 impressions per 10m video. *(Active Now: Zone `6093426`)* |
+| **4** | `slot_native_feed` | Inside Video Catalog Grid | **JuicyAds / ExoClick** | Native Recommendation Widget | Dynamic / CPC | 🎯 **Highest CTR.** Blends seamlessly with video thumbnails; visitors click thinking it's another related video. |
+| **5** | `slot_below_player` | Directly Under Video Player | **ExoClick** | 300x250 Medium Rectangle | Dynamic / Flat Rate | High-converting rectangle directly under the player. *(Active Now: Zone `6093362`)* |
 | **6** | `slot_top_banner` | Below Header & Tabs | **TrafficFactory** *(or ExoClick)* | 728x90 Leaderboard / 300x100 | **$1.50 – $6.00+** | High-paying premium desktop display banners (swap to TrafficFactory once reaching 1,000+ daily views). |
 
 ---
@@ -23,10 +23,10 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 
 | Monetization Channel | Daily Impressions / Actions | Est. eCPM / CPC | Daily Earnings |
 | :--- | :---: | :---: | :---: |
-| **Popunder** (Adsterra capped 1/24h) | 1,000 pops | $3.50 eCPM | **$3.50** |
+| **Popunder** (ExoClick capped 1/1h) | 1,000 pops | $3.50 eCPM | **$3.50** |
 | **In-Stream Pre-Roll** (ExoClick VAST) | 1,500 plays | $6.00 eCPM | **$9.00** |
 | **Sticky Bottom Banner** (ExoClick 30s refresh) | 6,000 views | $1.50 eCPM | **$9.00** |
-| **Native In-Feed Grid** (JuicyAds clicks) | 50 clicks | $0.15 CPC | **$7.50** |
+| **Native In-Feed Grid** (Clicks) | 50 clicks | $0.15 CPC | **$7.50** |
 | **Below-Player & Top Banners** | 2,500 impressions | $0.80 eCPM | **$2.00** |
 | **ESTIMATED TOTAL (1,000 Visitors/day)** | — | — | **~$31.00 / day** |
 | **ESTIMATED TOTAL (10,000 Visitors/day)** | — | — | **~$310.00 / day** |
@@ -35,10 +35,12 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 
 ## 3. Step-by-Step Network Rollout Plan
 
-### Phase 1: Start with the "Big 3" Today
-1. **ExoClick** (Already Approved & Active)
-   - Created: Sticky Bottom Banner (`Zone 6091570`)
-   - Next: In-Stream Video VAST 3.0 Pre-Roll
+### Phase 1: Start with ExoClick Today
+1. **ExoClick** (Verified & Active: Site ID `1120332` on `hornyleaks.site`)
+   - Sticky Bottom Banner (`Zone 6093426`)
+   - Below-Player 300x250 Banner (`Zone 6093362`)
+   - Popunder Tabunder (`Zone 6093374`)
+   - In-Stream Video VAST 3.0 Pre-Roll (`Zone 6093414`)
 2. **Adsterra** (Sign up at `adsterra.com`)
    - Instant automated approval for adult websites.
    - Used exclusively for `slot_popunder` (Capped 1/24h).

@@ -486,7 +486,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick Sticky Banner',
     dimensions: '300x50 / 728x90',
     isActive: true,
-    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6091570"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_below_player: {
     id: 'slot_below_player',
@@ -687,8 +687,8 @@ export const store = {
       const data = localStorage.getItem(STORAGE_KEYS.AD_SETTINGS);
       if (data) {
         const parsed = JSON.parse(data);
-        if (parsed.slot_sticky_footer?.code?.includes('EXOCLICK STICKY BOTTOM BANNER')) {
-          parsed.slot_sticky_footer.code = DEFAULT_AD_SETTINGS.slot_sticky_footer.code;
+        if (!parsed.slot_sticky_footer?.code || !parsed.slot_sticky_footer.code.includes('6093426')) {
+          parsed.slot_sticky_footer = DEFAULT_AD_SETTINGS.slot_sticky_footer;
         }
         if (!parsed.slot_video_preroll?.vastUrl || !parsed.slot_video_preroll.vastUrl.includes('6093414')) {
           parsed.slot_video_preroll = {
