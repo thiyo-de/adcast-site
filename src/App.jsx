@@ -124,11 +124,31 @@ export default function App() {
 
   useEffect(() => {
     loadVideos();
+    loadAdSettings();
+    const unsubscribeAds = api.subscribeToAdSettings((cloudAds) => {
+      if (cloudAds) {
+        store.saveAdSettings(cloudAds);
+      }
+    });
+    return () => {
+      if (typeof unsubscribeAds === 'function') unsubscribeAds();
+    };
   }, []);
 
   const loadVideos = async () => {
     const list = await api.getVideos();
     setVideos(list);
+  };
+
+  const loadAdSettings = async () => {
+    try {
+      const cloudAds = await api.getAdSettings();
+      if (cloudAds) {
+        store.saveAdSettings(cloudAds);
+      }
+    } catch (err) {
+      console.warn('Initial cloud ad load notice:', err);
+    }
   };
 
   const handleSelectVideo = (id) => {

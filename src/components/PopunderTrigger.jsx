@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
-import { store } from '../services/store';
+import { store, useAdSettings } from '../services/store';
 
 export default function PopunderTrigger() {
-  useEffect(() => {
-    const adSettings = store.getAdSettings();
-    const slot = adSettings['slot_popunder'];
+  const adSettings = useAdSettings();
+  const slot = adSettings['slot_popunder'];
 
+  useEffect(() => {
     // 1. Guard check: Slot must be active, have valid code, and 24h must have passed
     if (!slot || !slot.isActive || !store.shouldTriggerPopunder() || !slot.code) {
       return;
@@ -44,7 +44,7 @@ export default function PopunderTrigger() {
     // Attach click listener on the first user interaction
     window.addEventListener('click', handleFirstInteraction, { once: true });
     return () => window.removeEventListener('click', handleFirstInteraction);
-  }, []);
+  }, [slot?.isActive, slot?.code]);
 
   return null;
 }

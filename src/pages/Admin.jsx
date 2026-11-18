@@ -337,27 +337,27 @@ export default function Admin({ onBack }) {
     setIsAddModalOpen(true);
   };
 
-  // Ad Slot Updates
+  // Ad Slot Updates (C06: Shared, Persistent, Reactive)
   const handleAdSlotUpdate = async (slotId, fields) => {
-    const updated = await api.updateAdSlot(slotId, fields);
-    setAdSettings(updated);
-    setSavedSlotId(slotId);
-    setTimeout(() => setSavedSlotId(null), 2500);
+    try {
+      const updated = await api.updateAdSlot(slotId, fields);
+      setAdSettings(updated);
+      setSavedSlotId(slotId);
+      setTimeout(() => setSavedSlotId(null), 2500);
+    } catch (err) {
+      alert(`Failed to update ad slot "${slotId}" in cloud database: ${err.message}`);
+    }
   };
 
-  const handleAffiliateUpdate = (fields) => {
-    const current = store.getAdSettings();
-    const updated = {
-      ...current,
-      affiliate_fallbacks: {
-        ...current.affiliate_fallbacks,
-        ...fields
-      }
-    };
-    store.saveAdSettings(updated);
-    setAdSettings(updated);
-    setSavedSlotId('affiliate_fallbacks');
-    setTimeout(() => setSavedSlotId(null), 2500);
+  const handleAffiliateUpdate = async (fields) => {
+    try {
+      const updated = await api.updateAffiliateFallbacks(fields);
+      setAdSettings(updated);
+      setSavedSlotId('affiliate_fallbacks');
+      setTimeout(() => setSavedSlotId(null), 2500);
+    } catch (err) {
+      alert(`Failed to save affiliate fallbacks to cloud database: ${err.message}`);
+    }
   };
 
   // Supabase Test Connection

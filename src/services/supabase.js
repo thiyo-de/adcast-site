@@ -234,17 +234,41 @@ export const api = {
 
       const mapped = { ...store.getAdSettings() };
       data.forEach(item => {
+        if (item.slot_id === 'affiliate_fallbacks') {
+          try {
+            const parsed = typeof item.code === 'string' ? JSON.parse(item.code) : item.code;
+            mapped.affiliate_fallbacks = {
+              ...mapped.affiliate_fallbacks,
+              ...parsed
+            };
+          } catch (e) {}
+          return;
+        }
+
+        let code = item.code;
+        // Targeted migration: Repair historical typo in top banner class if present in DB
+        if (item.slot_id === 'slot_top_banner' && code && code.includes('class="eas6a9788e2"')) {
+          code = code.replace('class="eas6a9788e2"', 'class="eas6a97888e2"');
+        }
+
+        const existing = mapped[item.slot_id] || {};
         mapped[item.slot_id] = {
-          ...mapped[item.slot_id],
+          ...existing,
           id: item.slot_id,
-          name: item.name,
-          network: item.network,
-          code: item.code,
-          isActive: item.is_active
+          name: item.name || existing.name,
+          network: item.network || existing.network,
+          dimensions: item.dimensions || existing.dimensions,
+          code: code,
+          format: item.format || existing.format,
+          targetUrl: item.target_url || existing.targetUrl,
+          vastUrl: item.vast_url || existing.vastUrl,
+          frequencyHours: item.frequency_hours !== undefined ? item.frequency_hours : existing.frequencyHours,
+          isActive: item.is_active !== false
         };
       });
       return mapped;
     } catch (err) {
+      console.warn('Failed to fetch cloud ad settings, falling back to local store:', err);
       return store.getAdSettings();
     }
   },
@@ -254,17 +278,91 @@ export const api = {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        await supabase.from('ad_settings').upsert({
+        const payload = {
           slot_id: slotId,
           name: fields.name || slotId,
           network: fields.network || 'Custom',
-          code: fields.code,
+          dimensions: fields.dimensions || 'Custom',
+          code: fields.code !== undefined ? fields.code : null,
+          format: fields.format || 'banner',
+          target_url: fields.targetUrl || null,
+          vast_url: fields.vastUrl || null,
+          frequency_hours: fields.frequencyHours !== undefined ? fields.frequencyHours : 1,
           is_active: fields.isActive !== false,
           updated_at: new Date().toISOString()
-        });
-      } catch (err) {}
+        };
+
+        const { error } = await supabase.from('ad_settings').upsert(payload);
+        if (error) {
+          console.error('Supabase updateAdSlot error:', error.message);
+          throw error;
+        }
+      } catch (err) {
+        console.error('Error updating cloud ad slot:', err);
+        throw err;
+      }
     }
     return updated;
+  },
+
+  async updateAffiliateFallbacks(fields) {
+    const current = store.getAdSettings();
+    const updated = {
+      ...current,
+      affiliate_fallbacks: {
+        ...current.affiliate_fallbacks,
+        ...fields
+      }
+    };
+    store.saveAdSettings(updated);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('ad_settings').upsert({
+          slot_id: 'affiliate_fallbacks',
+          name: 'Affiliate Fallback Campaigns',
+          network: 'Direct / Internal',
+          dimensions: 'Flexible',
+          format: 'affiliate',
+          code: JSON.stringify(updated.affiliate_fallbacks),
+          is_active: updated.affiliate_fallbacks.isEnabled !== false,
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Failed to sync affiliate fallbacks to Supabase:', err);
+        throw err;
+      }
+    }
+    return updated;
+  },
+
+  subscribeToAdSettings(callback) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return () => {};
+
+    try {
+      const channel = supabase
+        .channel('public:ad_settings')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ad_settings' },
+          async () => {
+            const latest = await api.getAdSettings();
+            if (typeof callback === 'function') {
+              callback(latest);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (err) {
+      console.warn('Realtime ad settings subscription error:', err);
+      return () => {};
+    }
   },
 
   async submitTakedown(req) {

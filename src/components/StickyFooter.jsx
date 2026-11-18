@@ -1,9 +1,9 @@
 import React from 'react';
 import AdSlot from './AdSlot';
-import { store } from '../services/store';
+import { useAdSettings } from '../services/store';
 
 export default function StickyFooter() {
-  const adSettings = store.getAdSettings();
+  const adSettings = useAdSettings();
   const slot = adSettings['slot_sticky_footer'];
 
   if (!slot || !slot.isActive) return null;

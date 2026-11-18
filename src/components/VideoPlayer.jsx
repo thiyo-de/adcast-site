@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { store, parseToEmbedUrl } from '../services/store';
+import { store, useAdSettings, parseToEmbedUrl } from '../services/store';
 import { resolveVastAd } from '../utils/vast';
 
 export default function VideoPlayer({ video, onEnded }) {
@@ -12,7 +12,7 @@ export default function VideoPlayer({ video, onEnded }) {
   const videoRef = useRef(null);
   const firedTrackingRef = useRef(new Set());
 
-  const adSettings = store.getAdSettings();
+  const adSettings = useAdSettings();
   const preRollSlot = adSettings['slot_video_preroll'];
   const hasPreRoll = preRollSlot && preRollSlot.isActive;
 

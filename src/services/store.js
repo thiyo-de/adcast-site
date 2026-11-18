@@ -1,4 +1,34 @@
 // Central Data & Ad Settings Store
+import { useState, useEffect } from 'react';
+
+// Ad Settings Reactive Listeners
+const adSettingsListeners = new Set();
+
+export function subscribeAdSettings(listener) {
+  adSettingsListeners.add(listener);
+  return () => adSettingsListeners.delete(listener);
+}
+
+export function notifyAdSettingsChanged(settings) {
+  adSettingsListeners.forEach((fn) => {
+    try {
+      fn(settings);
+    } catch (err) {
+      console.error('AdSettings listener error:', err);
+    }
+  });
+}
+
+export function useAdSettings() {
+  const [settings, setSettings] = useState(() => store.getAdSettings());
+
+  useEffect(() => {
+    return subscribeAdSettings(setSettings);
+  }, []);
+
+  return settings;
+}
+
 
 /**
  * Universal Embed URL Parser
@@ -755,49 +785,55 @@ export const store = {
     this.saveVideos(list);
   },
 
-  // Ad Settings
+  // Ad Settings (C06: Shared, Persistent, Reactive)
   getAdSettings() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.AD_SETTINGS);
       if (data) {
         const parsed = JSON.parse(data);
-        if (!parsed.slot_top_banner?.code || !parsed.slot_top_banner.code.includes('6093488')) {
-          parsed.slot_top_banner = DEFAULT_AD_SETTINGS.slot_top_banner;
-        } else {
-          // Repair the same typo in settings saved by previous versions.
+
+        // Targeted migration: Repair historical typo in top banner if present
+        if (parsed.slot_top_banner?.code && parsed.slot_top_banner.code.includes('class="eas6a9788e2"')) {
           parsed.slot_top_banner.code = parsed.slot_top_banner.code.replace(
             'class="eas6a9788e2"',
             'class="eas6a97888e2"'
           );
         }
-        if (!parsed.slot_native_feed?.code || !parsed.slot_native_feed.code.includes('6093504')) {
-          parsed.slot_native_feed = DEFAULT_AD_SETTINGS.slot_native_feed;
-        }
-        if (!parsed.slot_sticky_footer?.code || !parsed.slot_sticky_footer.code.includes('6093426')) {
-          parsed.slot_sticky_footer = DEFAULT_AD_SETTINGS.slot_sticky_footer;
-        }
-        if (!parsed.slot_video_preroll?.vastUrl || !parsed.slot_video_preroll.vastUrl.includes('6093414')) {
-          parsed.slot_video_preroll = {
-            ...DEFAULT_AD_SETTINGS.slot_video_preroll,
-            ...(parsed.slot_video_preroll || {}),
-            vastUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.vastUrl,
-            targetUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.targetUrl
-          };
-        }
-        if (!parsed.slot_below_player?.code || !parsed.slot_below_player.code.includes('6093362')) {
-          parsed.slot_below_player = DEFAULT_AD_SETTINGS.slot_below_player;
-        }
-        if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('benchform.org') || parsed.slot_popunder?.code?.includes('Adsterra')) {
+
+        // Clean out legacy third-party test networks if left in popunder
+        if (parsed.slot_popunder?.code && (parsed.slot_popunder.code.includes('benchform.org') || parsed.slot_popunder.code.includes('Adsterra'))) {
           parsed.slot_popunder = DEFAULT_AD_SETTINGS.slot_popunder;
         }
-        return {
-          ...DEFAULT_AD_SETTINGS,
-          ...parsed,
-          affiliate_fallbacks: {
-            ...DEFAULT_AD_SETTINGS.affiliate_fallbacks,
-            ...(parsed.affiliate_fallbacks || {})
+
+        // Merge saved configuration onto defaults while preserving:
+        // 1. Custom zone IDs / code
+        // 2. Custom VAST and Target URLs
+        // 3. Deliberate disabled states (isActive: false)
+        const merged = { ...DEFAULT_AD_SETTINGS };
+        Object.keys(DEFAULT_AD_SETTINGS).forEach((key) => {
+          if (key === 'affiliate_fallbacks') {
+            merged.affiliate_fallbacks = {
+              ...DEFAULT_AD_SETTINGS.affiliate_fallbacks,
+              ...(parsed.affiliate_fallbacks || {})
+            };
+          } else if (parsed[key]) {
+            merged[key] = {
+              ...DEFAULT_AD_SETTINGS[key],
+              ...parsed[key],
+              // Explicitly preserve deliberate disabled states
+              isActive: parsed[key].isActive !== false
+            };
           }
-        };
+        });
+
+        // Preserve any custom slots present in parsed (e.g. slot_interstitial)
+        Object.keys(parsed).forEach((key) => {
+          if (!merged[key]) {
+            merged[key] = parsed[key];
+          }
+        });
+
+        return merged;
       }
     } catch (e) {
       console.error('Error loading ad settings:', e);
@@ -812,6 +848,7 @@ export const store = {
     } catch (e) {
       console.error('Error saving ad settings:', e);
     }
+    notifyAdSettingsChanged(settings);
   },
 
   updateAdSlot(slotId, fields) {

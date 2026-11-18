@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { store } from '../services/store';
+import { store, useAdSettings } from '../services/store';
 
 export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const containerRef = useRef(null);
   const [isBlocked, setIsBlocked] = useState(false);
-  const adSettings = store.getAdSettings();
+  const adSettings = useAdSettings();
   const slot = adSettings[slotId];
   const affiliateSettings = adSettings.affiliate_fallbacks || {};
   const isDevMode = store.isDevMode();
