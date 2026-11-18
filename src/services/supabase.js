@@ -66,17 +66,6 @@ export const auth = {
     return data;
   },
 
-  async signUp(email, password) {
-    const supabase = getSupabaseClient();
-    if (!supabase) throw new Error('Supabase client is not configured.');
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password
-    });
-    if (error) throw error;
-    return data;
-  },
-
   async signOut() {
     const supabase = getSupabaseClient();
     if (supabase) {
