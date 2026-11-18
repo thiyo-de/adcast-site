@@ -34,12 +34,9 @@ export default function Navbar({
           <div>
             <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center">
               Horny<span className="text-rose-500">Leaks</span>
-              <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[9px] font-black tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                VIP
-              </span>
             </span>
             <span className="block text-[8px] uppercase font-bold tracking-widest text-slate-400">
-              Exclusive Tube
+              Free Video Streams
             </span>
           </div>
         </div>
@@ -91,7 +88,7 @@ export default function Navbar({
             <span className="hidden sm:inline font-bold">{isDark ? 'Light' : 'Dark'}</span>
           </button>
 
-          {/* Dev Mode Ad Outline Toggle */}
+          {/* Dev Mode Layout Outlines Toggle (UX09) */}
           <button
             onClick={onToggleDevMode}
             className={`hidden lg:flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full text-xs font-semibold border transition-all ${
@@ -99,10 +96,11 @@ export default function Navbar({
                 ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-500 dark:text-cyan-400 shadow-sm'
                 : 'glass-button'
             }`}
-            title="Toggle Visual Ad Outlines"
+            title="Toggle Visual Layout Outlines (Diagnostic)"
+            aria-label="Toggle visual layout outlines"
           >
             <i className="ri-layout-grid-line not-italic text-xs"></i>
-            <span>Ads: {isDevMode ? 'ON' : 'OFF'}</span>
+            <span>Outlines: {isDevMode ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Saved / Bookmarks Drawer Toggle */}

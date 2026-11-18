@@ -149,7 +149,7 @@ export default function Watch({
     );
   }
 
-  const rating = video.rating || 97;
+  const rating = video.rating || null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
@@ -323,17 +323,19 @@ export default function Watch({
               </div>
             </div>
 
-            {/* Satisfaction Ratio Bar */}
-            <div className="w-full bg-slate-200 dark:bg-white/[0.08] h-1.5 rounded-full overflow-hidden flex">
-              <div
-                className="bg-emerald-500 h-full transition-all duration-500"
-                style={{ width: `${rating}%` }}
-              />
-              <div
-                className="bg-rose-500 h-full transition-all duration-500"
-                style={{ width: `${100 - rating}%` }}
-              />
-            </div>
+            {/* Satisfaction Ratio Bar (Rendered only when real rating exists) */}
+            {rating && (
+              <div className="w-full bg-slate-200 dark:bg-white/[0.08] h-1.5 rounded-full overflow-hidden flex">
+                <div
+                  className="bg-emerald-500 h-full transition-all duration-500"
+                  style={{ width: `${rating}%` }}
+                />
+                <div
+                  className="bg-rose-500 h-full transition-all duration-500"
+                  style={{ width: `${100 - rating}%` }}
+                />
+              </div>
+            )}
 
             {/* Ad Slot 4: Below-Player High CTR Banner (24px Safe-Spacing Buffer) */}
             <div className="w-full my-6 sm:my-8">

@@ -21,8 +21,6 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
     }
   };
 
-  const rating = video.rating || 97;
-
   return (
     <div
       onClick={() => onSelect(video.id)}
@@ -51,9 +49,11 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
 
         {/* Top Badges (Frosted Glass Pills) */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5">
-          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
-            {video.quality || '4K UHD'}
-          </span>
+          {video.quality && (
+            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
+              {video.quality}
+            </span>
+          )}
           {video.is_featured && (
             <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
               <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
@@ -63,10 +63,12 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
 
         {/* Top Right: Rating & Bookmark Pill */}
         <div className="absolute top-2 right-2 flex items-center gap-1">
-          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/90 text-white backdrop-blur-md shadow-sm">
-            <i className="ri-thumb-up-fill not-italic text-[10px]"></i>
-            {rating}%
-          </span>
+          {video.rating && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/90 text-white backdrop-blur-md shadow-sm">
+              <i className="ri-thumb-up-fill not-italic text-[10px]"></i>
+              {video.rating}%
+            </span>
+          )}
 
           <button
             onClick={(e) => {
