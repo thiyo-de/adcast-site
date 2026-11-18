@@ -29,7 +29,7 @@ export default function Navbar({
           className="flex items-center gap-2.5 cursor-pointer group shrink-0"
         >
           <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-rose-600/20 group-hover:scale-105 transition-all shrink-0">
-            <img src="/icon.svg" alt="HornyLeaks" className="w-full h-full object-cover" />
+            <img src="/icon.png" alt="HornyLeaks" className="w-full h-full object-cover" />
           </div>
           <div>
             <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center">
