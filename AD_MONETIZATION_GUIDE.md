@@ -16,6 +16,7 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 | **4** | `slot_native_feed` | Inside Video Catalog Grid | **ExoClick** | Native Recommendation Widget (1x1) | Dynamic / CPC | 🎯 **Highest CTR.** Blends seamlessly with video thumbnails; visitors click thinking it's another related video. *(Active Now: Zone `6093504`)* |
 | **5** | `slot_below_player` | Directly Under Video Player | **ExoClick** | 300x250 Medium Rectangle | Dynamic / Flat Rate | High-converting rectangle directly under the player. *(Active Now: Zone `6093362`)* |
 | **6** | `slot_top_banner` | Below Header & Tabs | **ExoClick** | 728x90 Leaderboard | **$1.50 – $4.00+** | Prime top-of-page desktop visibility right under category navigation. *(Active Now: Zone `6093488`)* |
+| **7** | Global Interstitial | Link Click / Navigation (Desktop) | **ExoClick** | Fullpage Overlay Interstitial | **$3.00 – $7.00+** | High-impact full-screen overlay triggered on link navigation. *(Active Now: Zone `6093518`)* |
 
 ---
 
@@ -37,6 +38,7 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 
 ### Phase 1: 100% Unified ExoClick Network
 1. **ExoClick** (Verified & Active: Site ID `1120332` on `hornyleaks.site`)
+   - Desktop Fullpage Interstitial (`Zone 6093518`)
    - Native In-Feed Widget 1x1 (`Zone 6093504`)
    - Top Leaderboard 728x90 (`Zone 6093488`)
    - Sticky Bottom Banner (`Zone 6093426`)
