@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { store } from './store';
+import { store, isPlaceholderAdCode } from './store';
 
 const DEFAULT_SUPABASE_URL = 'https://hrvlgnnetoexdbaaebfo.supabase.co';
 const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhydmxnbm5ldG9leGRiYWFlYmZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzMyMTMsImV4cCI6MjExMDA0OTIxM30.ZtBow6MB1bE4eusuSAjuHredn3FaL6y4dkoWnkK3zhM';
@@ -199,6 +199,20 @@ export const api = {
     }
   },
 
+  async quarantineVideo(id, reason = 'user_reported_broken') {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase
+          .from('videos')
+          .update({ is_active: false, dead_reason: reason })
+          .eq('id', id);
+      } catch (err) {
+        console.error('Error quarantining video:', err);
+      }
+    }
+  },
+
   async restoreVideo(id) {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -252,6 +266,11 @@ export const api = {
         }
 
         const existing = mapped[item.slot_id] || {};
+        // Inoculate against placeholder poisoning: If remote code is a placeholder, retain existing working code
+        if (isPlaceholderAdCode(code) && existing.code && !isPlaceholderAdCode(existing.code)) {
+          code = existing.code;
+        }
+
         mapped[item.slot_id] = {
           ...existing,
           id: item.slot_id,

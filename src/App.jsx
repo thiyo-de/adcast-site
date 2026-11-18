@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import AgeModal from './components/AgeModal';
 import StickyFooter from './components/StickyFooter';
+import PopunderTrigger from './components/PopunderTrigger';
 import BookmarksDrawer from './components/BookmarksDrawer';
 import Home from './pages/Home';
 import Watch from './pages/Watch';
@@ -41,8 +42,14 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isDevMode, setIsDevMode] = useState(store.isDevMode());
+  const lastHomeScrollY = useRef(0);
 
   const navigate = (view, videoId = null, replace = false) => {
+    // Preserve scroll offset when leaving home (UX07)
+    if (currentView === 'home' && view !== 'home') {
+      lastHomeScrollY.current = window.scrollY;
+    }
+
     let path = '/';
     if (view === 'watch' && videoId) {
       path = `/watch/${encodeURIComponent(videoId)}`;
@@ -65,7 +72,22 @@ export default function App() {
     }
 
     setRouteState({ view, videoId });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Restore previous scroll position on returning to browse
+    if (view === 'home' && lastHomeScrollY.current > 0) {
+      setTimeout(() => {
+        window.scrollTo({ top: lastHomeScrollY.current, behavior: 'instant' });
+      }, 10);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    if (currentView !== 'home') {
+      navigate('home');
+    }
   };
 
   useEffect(() => {
@@ -174,7 +196,7 @@ export default function App() {
       {/* Navigation Header with Theme Toggle */}
       <Navbar
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         bookmarkCount={bookmarks.length}
         onNavigateHome={() => navigate('home')}
@@ -194,6 +216,7 @@ export default function App() {
           <Home
             videos={videos}
             searchQuery={searchQuery}
+            onClearSearch={() => setSearchQuery('')}
             onSelectVideo={handleSelectVideo}
             onBookmarkToggle={handleBookmarkToggle}
             isBookmarked={(id) => bookmarks.includes(id)}
@@ -235,12 +258,16 @@ export default function App() {
       {/* Sticky Bottom Mobile Ad Banner (Slot 3: ExoClick) */}
       <StickyFooter />
 
+      {/* Popunder Trigger (Slot 6: ExoClick 24h Frequency-Capped) */}
+      <PopunderTrigger />
+
       {/* Saved Bookmarks Drawer */}
       <BookmarksDrawer
         isOpen={isBookmarksOpen}
         onClose={() => setIsBookmarksOpen(false)}
         onSelectVideo={handleSelectVideo}
         onRemoveBookmark={handleBookmarkToggle}
+        onClearAllBookmarks={() => setBookmarks([])}
       />
 
       {/* Global Footer (Glassmorphic) with clearance for sticky ad */}

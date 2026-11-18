@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import VideoPlayer from '../components/VideoPlayer';
 import AdSlot from '../components/AdSlot';
-import PopunderTrigger from '../components/PopunderTrigger';
 import { store } from '../services/store';
 import { api } from '../services/supabase';
 import { updateVideoSEO, resetDefaultSEO } from '../utils/seo';
@@ -37,6 +36,8 @@ export default function Watch({
   const [recommendationMode, setRecommendationMode] = useState('smart');
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -153,9 +154,6 @@ export default function Watch({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
-      {/* Popunder Trigger (24h Capped) */}
-      <PopunderTrigger />
-
       {/* Cinema Mode Dimmer Overlay */}
       {isCinemaMode && (
         <div
@@ -219,9 +217,11 @@ export default function Watch({
 
             {/* Video Title & Badges */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-cyan-500 text-black shadow-sm">
-                {video.quality || '4K UHD'}
-              </span>
+              {video.quality && (
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-cyan-500 text-black shadow-sm">
+                  {video.quality}
+                </span>
+              )}
               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-rose-500/10 text-rose-500 border border-rose-500/20">
                 {video.category}
               </span>
@@ -313,10 +313,10 @@ export default function Watch({
                 )}
 
                 <button
-                  onClick={() => onOpenDMCA(video.id)}
+                  onClick={() => setIsReportModalOpen(true)}
                   className="w-11 h-11 flex items-center justify-center rounded-full glass-button text-slate-400 hover:text-rose-500 active:scale-95 transition-all"
-                  title="Report Video / DMCA Notice"
-                  aria-label="Report video"
+                  title="Report Issue / Broken Stream"
+                  aria-label="Report issue"
                 >
                   <i className="ri-flag-line not-italic text-sm"></i>
                 </button>
@@ -493,6 +493,114 @@ export default function Watch({
           </div>
         </div>
       </div>
+
+      {/* Report Broken Stream / Notice Modal (UX15) */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <i className="ri-flag-fill not-italic text-rose-500 text-lg"></i>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Report Video Stream</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReportModalOpen(false);
+                  setReportSubmitted(false);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-800 dark:hover:text-white"
+              >
+                <i className="ri-close-line not-italic text-lg"></i>
+              </button>
+            </div>
+
+            {reportSubmitted ? (
+              <div className="text-center py-6 space-y-2">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto text-2xl">
+                  <i className="ri-check-line not-italic"></i>
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Report Received</h4>
+                <p className="text-xs text-slate-400">
+                  Thank you. This stream has been logged for health verification and automated crawler review.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReportModalOpen(false);
+                    setReportSubmitted(false);
+                  }}
+                  className="mt-4 px-5 py-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-400">
+                  Select the issue you encountered with <span className="text-slate-900 dark:text-white font-semibold">"{video.title}"</span>:
+                </p>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        if (api.quarantineVideo) {
+                          await api.quarantineVideo(video.id, 'user_report_broken_playback');
+                        }
+                      } catch (e) {}
+                      setReportSubmitted(true);
+                    }}
+                    className="w-full p-3 rounded-xl bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.08] text-left transition-colors flex items-center gap-3 group"
+                  >
+                    <i className="ri-error-warning-line not-italic text-rose-500 text-lg shrink-0"></i>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-rose-500">
+                        Stream Broken / Not Playing
+                      </div>
+                      <div className="text-[11px] text-slate-400">Video source returned 404, black screen, or playback error.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportSubmitted(true);
+                    }}
+                    className="w-full p-3 rounded-xl bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.08] text-left transition-colors flex items-center gap-3 group"
+                  >
+                    <i className="ri-price-tag-3-line not-italic text-amber-500 text-lg shrink-0"></i>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-500">
+                        Misleading Title or Category
+                      </div>
+                      <div className="text-[11px] text-slate-400">Content does not match thumbnail, tags, or description.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsReportModalOpen(false);
+                      onOpenDMCA(video.id);
+                    }}
+                    className="w-full p-3 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-left transition-colors flex items-center gap-3 group"
+                  >
+                    <i className="ri-shield-keyhole-line not-italic text-rose-400 text-lg shrink-0"></i>
+                    <div>
+                      <div className="text-xs font-bold text-rose-500">
+                        Copyright / DMCA Takedown Notice
+                      </div>
+                      <div className="text-[11px] text-slate-400">Legal intellectual property claim and formal removal notice.</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

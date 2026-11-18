@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatDuration } from '../services/store';
 
+// Neutral local SVG thumbnail placeholder (zero external network dependency)
+const FALLBACK_THUMB = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 360' fill='%230b0e14'%3E%3Crect width='640' height='360' fill='%230b0e14'/%3E%3Ccircle cx='320' cy='180' r='36' fill='%231e293b'/%3E%3Cpath d='M312 165l24 15-24 15z' fill='%23e11d48'/%3E%3C/svg%3E";
+
 export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmarked }) {
+  const [isRevealed, setIsRevealed] = useState(false);
+
   const formatViews = (num) => {
     if (!num) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -22,27 +27,36 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
   };
 
   return (
-    <div
-      onClick={() => onSelect(video.id)}
-      className="group relative flex flex-col rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl"
+    <a
+      href={`/watch/${encodeURIComponent(video.id)}`}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
+        onSelect(video.id);
+      }}
+      className="group relative flex flex-col rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-rose-500"
     >
       {/* Thumbnail Container (16:9) */}
       <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
         <img
-          src={video.thumbnail_url}
+          src={video.thumbnail_url || FALLBACK_THUMB}
           alt={video.title}
           loading="lazy"
           onError={(e) => {
             e.currentTarget.onerror = null;
-            e.currentTarget.src = 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&auto=format&fit=crop&q=80';
+            e.currentTarget.src = FALLBACK_THUMB;
           }}
-          className="w-full h-full object-cover filter blur-[10px] scale-110 opacity-25 transition-all duration-300"
+          className={`w-full h-full object-cover transition-all duration-300 ${
+            isRevealed ? 'opacity-90' : 'filter blur-[10px] scale-110 opacity-25'
+          }`}
         />
 
-        {/* 75% Dark Privacy Veil Overlay */}
-        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm pointer-events-none flex items-center justify-center">
-          <i className="ri-eye-off-line not-italic text-slate-500/40 text-xl"></i>
-        </div>
+        {/* 75% Dark Privacy Veil Overlay (Default obscured until user toggles preview) */}
+        {!isRevealed && (
+          <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm pointer-events-none flex items-center justify-center">
+            <i className="ri-eye-off-line not-italic text-slate-500/40 text-xl"></i>
+          </div>
+        )}
 
         {/* Subtle Gradient Shadow */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20 opacity-80 pointer-events-none" />
@@ -71,20 +85,38 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
           )}
 
           <button
+            type="button"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onBookmarkToggle(video.id);
             }}
-            className={`p-1 rounded-full backdrop-blur-md transition-all ${
+            className={`p-1.5 rounded-full backdrop-blur-md transition-all ${
               isBookmarked
                 ? 'bg-rose-600 text-white shadow'
                 : 'bg-black/50 text-white/80 hover:text-white hover:bg-black/80'
             }`}
             title={isBookmarked ? 'Remove saved' : 'Save stream'}
+            aria-label={isBookmarked ? 'Remove saved' : 'Save stream'}
           >
             <i className={`ri-bookmark-${isBookmarked ? 'fill' : 'line'} not-italic text-xs`}></i>
           </button>
         </div>
+
+        {/* Thumbnail Preview Toggle (Bottom Left) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsRevealed(!isRevealed);
+          }}
+          className="absolute bottom-2 left-2 p-1.5 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white backdrop-blur-md transition-all z-10"
+          title={isRevealed ? 'Hide thumbnail' : 'Preview thumbnail'}
+          aria-label={isRevealed ? 'Hide thumbnail' : 'Preview thumbnail'}
+        >
+          <i className={`${isRevealed ? 'ri-eye-line text-rose-400' : 'ri-eye-off-line'} not-italic text-xs`}></i>
+        </button>
 
         {/* Duration Pill (Bottom Right) */}
         <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[10px] font-mono font-bold text-white border border-white/10">
@@ -119,6 +151,6 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
           </div>
         </div>
       </div>
-    </div>
+    </a>
   );
 }

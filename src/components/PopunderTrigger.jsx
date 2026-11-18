@@ -1,20 +1,13 @@
 import React, { useEffect } from 'react';
-import { store, useAdSettings } from '../services/store';
+import { store, useAdSettings, isPlaceholderAdCode } from '../services/store';
 
 export default function PopunderTrigger() {
   const adSettings = useAdSettings();
   const slot = adSettings['slot_popunder'];
 
   useEffect(() => {
-    // 1. Guard check: Slot must be active, have valid code, and 24h must have passed
-    if (!slot || !slot.isActive || !store.shouldTriggerPopunder() || !slot.code) {
-      return;
-    }
-
-    if (
-      slot.code.includes('Adsterra Popunder Script Placeholder') ||
-      slot.code.includes('EXOCLICK TABUNDER')
-    ) {
+    // 1. Guard check: Slot must be active, have valid code, not be placeholder, and 24h must have passed
+    if (!slot || !slot.isActive || !store.shouldTriggerPopunder() || !slot.code || isPlaceholderAdCode(slot.code)) {
       return;
     }
     try {

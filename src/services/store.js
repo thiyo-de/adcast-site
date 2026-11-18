@@ -596,12 +596,20 @@ const DEFAULT_AD_SETTINGS = {
   },
   slot_popunder: {
     id: 'slot_popunder',
-    name: 'Background Popunder (1h Capped)',
+    name: 'Background Popunder (24h Capped)',
     network: 'ExoClick / Popunder',
     dimensions: 'Full Tab',
     isActive: true,
-    code: '<!-- EXOCLICK TABUNDER (Zone 6093374 - 1h Capped) -->',
-    frequencyHours: 1
+    code: '<script type="application/javascript">var adConfig={"ads_host":"a.pemsrv.com","syndication_host":"s.pemsrv.com","idzone":6093374,"popup_fallback":false,"popup_force":false,"chrome_enabled":true,"new_tab":true,"frequency_period":1440,"frequency_count":1,"trigger_method":1,"trigger_class":"","trigger_delay":0,"capping_enabled":true,"tcf_enabled":true,"agego_cross_site_enabled":true,"only_inline":false};</script><script async type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>',
+    frequencyHours: 24
+  },
+  slot_interstitial: {
+    id: 'slot_interstitial',
+    name: 'Full-Page Interstitial / In-Page Push',
+    network: 'ExoClick / Interstitial',
+    dimensions: 'Full Screen',
+    isActive: true,
+    code: '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   affiliate_fallbacks: {
     isEnabled: true,
@@ -637,6 +645,25 @@ const DEFAULT_AD_SETTINGS = {
     }
   }
 };
+
+/**
+ * Universal Placeholder Detector
+ * Detects unconfigured placeholder ad comments and test templates.
+ */
+export function isPlaceholderAdCode(str) {
+  if (!str || typeof str !== 'string' || !str.trim()) return true;
+  return (
+    str.includes('Replace in Admin Panel') ||
+    str.includes('EXOCLICK BELOW-PLAYER BANNER') ||
+    str.includes('EXOCLICK TOP LEADERBOARD') ||
+    str.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
+    str.includes('EXOCLICK TABUNDER') ||
+    str.includes('JUICYADS') ||
+    str.includes('TrafficFactory') ||
+    str.includes('EXOCLICK STICKY BOTTOM BANNER') ||
+    str.includes('Adsterra Popunder Script Placeholder')
+  );
+}
 
 // Store Operations
 export const store = {
@@ -817,9 +844,14 @@ export const store = {
               ...(parsed.affiliate_fallbacks || {})
             };
           } else if (parsed[key]) {
+            let code = parsed[key].code;
+            if (isPlaceholderAdCode(code) && DEFAULT_AD_SETTINGS[key]?.code && !isPlaceholderAdCode(DEFAULT_AD_SETTINGS[key].code)) {
+              code = DEFAULT_AD_SETTINGS[key].code;
+            }
             merged[key] = {
               ...DEFAULT_AD_SETTINGS[key],
               ...parsed[key],
+              code,
               // Explicitly preserve deliberate disabled states
               isActive: parsed[key].isActive !== false
             };
@@ -912,6 +944,13 @@ export const store = {
 
   isBookmarked(videoId) {
     return this.getBookmarks().includes(videoId);
+  },
+
+  clearBookmarks() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify([]));
+    } catch (e) {}
+    return [];
   },
 
   // Likes

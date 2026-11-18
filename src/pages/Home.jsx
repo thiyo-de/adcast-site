@@ -4,18 +4,28 @@ import AdSlot from '../components/AdSlot';
 import { store, parseDurationToSeconds } from '../services/store';
 import { resetDefaultSEO } from '../utils/seo';
 
-const CATEGORIES = ['All', 'Trending', 'Cinematic', 'Music', 'Action', 'Tutorials', 'Featured'];
-
-export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookmarked, searchQuery }) {
+export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isBookmarked, searchQuery, onClearSearch }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [durationFilter, setDurationFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('trending');
+  const [sortBy, setSortBy] = useState('newest');
   const [history, setHistory] = useState(() => store.getHistory());
 
   useEffect(() => {
     resetDefaultSEO();
     setHistory(store.getHistory());
   }, []);
+
+  // Derive categories dynamically from actual published records (UX02)
+  const categories = React.useMemo(() => {
+    const set = new Set();
+    (videos || []).forEach((v) => {
+      if (v.category && typeof v.category === 'string' && v.category.trim()) {
+        set.add(v.category.trim());
+      }
+    });
+    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b));
+    return ['All', ...sorted];
+  }, [videos]);
 
   const handleClearHistory = (e) => {
     e.stopPropagation();
@@ -30,13 +40,14 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
   };
 
   // Filter and Sort Videos
-  let processedVideos = videos.filter((v) => {
+  const q = (searchQuery || '').trim().toLowerCase();
+  let processedVideos = (videos || []).filter((v) => {
     const matchesCategory = selectedCategory === 'All' || v.category === selectedCategory;
     const matchesSearch =
-      !searchQuery ||
-      v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.tags && v.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
+      !q ||
+      (v.title && v.title.toLowerCase().includes(q)) ||
+      (v.category && v.category.toLowerCase().includes(q)) ||
+      (v.tags && Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(q)));
 
     let matchesDuration = true;
     const durSec = v.duration_seconds || parseDurationToSeconds(v.duration);
@@ -51,7 +62,7 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
   processedVideos = [...processedVideos].sort((a, b) => {
     if (sortBy === 'top_rated') return (b.rating || 0) - (a.rating || 0);
     if (sortBy === 'views') return (b.views || 0) - (a.views || 0);
-    if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+    if (sortBy === 'newest') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
   });
 
@@ -62,7 +73,7 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
         className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const isSelected = selectedCategory === cat;
           return (
             <button
@@ -217,7 +228,7 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
 
       {/* 5. Responsive Video Grid with Native Ads */}
       {processedVideos.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl glass-card space-y-2">
+        <div className="p-12 text-center rounded-2xl glass-card space-y-3">
           <i className="ri-movie-line not-italic text-4xl text-slate-400 mb-2 block"></i>
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">
             {videos.length === 0 ? 'No video streams in catalog' : 'No streams match your filter'}
@@ -227,6 +238,20 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
               ? 'The catalog is currently empty. Use the admin panel to sync streams from your crawler sources.'
               : 'Try changing the duration or category filter, or reset your search query.'}
           </p>
+          {(selectedCategory !== 'All' || durationFilter !== 'all' || searchQuery) && (
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setDurationFilter('all');
+                  if (typeof onClearSearch === 'function') onClearSearch();
+                }}
+                className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all active:scale-95"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">

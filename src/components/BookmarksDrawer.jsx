@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { store } from '../services/store';
 
-export default function BookmarksDrawer({ isOpen, onClose, onSelectVideo, onRemoveBookmark }) {
+export default function BookmarksDrawer({ isOpen, onClose, onSelectVideo, onRemoveBookmark, onClearAllBookmarks }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const bookmarkedIds = store.getBookmarks();
@@ -87,8 +98,26 @@ export default function BookmarksDrawer({ isOpen, onClose, onSelectVideo, onRemo
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-slate-200 dark:border-white/10 text-[11px] text-slate-400 text-center">
-            Saved privately on device memory. Zero tracking.
+          <div className="p-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Saved privately on device memory.</span>
+            {bookmarkedVideos.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Remove all saved streams?')) {
+                    store.clearBookmarks();
+                    if (typeof onClearAllBookmarks === 'function') {
+                      onClearAllBookmarks();
+                    } else if (typeof onRemoveBookmark === 'function') {
+                      bookmarkedIds.forEach((id) => onRemoveBookmark(id));
+                    }
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg text-rose-500 hover:text-white hover:bg-rose-600 font-bold transition-all"
+              >
+                Clear All
+              </button>
+            )}
           </div>
         </div>
       </div>

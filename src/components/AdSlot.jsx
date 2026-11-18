@@ -41,7 +41,8 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       slot.code.includes('EXOCLICK TOP LEADERBOARD') ||
       slot.code.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
       slot.code.includes('EXOCLICK TABUNDER') ||
-      slot.code.includes('JUICYADS BELOW-PLAYER BANNER') ||
+      slot.code.includes('JUICYADS') ||
+      slot.code.includes('TrafficFactory') ||
       slot.code.includes('EXOCLICK STICKY BOTTOM BANNER') ||
       slot.code.includes('Adsterra Popunder Script Placeholder');
 
@@ -49,6 +50,9 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       setIsBlocked(true);
       return;
     }
+
+    // Reset blocked state for valid ad configurations
+    setIsBlocked(false);
 
     // 2. Active Ad-Blocker Probe
     bait = document.createElement('div');
@@ -78,46 +82,67 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       }
     }, 150);
 
-    // 3. Inject ad tags safely
-    if (containerRef.current && !isBlocked) {
-      const container = containerRef.current;
-      container.innerHTML = '';
-
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = slot.code;
-
-      const scripts = tempDiv.querySelectorAll('script');
-      if (scripts.length > 0) {
-        const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-        container.innerHTML = nonScripts;
-
-        scripts.forEach((oldScript) => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach((attr) => {
-            newScript.setAttribute(attr.name, attr.value);
-          });
-          newScript.textContent = oldScript.textContent;
-          newScript.onerror = () => {
-            if (isMounted) setIsBlocked(true);
-          };
-          container.appendChild(newScript);
-        });
-      } else {
-        container.innerHTML = slot.code;
-      }
-    }
-
     return () => {
       isMounted = false;
       if (probeTimeout) clearTimeout(probeTimeout);
       if (bait && bait.parentNode) {
         bait.parentNode.removeChild(bait);
       }
+    };
+  }, [slot?.code, slot?.isActive, slotId]);
+
+  // Effect 2: Inject ad tags once container is mounted and slot is not blocked
+  useEffect(() => {
+    if (!slot || !slot.isActive || isBlocked || !containerRef.current) return;
+
+    const isPlaceholder =
+      !slot.code ||
+      slot.code.includes('Replace in Admin Panel') ||
+      slot.code.includes('EXOCLICK BELOW-PLAYER BANNER') ||
+      slot.code.includes('EXOCLICK TOP LEADERBOARD') ||
+      slot.code.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
+      slot.code.includes('EXOCLICK TABUNDER') ||
+      slot.code.includes('JUICYADS') ||
+      slot.code.includes('TrafficFactory') ||
+      slot.code.includes('EXOCLICK STICKY BOTTOM BANNER') ||
+      slot.code.includes('Adsterra Popunder Script Placeholder');
+
+    if (isPlaceholder) return;
+
+    let isMounted = true;
+    const container = containerRef.current;
+    container.innerHTML = '';
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = slot.code;
+
+    const scripts = tempDiv.querySelectorAll('script');
+    if (scripts.length > 0) {
+      const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      container.innerHTML = nonScripts;
+
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach((attr) => {
+          newScript.setAttribute(attr.name, attr.value);
+        });
+        newScript.textContent = oldScript.textContent;
+        newScript.onerror = () => {
+          if (isMounted) setIsBlocked(true);
+        };
+        container.appendChild(newScript);
+      });
+    } else {
+      container.innerHTML = slot.code;
+    }
+
+    return () => {
+      isMounted = false;
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [slot?.code, slot?.isActive, isBlocked]);
+  }, [slot?.code, slot?.isActive, isBlocked, slotId]);
 
   if (!slot || !slot.isActive) return null;
 

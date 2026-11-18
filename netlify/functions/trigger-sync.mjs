@@ -14,38 +14,55 @@ export default async (req, context) => {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-  if (supabaseUrl && supabaseKey) {
-    if (!token) {
+  if (!token) {
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'unauthorized',
+      message: 'Missing authorization token.'
+    }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (!supabaseUrl || !supabaseKey) {
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'server_configuration_error',
+      message: 'Supabase credentials are not configured on server environment.'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  try {
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': supabaseKey
+      }
+    });
+    if (!userRes.ok) {
       return new Response(JSON.stringify({
         ok: false,
         status: 'unauthorized',
-        message: 'Missing authorization token.'
+        message: 'Invalid or expired administrator session.'
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-
-    try {
-      const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': supabaseKey
-        }
-      });
-      if (!userRes.ok) {
-        return new Response(JSON.stringify({
-          ok: false,
-          status: 'unauthorized',
-          message: 'Invalid or expired administrator session.'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    } catch (err) {
-      console.error('[AUTH ERROR]', err);
-    }
+  } catch (err) {
+    console.error('[AUTH ERROR]', err);
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'unauthorized',
+      message: 'Authentication verification service error.'
+    }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // 2. Check for GitHub PAT in server environment
