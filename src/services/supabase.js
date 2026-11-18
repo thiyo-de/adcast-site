@@ -110,10 +110,12 @@ export const api = {
         .or('is_active.eq.true,is_active.is.null')
         .order('created_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
+      if (error) {
+        console.warn('Supabase fetch failed, falling back to local cache:', error);
         return store.getVideos();
       }
-      return data;
+      // Cloud database is authoritative: empty table returns [] without reviving SEED_VIDEOS
+      return data || [];
     } catch (err) {
       console.warn('Supabase fetch failed, using local store:', err);
       return store.getVideos();
@@ -139,38 +141,47 @@ export const api = {
   },
 
   async addVideo(videoData) {
-    const localVideo = store.addVideo(videoData);
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        await supabase.from('videos').insert([videoData]);
-      } catch (err) {
-        console.error('Supabase video insert error:', err);
+      const { data, error } = await supabase.from('videos').insert([videoData]).select();
+      if (error) {
+        console.error('Supabase video insert error:', error);
+        throw error;
+      }
+      if (data && data[0]) {
+        store.addVideo(data[0]);
+        return data[0];
       }
     }
-    return localVideo;
+    return store.addVideo(videoData);
   },
 
   async updateVideo(id, fields) {
-    const updated = store.updateVideo(id, fields);
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        await supabase.from('videos').update(fields).eq('id', id);
-      } catch (err) {}
+      const { data, error } = await supabase.from('videos').update(fields).eq('id', id).select();
+      if (error) {
+        console.error('Supabase video update error:', error);
+        throw error;
+      }
+      if (data && data[0]) {
+        store.updateVideo(id, fields);
+        return data[0];
+      }
     }
-    return updated;
+    return store.updateVideo(id, fields);
   },
 
   async deleteVideo(id) {
-    const list = store.deleteVideo(id);
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        await supabase.from('videos').delete().eq('id', id);
-      } catch (err) {}
+      const { error } = await supabase.from('videos').delete().eq('id', id);
+      if (error) {
+        console.error('Supabase video delete error:', error);
+        throw error;
+      }
     }
-    return list;
+    return store.deleteVideo(id);
   },
 
   async getDeadVideos() {

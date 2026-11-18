@@ -168,32 +168,40 @@ export default function Admin({ onBack }) {
       is_featured: videoForm.is_featured
     };
 
-    if (editingVideo) {
-      await api.updateVideo(editingVideo.id, payload);
-    } else {
-      await api.addVideo(payload);
-    }
+    try {
+      if (editingVideo) {
+        await api.updateVideo(editingVideo.id, payload);
+      } else {
+        await api.addVideo(payload);
+      }
 
-    setIsAddModalOpen(false);
-    setEditingVideo(null);
-    setVideoForm({
-      title: '',
-      embed_url: '',
-      thumbnail_url: '',
-      duration: '10:00',
-      category: 'Trending',
-      quality: '4K UHD',
-      rating: 98,
-      tags: 'trending, viral',
-      is_featured: false
-    });
-    loadData();
+      setIsAddModalOpen(false);
+      setEditingVideo(null);
+      setVideoForm({
+        title: '',
+        embed_url: '',
+        thumbnail_url: '',
+        duration: '10:00',
+        category: 'Trending',
+        quality: '4K UHD',
+        rating: 98,
+        tags: 'trending, viral',
+        is_featured: false
+      });
+      await loadData();
+    } catch (err) {
+      alert(`Failed to save video: ${err.message || 'Database mutation rejected.'}`);
+    }
   };
 
   const handleDeleteVideo = async (id) => {
     if (window.confirm('Are you sure you want to delete this video?')) {
-      await api.deleteVideo(id);
-      loadData();
+      try {
+        await api.deleteVideo(id);
+        await loadData();
+      } catch (err) {
+        alert(`Failed to delete video: ${err.message || 'Database mutation rejected.'}`);
+      }
     }
   };
 

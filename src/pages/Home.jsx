@@ -201,10 +201,16 @@ export default function Home({ videos, onSelectVideo, onBookmarkToggle, isBookma
 
       {/* 5. Responsive Video Grid with Native Ads */}
       {processedVideos.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl glass-card">
+        <div className="p-12 text-center rounded-2xl glass-card space-y-2">
           <i className="ri-movie-line not-italic text-4xl text-slate-400 mb-2 block"></i>
-          <p className="text-base font-bold text-slate-700 dark:text-slate-300 mb-1">No streams match your filter</p>
-          <p className="text-xs text-slate-400">Try changing the duration or category filter.</p>
+          <p className="text-base font-bold text-slate-700 dark:text-slate-300">
+            {videos.length === 0 ? 'No video streams in catalog' : 'No streams match your filter'}
+          </p>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            {videos.length === 0
+              ? 'The catalog is currently empty. Use the admin panel to sync streams from your crawler sources.'
+              : 'Try changing the duration or category filter, or reset your search query.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
