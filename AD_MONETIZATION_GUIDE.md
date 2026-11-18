@@ -15,7 +15,7 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 | **3** | `slot_sticky_footer` | Pinned Screen Bottom (Global) | **ExoClick** | Sticky Banner (728x90 / 300x50) | **$1.50 – $3.50** | 🥉 **100% Viewability.** Stays visible while users scroll; 30s auto-refresh generates ~20 impressions per 10m video. *(Active Now: Zone `6093426`)* |
 | **4** | `slot_native_feed` | Inside Video Catalog Grid | **JuicyAds / ExoClick** | Native Recommendation Widget | Dynamic / CPC | 🎯 **Highest CTR.** Blends seamlessly with video thumbnails; visitors click thinking it's another related video. |
 | **5** | `slot_below_player` | Directly Under Video Player | **ExoClick** | 300x250 Medium Rectangle | Dynamic / Flat Rate | High-converting rectangle directly under the player. *(Active Now: Zone `6093362`)* |
-| **6** | `slot_top_banner` | Below Header & Tabs | **TrafficFactory** *(or ExoClick)* | 728x90 Leaderboard / 300x100 | **$1.50 – $6.00+** | High-paying premium desktop display banners (swap to TrafficFactory once reaching 1,000+ daily views). |
+| **6** | `slot_top_banner` | Below Header & Tabs | **ExoClick** | 728x90 Leaderboard | **$1.50 – $4.00+** | Prime top-of-page desktop visibility right under category navigation. *(Active Now: Zone `6093488`)* |
 
 ---
 
@@ -37,6 +37,7 @@ Do not rely on a single ad network. Assign each slot to the specific network tha
 
 ### Phase 1: Start with ExoClick Today
 1. **ExoClick** (Verified & Active: Site ID `1120332` on `hornyleaks.site`)
+   - Top Leaderboard 728x90 (`Zone 6093488`)
    - Sticky Bottom Banner (`Zone 6093426`)
    - Below-Player 300x250 Banner (`Zone 6093362`)
    - Popunder Tabunder (`Zone 6093374`)

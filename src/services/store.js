@@ -470,7 +470,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick / 728x90',
     dimensions: '728x90',
     isActive: true,
-    code: '<div style="background: linear-gradient(90deg, #1A1D2D, #222638); border: 1px dashed #E11D48; color: #F8FAFC; text-align: center; padding: 22px 10px; font-weight: 700; font-size: 14px; border-radius: 8px; letter-spacing: 0.5px;">⚡ EXOCLICK TOP LEADERBOARD (728x90) — Replace in Admin Panel</div>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a9788e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_native_feed: {
     id: 'slot_native_feed',
@@ -687,6 +687,9 @@ export const store = {
       const data = localStorage.getItem(STORAGE_KEYS.AD_SETTINGS);
       if (data) {
         const parsed = JSON.parse(data);
+        if (!parsed.slot_top_banner?.code || !parsed.slot_top_banner.code.includes('6093488')) {
+          parsed.slot_top_banner = DEFAULT_AD_SETTINGS.slot_top_banner;
+        }
         if (!parsed.slot_sticky_footer?.code || !parsed.slot_sticky_footer.code.includes('6093426')) {
           parsed.slot_sticky_footer = DEFAULT_AD_SETTINGS.slot_sticky_footer;
         }
