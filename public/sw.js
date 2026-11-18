@@ -1,20 +1,17 @@
 /**
- * AdCast Service Worker
- * Provides offline caching for static assets, styles, and fonts.
+ * AdCast Service Worker (v2 - Hardened Network-First Strategy)
+ * Resolves C16: Reliable update delivery without stale-cache traps.
  */
 
-const CACHE_NAME = 'adcast-cache-v1';
+const CACHE_NAME = 'adcast-cache-v2';
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
   '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
@@ -31,44 +28,61 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests and skip video streams / ad scripts
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Skip video blobs and ad requests
-  if (
+  // 1. Strict Exclusion: Never intercept video streams, APIs, or ad providers
+  const isExcluded =
     url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.m3u8') ||
+    url.pathname.endsWith('.webm') ||
     url.hostname.includes('supabase.co') ||
-    url.hostname.includes('googlevideo.com') ||
-    url.hostname.includes('exoclick') ||
+    url.hostname.includes('magsrv.com') ||
+    url.hostname.includes('pemsrv.com') ||
+    url.hostname.includes('exdynsrv.com') ||
+    url.hostname.includes('exoclick.com') ||
     url.hostname.includes('juicyads') ||
-    url.hostname.includes('trafficfactory')
-  ) {
-    return;
-  }
+    url.hostname.includes('trafficfactory') ||
+    url.hostname.includes('adsterra');
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+  if (isExcluded) return;
 
-      return fetch(event.request)
+  // 2. Navigation / HTML Document Requests -> Network-First (C16)
+  // Ensures user always gets the newest deployed index.html and fresh chunk hashes
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            (url.origin === self.location.origin || url.hostname.includes('jsdelivr.net') || url.hostname.includes('fonts.googleapis.com'))
-          ) {
+          if (networkResponse && networkResponse.status === 200) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return networkResponse;
         })
-        .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        });
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // 3. Static Assets (Hashed JS, CSS, Fonts) -> Cache-First with Network Fallback
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+
+      return fetch(event.request).then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          (url.origin === self.location.origin ||
+           url.hostname.includes('jsdelivr.net') ||
+           url.hostname.includes('fonts.googleapis.com') ||
+           url.hostname.includes('fonts.gstatic.com'))
+        ) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return networkResponse;
+      });
     })
   );
 });
