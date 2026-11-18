@@ -494,7 +494,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick / 300x250',
     dimensions: '300x250',
     isActive: true,
-    code: '<div style="background: #12141F; border: 1px dashed #06B6D4; color: #FFF; text-align: center; padding: 30px 15px; border-radius: 8px; font-weight: 700; font-size: 14px;">🎯 EXOCLICK BELOW-PLAYER BANNER (300x250)</div>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093362"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_video_preroll: {
     id: 'slot_video_preroll',
@@ -698,7 +698,7 @@ export const store = {
             targetUrl: DEFAULT_AD_SETTINGS.slot_video_preroll.targetUrl
           };
         }
-        if (!parsed.slot_below_player?.code || parsed.slot_below_player.code.includes('JUICYADS') || parsed.slot_below_player.code.includes('biomanos.org')) {
+        if (!parsed.slot_below_player?.code || !parsed.slot_below_player.code.includes('6093362')) {
           parsed.slot_below_player = DEFAULT_AD_SETTINGS.slot_below_player;
         }
         if (!parsed.slot_popunder?.code || parsed.slot_popunder?.code?.includes('benchform.org') || parsed.slot_popunder?.code?.includes('Adsterra')) {
