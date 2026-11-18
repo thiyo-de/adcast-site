@@ -32,7 +32,8 @@ export async function videoExists(embedUrl) {
 
   if (error) {
     console.error('[DB CHECK ERROR]', error.message);
-    return false;
+    // C13: Do not treat a failed existence query as proof that a video is new!
+    return true;
   }
   return Boolean(data && data.length > 0);
 }
@@ -47,6 +48,7 @@ export async function syncVideosToDb(videos) {
 
   const db = getDbClient();
   const toInsert = [];
+  const seenUrls = new Set();
   let skipped = 0;
 
   for (const video of videos) {
@@ -55,11 +57,21 @@ export async function syncVideosToDb(videos) {
       continue;
     }
 
-    const exists = await videoExists(video.embed_url);
+    const cleanUrl = video.embed_url.trim();
+    if (seenUrls.has(cleanUrl)) {
+      skipped++;
+      continue;
+    }
+    seenUrls.add(cleanUrl);
+
+    const exists = await videoExists(cleanUrl);
     if (exists) {
       skipped++;
     } else {
-      toInsert.push(video);
+      toInsert.push({
+        ...video,
+        embed_url: cleanUrl
+      });
     }
   }
 
@@ -115,11 +127,14 @@ export async function getActiveSources() {
       .eq('is_enabled', true)
       .order('created_at', { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      return data;
+    if (!error) {
+      // If table exists and query succeeded, database is authoritative.
+      // C13: Treat a successful empty enabled-source result as "nothing to run."
+      // Do not revive JSON sources when every database source is disabled.
+      return data || [];
     }
   } catch (err) {
-    console.warn('[DB SOURCES NOTICE] Falling back to sources.json:', err.message);
+    console.warn('[DB SOURCES NOTICE] Database query failed, falling back to sources.json:', err.message);
   }
   return config.sources.filter(s => s.enabled);
 }

@@ -375,5 +375,64 @@ export const api = {
       console.error('Failed to delete crawler source:', err);
       return false;
     }
+  },
+
+  async triggerSync(source = null) {
+    const session = await auth.getSession();
+    const token = session?.access_token;
+    const webhookUrl = import.meta.env.VITE_SYNC_WEBHOOK_URL || '/.netlify/functions/trigger-sync';
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          source_id: source?.id || null,
+          source_name: source?.name || null,
+          source_url: source?.url || null
+        })
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        return {
+          ok: false,
+          status: 'unauthorized',
+          message: 'Admin authorization required. Please sign in with an authorized administrator account.'
+        };
+      }
+
+      if (response.status === 404 || response.status === 501) {
+        return {
+          ok: false,
+          status: 'unconfigured',
+          message: 'Serverless crawler webhook trigger is unconfigured on this host.'
+        };
+      }
+
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.ok) {
+        return {
+          ok: true,
+          status: 'dispatched',
+          jobId: result.jobId || result.run_id || `job-${Date.now()}`,
+          message: result.message || 'Crawler sync job successfully dispatched.'
+        };
+      }
+
+      return {
+        ok: false,
+        status: result.status || 'error',
+        message: result.message || `Server responded with HTTP ${response.status}`
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 'unconfigured',
+        message: 'No active serverless trigger endpoint detected.'
+      };
+    }
   }
 };

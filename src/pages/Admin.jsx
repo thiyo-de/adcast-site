@@ -55,7 +55,7 @@ export default function Admin({ onBack }) {
   });
   const [editingSourceId, setEditingSourceId] = useState(null);
   const [isSyncingEngine, setIsSyncingEngine] = useState(false);
-  const [syncStatusMsg, setSyncStatusMsg] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -278,15 +278,47 @@ export default function Admin({ onBack }) {
     }
   };
 
-  const handleTriggerSync = (source = null) => {
+  const handleTriggerSync = async (source = null) => {
     setIsSyncingEngine(true);
-    setSyncStatusMsg(source ? `Fetching latest videos from "${source.name}"...` : 'Triggering sync across all active sources...');
-    setTimeout(() => {
+    setSyncStatus({
+      type: 'loading',
+      message: source ? `Contacting sync trigger service for "${source.name}"...` : 'Contacting sync trigger service for all active sources...'
+    });
+
+    try {
+      const res = await api.triggerSync(source);
       setIsSyncingEngine(false);
-      setSyncStatusMsg(source ? `Sync job queued for "${source.name}"! Refresh in ~20s.` : 'Cloud sync queued! Check your video list in ~20s.');
-      loadData();
-      setTimeout(() => setSyncStatusMsg(null), 6000);
-    }, 1500);
+
+      if (res.ok) {
+        setSyncStatus({
+          type: 'success',
+          jobId: res.jobId,
+          message: res.message || 'Workflow dispatched to GitHub Actions runner queue.'
+        });
+        loadData();
+      } else if (res.status === 'unconfigured') {
+        setSyncStatus({
+          type: 'unconfigured',
+          message: res.message || 'Serverless trigger endpoint is unconfigured on this host.'
+        });
+      } else if (res.status === 'unauthorized') {
+        setSyncStatus({
+          type: 'unauthorized',
+          message: res.message || 'Administrator session required to dispatch crawler jobs.'
+        });
+      } else {
+        setSyncStatus({
+          type: 'error',
+          message: res.message || 'Failed to dispatch crawler sync job.'
+        });
+      }
+    } catch (err) {
+      setIsSyncingEngine(false);
+      setSyncStatus({
+        type: 'error',
+        message: err.message || 'Unexpected network error dispatching sync.'
+      });
+    }
   };
 
   const handleEditClick = (v) => {
@@ -743,11 +775,91 @@ export default function Admin({ onBack }) {
             </div>
           </div>
 
-          {/* Sync Status Banner */}
-          {syncStatusMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-fade-in">
-              <i className="ri-checkbox-circle-fill not-italic text-base"></i>
-              <span>{syncStatusMsg}</span>
+          {/* Honest Sync Status Banner & Unconfigured Action Center */}
+          {syncStatus && (
+            <div className={`p-4 rounded-2xl border text-xs font-semibold animate-fade-in ${
+              syncStatus.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                : syncStatus.type === 'loading'
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+                : syncStatus.type === 'unconfigured'
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+            }`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <i className={`${
+                    syncStatus.type === 'success'
+                      ? 'ri-checkbox-circle-fill text-emerald-500 text-lg'
+                      : syncStatus.type === 'loading'
+                      ? 'ri-loader-4-line animate-spin text-rose-500 text-lg'
+                      : syncStatus.type === 'unconfigured'
+                      ? 'ri-information-fill text-amber-500 text-lg'
+                      : 'ri-error-warning-fill text-rose-500 text-lg'
+                  } not-italic shrink-0 mt-0.5`}></i>
+                  <div>
+                    <div className="font-bold text-sm">
+                      {syncStatus.type === 'success' && 'Crawler Sync Dispatched'}
+                      {syncStatus.type === 'loading' && 'Dispatching Crawler Sync...'}
+                      {syncStatus.type === 'unconfigured' && 'Direct Serverless Dispatch Unconfigured'}
+                      {(syncStatus.type === 'error' || syncStatus.type === 'unauthorized') && 'Sync Dispatch Failed'}
+                    </div>
+                    <div className="mt-1 text-slate-600 dark:text-slate-300 font-normal">
+                      {syncStatus.message}
+                    </div>
+                    {syncStatus.jobId && (
+                      <div className="mt-1.5 font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+                        Job Run ID: <span className="font-bold">{syncStatus.jobId}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSyncStatus(null)}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                  title="Dismiss"
+                >
+                  <i className="ri-close-line not-italic text-base"></i>
+                </button>
+              </div>
+
+              {/* Helpful options when unconfigured or instructions are needed */}
+              {syncStatus.type === 'unconfigured' && (
+                <div className="mt-3 pt-3 border-t border-amber-500/20 grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700 dark:text-slate-300 font-normal">
+                  <div className="p-3 rounded-xl bg-black/10 dark:bg-black/20 space-y-1.5">
+                    <div className="font-bold text-xs flex items-center gap-1.5 text-slate-900 dark:text-white">
+                      <i className="ri-github-fill not-italic text-sm"></i>
+                      Option 1: 1-Click Trigger on GitHub
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Dispatches the live crawler runner instantly via GitHub Actions.
+                    </p>
+                    <a
+                      href="https://github.com/thiyo-de/adcast-site/actions/workflows/auto-sync.yml"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold transition-all shadow-sm"
+                    >
+                      <span>Open GitHub Actions</span>
+                      <i className="ri-external-link-line not-italic text-xs"></i>
+                    </a>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/10 dark:bg-black/20 space-y-1.5">
+                    <div className="font-bold text-xs flex items-center gap-1.5 text-slate-900 dark:text-white">
+                      <i className="ri-terminal-box-line not-italic text-sm"></i>
+                      Option 2: Run Locally via Terminal
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Run the sync engine directly on your development machine:
+                    </p>
+                    <code className="block p-1.5 rounded bg-black/30 text-[11px] font-mono text-amber-500 dark:text-amber-300 select-all">
+                      npm --prefix adcast-sync-engine run sync
+                    </code>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

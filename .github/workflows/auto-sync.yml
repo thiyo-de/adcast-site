@@ -22,7 +22,7 @@ jobs:
       - name: Install Sync Engine Dependencies
         run: |
           cd adcast-sync-engine
-          npm ci || npm install
+          npm ci
 
       - name: Run Video Synchronization Engine
         env:

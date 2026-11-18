@@ -100,15 +100,21 @@ export async function runSyncCycle() {
     console.log('------------------------------------------------------\n');
   } catch (globalErr) {
     console.error('\x1b[31m[FATAL ERROR]\x1b[0m Sync cycle encountered an error:', globalErr);
+    throw globalErr;
   }
 }
 
 // Master CLI Execution Handler
 if (isRunNow) {
-  runSyncCycle().then(() => {
-    console.log('[SYNC] Done. Exiting.');
-    process.exit(0);
-  });
+  runSyncCycle()
+    .then(() => {
+      console.log('[SYNC] Done. Exiting.');
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('\x1b[31m[SYNC FAILED]\x1b[0m Process exited with error:', err.message);
+      process.exit(1);
+    });
 } else if (isScheduled || (!isRunNow && !isScheduled)) {
   console.log('======================================================');
   console.log(`[ADCAST SYNC ENGINE DAEMON]`);

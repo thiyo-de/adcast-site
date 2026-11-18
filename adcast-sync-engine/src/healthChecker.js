@@ -32,19 +32,26 @@ export async function checkStreamHealth(embedUrl) {
       validateStatus: () => true // Allow handling all status codes manually
     });
 
-    // Check HTTP status code
+    // C15: Only explicit HTTP 404 (Not Found) or 410 (Gone) indicate a confirmed dead stream.
     if (res.status === 404 || res.status === 410) {
       return { isAlive: false, reason: `HTTP ${res.status} Not Found` };
     }
-    if (res.status >= 500) {
-      return { isAlive: false, reason: `HTTP ${res.status} Server Error` };
+
+    // Temporary server issues, 5xx, 429 rate limits, and 403 anti-bot challenges are transient.
+    // They must NOT quarantine healthy streams!
+    if (res.status >= 500 || res.status === 429 || res.status === 403) {
+      return { isAlive: true, isRetryable: true, reason: `HTTP ${res.status} Transient` };
     }
 
-    // Check page body text if string
+    // Check specific HTML title or header tags for removal notices rather than full document body
+    // (which could match JS script names or footer text)
     if (typeof res.data === 'string') {
-      const lower = res.data.toLowerCase();
+      const titleMatch = res.data.match(/<title[^>]*>(.*?)<\/title>/i);
+      const h1Match = res.data.match(/<h1[^>]*>(.*?)<\/h1>/i);
+      const headline = ((titleMatch ? titleMatch[1] : '') + ' ' + (h1Match ? h1Match[1] : '')).toLowerCase();
+
       for (const sig of DEAD_SIGNATURES) {
-        if (lower.includes(sig)) {
+        if (headline.includes(sig)) {
           return { isAlive: false, reason: `Source Notice: "${sig}"` };
         }
       }
@@ -55,11 +62,12 @@ export async function checkStreamHealth(embedUrl) {
     if (err.response && (err.response.status === 404 || err.response.status === 410)) {
       return { isAlive: false, reason: `HTTP ${err.response.status} Not Found` };
     }
-    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+    // DNS resolution failure (domain gone permanently)
+    if (err.code === 'ENOTFOUND') {
       return { isAlive: false, reason: `Domain Offline (${err.code})` };
     }
-    // Network timeouts or temporary drops are not immediately marked dead to prevent false positives
-    return { isAlive: true, reason: null };
+    // Network timeouts, ECONNREFUSED, or temporary connection drops are NOT marked dead
+    return { isAlive: true, isRetryable: true, reason: err.code || 'Network timeout' };
   }
 }
 
