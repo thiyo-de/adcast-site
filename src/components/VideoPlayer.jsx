@@ -91,12 +91,8 @@ export default function VideoPlayer({ video, onEnded }) {
   // Pre-fetch VAST ad on mount/video change so playback starts synchronously with zero lag
   useEffect(() => {
     let isCancelled = false;
-    const now = Date.now();
-    const lastPreroll = parseInt(sessionStorage.getItem('adcast_last_preroll') || '0', 10);
-    const fiveMinutesMs = 5 * 60 * 1000;
-    const isDue = (now - lastPreroll) >= fiveMinutesMs;
 
-    if (hasPreRoll && preRollSlot?.vastUrl && isDue) {
+    if (hasPreRoll && preRollSlot?.vastUrl) {
       resolveVastAd(preRollSlot.vastUrl)
         .then((res) => {
           if (!isCancelled && res?.mediaUrl) {
@@ -136,13 +132,8 @@ export default function VideoPlayer({ video, onEnded }) {
       store.addToHistory(video);
     }
 
-    // 5-minute frequency cap check (matching ExoClick zone setting)
-    const now = Date.now();
-    const lastPreroll = parseInt(sessionStorage.getItem('adcast_last_preroll') || '0', 10);
-    const fiveMinutesMs = 5 * 60 * 1000;
-    const isDue = (now - lastPreroll) >= fiveMinutesMs;
-
-    if (hasPreRoll && preRollSlot?.vastUrl && isDue) {
+    // Run pre-roll on every video play
+    if (hasPreRoll && preRollSlot?.vastUrl) {
       let vastResult = prefetchedAdRef.current;
       if (!vastResult?.mediaUrl) {
         setIsLoadingAd(true);

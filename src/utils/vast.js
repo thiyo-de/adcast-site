@@ -18,17 +18,28 @@ function parseVastXmlDocument(xmlText) {
     const parseError = doc.querySelector('parsererror');
     if (parseError) {
       console.warn('VAST XML parser warning:', parseError.textContent);
-      return null;
     }
 
+    // Cross-namespace element querying (supporting VAST 3.0 & VAST 4.x namespaces)
+    const getElements = (tagName) => {
+      let list = Array.from(doc.querySelectorAll?.(tagName) || []);
+      if (!list.length && doc.getElementsByTagName) {
+        list = Array.from(doc.getElementsByTagName(tagName));
+      }
+      return list;
+    };
+    const getElement = (tagName) => {
+      return doc.querySelector?.(tagName) || doc.getElementsByTagName?.(tagName)?.[0] || null;
+    };
+
     // 1. Impression URLs
-    const impressionEls = doc.querySelectorAll('Impression');
-    const impressionUrls = Array.from(impressionEls)
+    const impressionEls = getElements('Impression');
+    const impressionUrls = impressionEls
       .map(getTextContent)
       .filter(Boolean);
 
     // 2. MediaFiles (prefer MP4)
-    const mediaFileEls = doc.querySelectorAll('MediaFile');
+    const mediaFileEls = getElements('MediaFile');
     let mediaUrl = null;
     let fallbackMediaUrl = null;
 
@@ -45,16 +56,30 @@ function parseVastXmlDocument(xmlText) {
     }
     if (!mediaUrl) mediaUrl = fallbackMediaUrl;
 
+    // Regex fallback for mediaUrl if namespace query returned empty
+    if (!mediaUrl) {
+      const mediaMatch = xmlText.match(/<MediaFile[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/MediaFile>/i);
+      if (mediaMatch && mediaMatch[1]) {
+        mediaUrl = mediaMatch[1].trim();
+      }
+    }
+
     // 3. ClickThrough & ClickTracking
-    const clickThroughEl = doc.querySelector('ClickThrough');
-    const clickTrackingEls = doc.querySelectorAll('ClickTracking');
-    const clickUrl = getTextContent(clickThroughEl);
-    const clickTrackingUrls = Array.from(clickTrackingEls)
+    const clickThroughEl = getElement('ClickThrough');
+    const clickTrackingEls = getElements('ClickTracking');
+    let clickUrl = getTextContent(clickThroughEl);
+    if (!clickUrl) {
+      const clickMatch = xmlText.match(/<ClickThrough[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/ClickThrough>/i);
+      if (clickMatch && clickMatch[1]) {
+        clickUrl = clickMatch[1].trim();
+      }
+    }
+    const clickTrackingUrls = clickTrackingEls
       .map(getTextContent)
       .filter(Boolean);
 
     // 4. Tracking events (start, firstQuartile, midpoint, thirdQuartile, complete)
-    const trackingEls = doc.querySelectorAll('Tracking');
+    const trackingEls = getElements('Tracking');
     const trackingEvents = {};
     trackingEls.forEach((el) => {
       const event = el.getAttribute('event');
@@ -66,8 +91,14 @@ function parseVastXmlDocument(xmlText) {
     });
 
     // 5. VASTAdTagURI (Wrapper)
-    const wrapperTag = doc.querySelector('VASTAdTagURI');
-    const wrapperUrl = getTextContent(wrapperTag);
+    const wrapperTag = getElement('VASTAdTagURI');
+    let wrapperUrl = getTextContent(wrapperTag);
+    if (!wrapperUrl) {
+      const wrapperMatch = xmlText.match(/<VASTAdTagURI[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/VASTAdTagURI>/i);
+      if (wrapperMatch && wrapperMatch[1]) {
+        wrapperUrl = wrapperMatch[1].trim();
+      }
+    }
 
     return {
       mediaUrl,
