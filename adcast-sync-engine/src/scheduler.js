@@ -10,7 +10,7 @@ const DEFAULT_TIMEZONE = 'Asia/Calcutta';
 
 /**
  * Calculates the exact next run time from a cron expression and timezone.
- * Handles daily time definitions (e.g. "0 14 * * *"), interval steps (e.g. "0 */6 * * *"),
+ * Handles daily time definitions (e.g. "0 14 * * *"), interval steps (e.g. step hours),
  * and respects the source's specified timezone.
  */
 export function calculateNextCronRun(cronExpr = '0 */4 * * *', timezone = DEFAULT_TIMEZONE) {
