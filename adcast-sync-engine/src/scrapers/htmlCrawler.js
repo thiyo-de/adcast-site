@@ -1,6 +1,6 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getStealthHeaders, sleep } from '../utils/userAgents.js';
+import { safeFetch } from '../utils/safeFetch.js';
+import { sleep } from '../utils/userAgents.js';
 import { normalizeVideo } from '../utils/normalizer.js';
 
 /**
@@ -16,10 +16,18 @@ export async function scrapeHtml(source, limit = 15) {
   const linkSelector = selectors.link || 'a.video-link, a[href*="/video/"], a';
   const durationSelector = selectors.duration || '.duration, .time, .badge-duration';
 
-  const response = await axios.get(url, {
-    headers: getStealthHeaders(url),
-    timeout: 15000
-  });
+  const response = await safeFetch(url, { timeout: 15000 });
+  if (response.isChallenge) {
+    console.warn(`  [HTML CRAWLER] Cloudflare/anti-bot challenge encountered on: ${url}`);
+    const res = [];
+    res.isChallenge = true;
+    res.challengeReason = response.challengeReason || 'Cloudflare challenge active';
+    return res;
+  }
+  if (!response.ok || !response.data) {
+    console.warn(`  [HTML CRAWLER] Failed fetching catalog: HTTP ${response.status}`);
+    return [];
+  }
 
   const html = response.data;
   const $ = cheerio.load(html);

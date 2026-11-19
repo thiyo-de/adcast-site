@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import AgeModal from './components/AgeModal';
 import StickyFooter from './components/StickyFooter';
 import PopunderTrigger from './components/PopunderTrigger';
+import InterstitialTrigger from './components/InterstitialTrigger';
 import BookmarksDrawer from './components/BookmarksDrawer';
 import Home from './pages/Home';
 import Watch from './pages/Watch';
@@ -11,6 +12,9 @@ import DMCA from './pages/DMCA';
 import Legal from './pages/Legal';
 import { store } from './services/store';
 import { api } from './services/supabase';
+import { AdBlockProvider } from './services/adBlockContext';
+import AdBlockNotice from './components/AdBlockNotice';
+import { computeCategoryCounts } from './constants/categories';
 
 function parseRoute(pathname = window.location.pathname) {
   if (pathname.startsWith('/watch/')) {
@@ -38,11 +42,14 @@ export default function App() {
   const selectedVideoId = routeState.videoId;
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [videos, setVideos] = useState([]);
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isDevMode, setIsDevMode] = useState(store.isDevMode());
   const lastHomeScrollY = useRef(0);
+
+  const categoryCounts = React.useMemo(() => computeCategoryCounts(videos), [videos]);
 
   const navigate = (view, videoId = null, replace = false) => {
     // Preserve scroll offset when leaving home (UX07)
@@ -189,11 +196,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-obsidian text-slate-900 dark:text-[#F8FAFC] transition-colors duration-300">
-      {/* 18+ Age Verification Modal */}
-      <AgeModal />
+    <AdBlockProvider currentView={currentView}>
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-obsidian text-slate-900 dark:text-[#F8FAFC] transition-colors duration-300">
+        {/* 18+ Age Verification Modal */}
+        <AgeModal />
 
-      {/* Navigation Header with Theme Toggle */}
+        {/* Ad-Blocker Awareness Notice */}
+        <AdBlockNotice />
+
+      {/* Navigation Header with Categories Popover & Theme Toggle */}
       <Navbar
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
@@ -204,6 +215,12 @@ export default function App() {
         onToggleDevMode={handleToggleDevMode}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        selectedCategory={selectedCategory}
+        onSelectCategory={(catId) => {
+          setSelectedCategory(catId);
+          if (currentView !== 'home') navigate('home');
+        }}
+        categoryCounts={categoryCounts}
       />
 
       {/* Main Dynamic View with Safe-Area Clearance for Sticky Footer */}
@@ -219,6 +236,8 @@ export default function App() {
             onSelectVideo={handleSelectVideo}
             onBookmarkToggle={handleBookmarkToggle}
             isBookmarked={(id) => bookmarks.includes(id)}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
           />
         )}
 
@@ -254,11 +273,12 @@ export default function App() {
         )}
       </main>
 
-      {/* Sticky Bottom Mobile Ad Banner and Popunder Trigger (Disabled on Admin to prevent ad overlap) */}
+      {/* Sticky Bottom Mobile Ad Banner, Popunder, and Desktop Interstitial Triggers */}
       {currentView !== 'admin' && (
         <>
-          <StickyFooter />
+          <StickyFooter currentView={currentView} />
           <PopunderTrigger />
+          <InterstitialTrigger currentView={currentView} />
         </>
       )}
 
@@ -317,5 +337,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+  </AdBlockProvider>
   );
 }

@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "sync": "node src/index.js --now",
     "cron": "node src/index.js --schedule",
+    "scheduler": "node src/scheduler.js",
     "health-check": "node src/healthChecker.js"
   },
   "dependencies": {

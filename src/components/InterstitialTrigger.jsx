@@ -1,0 +1,75 @@
+import React, { useEffect, useRef } from 'react';
+import { useAdSettings, isPlaceholderAdCode } from '../services/store';
+import { useAdBlock } from '../services/adBlockContext';
+
+export default function InterstitialTrigger({ currentView }) {
+  const adSettings = useAdSettings();
+  const { isNoticeOpen } = useAdBlock();
+  const slot = adSettings['slot_interstitial'];
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    // 1. Guard check: Only on desktop (>= 1024px), slot active, not placeholder, not admin/legal routes, and adblock notice not open
+    if (typeof window === 'undefined') return;
+
+    const isDesktop = window.innerWidth >= 1024;
+    const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
+
+    if (!isDesktop || !slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code) || isExcludedRoute || isNoticeOpen) {
+      return;
+    }
+
+    // 2. Frequency capping check: 1 time per 1 hour (matching ExoClick zone setting)
+    const now = Date.now();
+    const lastTrigger = parseInt(localStorage.getItem('adcast_last_interstitial') || '0', 10);
+    const oneHourMs = (slot.frequencyHours || 1) * 60 * 60 * 1000;
+
+    if (now - lastTrigger < oneHourMs) {
+      return; // Capped for this hour
+    }
+
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
+    // Record trigger timestamp
+    localStorage.setItem('adcast_last_interstitial', now.toString());
+
+    // 3. Clean up any previous interstitial artifacts
+    const oldElements = document.querySelectorAll('[data-adcast-interstitial="true"]');
+    oldElements.forEach((el) => el.remove());
+
+    // 4. Inject container and provider tag into body
+    const interstitialContainer = document.createElement('div');
+    interstitialContainer.id = 'adcast-interstitial-container';
+    interstitialContainer.setAttribute('data-adcast-interstitial', 'true');
+    interstitialContainer.style.display = 'none';
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = slot.code;
+
+    // Non-script elements (e.g. <ins class="eas6a97888e35" data-zoneid="6093518"></ins>)
+    const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    interstitialContainer.innerHTML = nonScripts;
+    document.body.appendChild(interstitialContainer);
+
+    // Scripts (ad-provider.js and push serve)
+    const scripts = tempDiv.querySelectorAll('script');
+    scripts.forEach((s) => {
+      const newScript = document.createElement('script');
+      newScript.setAttribute('data-adcast-interstitial', 'true');
+      Array.from(s.attributes).forEach((attr) => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      newScript.textContent = s.textContent;
+      document.body.appendChild(newScript);
+    });
+
+    return () => {
+      const existing = document.querySelectorAll('[data-adcast-interstitial="true"]');
+      existing.forEach((el) => el.remove());
+      mountedRef.current = false;
+    };
+  }, [slot, currentView, isNoticeOpen]);
+
+  return null;
+}

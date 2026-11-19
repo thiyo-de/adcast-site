@@ -4,32 +4,11 @@ import { store, useAdSettings } from '../services/store';
 export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const containerRef = useRef(null);
   const outerWrapperRef = useRef(null);
-  const [scaleRatio, setScaleRatio] = useState(1);
-  const [isBlocked, setIsBlocked] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
   const adSettings = useAdSettings();
   const slot = adSettings[slotId];
   const affiliateSettings = adSettings.affiliate_fallbacks || {};
   const isDevMode = store.isDevMode();
-
-  // Dynamic scale measurement for fixed-dimension desktop banners (e.g. 728x90) on mobile
-  useEffect(() => {
-    if (slotId !== 'slot_top_banner') return;
-
-    const handleResize = () => {
-      if (outerWrapperRef.current) {
-        const available = outerWrapperRef.current.offsetWidth || (typeof window !== 'undefined' ? window.innerWidth - 32 : 728);
-        if (available > 0 && available < 728) {
-          setScaleRatio(available / 728);
-        } else {
-          setScaleRatio(1);
-        }
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [slotId]);
 
   // Pick appropriate campaign based on slot position
   const getCampaign = () => {
@@ -48,99 +27,65 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
 
   const campaign = getCampaign();
 
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < 768;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Device-adaptive zone switching for top banner: mobile zone 6096160 (<768px), desktop zone 6093488 (>=768px)
+  const rawCode = slot?.code || '';
+  let effectiveCode = rawCode;
+  if (slotId === 'slot_top_banner' && rawCode) {
+    if (isMobileViewport) {
+      effectiveCode = rawCode.includes('6093488') ? rawCode.replace('6093488', '6096160') : rawCode;
+    } else {
+      effectiveCode = rawCode.includes('6096160') ? rawCode.replace('6096160', '6093488') : rawCode;
+    }
+  }
+
+  // Consolidated effect: parse and inject ad tag or switch to fallback
   useEffect(() => {
     let isMounted = true;
-    let probeTimeout = null;
-    let bait = null;
-
     if (!slot || !slot.isActive) return;
 
-    // 1. Detect unconfigured placeholder codes
+    // Detect unconfigured placeholder codes
     const isPlaceholder =
-      !slot.code ||
-      slot.code.includes('Replace in Admin Panel') ||
-      slot.code.includes('EXOCLICK BELOW-PLAYER BANNER') ||
-      slot.code.includes('EXOCLICK TOP LEADERBOARD') ||
-      slot.code.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
-      slot.code.includes('EXOCLICK TABUNDER') ||
-      slot.code.includes('JUICYADS') ||
-      slot.code.includes('TrafficFactory') ||
-      slot.code.includes('EXOCLICK STICKY BOTTOM BANNER') ||
-      slot.code.includes('Adsterra Popunder Script Placeholder');
+      !effectiveCode ||
+      effectiveCode.includes('Replace in Admin Panel') ||
+      effectiveCode.includes('EXOCLICK BELOW-PLAYER BANNER') ||
+      effectiveCode.includes('EXOCLICK TOP LEADERBOARD') ||
+      effectiveCode.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
+      effectiveCode.includes('EXOCLICK TABUNDER') ||
+      effectiveCode.includes('JUICYADS') ||
+      effectiveCode.includes('TrafficFactory') ||
+      effectiveCode.includes('EXOCLICK STICKY BOTTOM BANNER') ||
+      effectiveCode.includes('Adsterra Popunder Script Placeholder');
 
     if (isPlaceholder) {
-      setIsBlocked(true);
+      setIsFallback(true);
       return;
     }
 
-    // Reset blocked state for valid ad configurations
-    setIsBlocked(false);
+    setIsFallback(false);
 
-    // 2. Active Ad-Blocker Probe
-    bait = document.createElement('div');
-    bait.setAttribute(
-      'class',
-      'pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text-ads text-ad-links ad-text ad-placement banner-ad'
-    );
-    bait.setAttribute(
-      'style',
-      'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important;'
-    );
-    document.body.appendChild(bait);
-
-    probeTimeout = window.setTimeout(() => {
-      if (!isMounted) return;
-      if (
-        !bait.offsetParent ||
-        bait.offsetHeight === 0 ||
-        bait.offsetWidth === 0 ||
-        window.getComputedStyle(bait).getPropertyValue('display') === 'none' ||
-        window.getComputedStyle(bait).getPropertyValue('visibility') === 'hidden'
-      ) {
-        setIsBlocked(true);
-      }
-      if (bait.parentNode) {
-        bait.parentNode.removeChild(bait);
-      }
-    }, 150);
-
-    return () => {
-      isMounted = false;
-      if (probeTimeout) clearTimeout(probeTimeout);
-      if (bait && bait.parentNode) {
-        bait.parentNode.removeChild(bait);
-      }
-    };
-  }, [slot?.code, slot?.isActive, slotId]);
-
-  // Effect 2: Inject ad tags once container is mounted and slot is not blocked
-  useEffect(() => {
-    if (!slot || !slot.isActive || isBlocked || !containerRef.current) return;
-
-    const isPlaceholder =
-      !slot.code ||
-      slot.code.includes('Replace in Admin Panel') ||
-      slot.code.includes('EXOCLICK BELOW-PLAYER BANNER') ||
-      slot.code.includes('EXOCLICK TOP LEADERBOARD') ||
-      slot.code.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
-      slot.code.includes('EXOCLICK TABUNDER') ||
-      slot.code.includes('JUICYADS') ||
-      slot.code.includes('TrafficFactory') ||
-      slot.code.includes('EXOCLICK STICKY BOTTOM BANNER') ||
-      slot.code.includes('Adsterra Popunder Script Placeholder');
-
-    if (isPlaceholder) return;
-
-    let isMounted = true;
+    if (!containerRef.current) return;
     const container = containerRef.current;
     container.innerHTML = '';
 
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = slot.code;
+    tempDiv.innerHTML = effectiveCode;
 
     const scripts = tempDiv.querySelectorAll('script');
     if (scripts.length > 0) {
-      const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      const nonScripts = effectiveCode.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       container.innerHTML = nonScripts;
 
       scripts.forEach((oldScript) => {
@@ -150,12 +95,12 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         });
         newScript.textContent = oldScript.textContent;
         newScript.onerror = () => {
-          if (isMounted) setIsBlocked(true);
+          if (isMounted) setIsFallback(true);
         };
         container.appendChild(newScript);
       });
     } else {
-      container.innerHTML = slot.code;
+      container.innerHTML = effectiveCode;
     }
 
     return () => {
@@ -164,7 +109,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [slot?.code, slot?.isActive, isBlocked, slotId]);
+  }, [effectiveCode, slot?.isActive, slotId]);
 
   if (!slot || !slot.isActive) return null;
 
@@ -178,11 +123,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const getSlotContainerClasses = () => {
     switch (slotId) {
       case 'slot_top_banner':
-        return 'min-h-[90px] w-full max-w-full sm:max-w-4xl mx-auto flex flex-col items-center justify-center overflow-hidden [&_iframe]:max-w-full [&_ins]:max-w-full';
+        return 'min-h-[50px] sm:min-h-[90px] w-full max-w-full sm:max-w-4xl mx-auto flex flex-col items-center justify-center overflow-hidden [&_iframe]:max-w-full [&_ins]:max-w-full';
       case 'slot_below_player':
         return 'min-h-[250px] w-full flex flex-col items-center justify-center';
       case 'slot_native_feed':
-        return 'w-full flex flex-col items-center justify-center max-h-[360px] overflow-hidden';
+        return 'w-full h-full flex flex-col justify-start';
       case 'slot_sticky_footer':
         return 'min-h-[50px] sm:min-h-[60px] w-full flex items-center justify-center';
       default:
@@ -198,7 +143,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       {isDevMode && devBadge && (
         <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-cyan-400 border border-cyan-500/40 shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-          {isBlocked ? (
+          {isFallback ? (
             <span className="flex items-center gap-1">
               <i className="ri-flashlight-line text-xs"></i> Affiliate Fallback
             </span>
@@ -212,13 +157,13 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       {showDisclosure && (
         <div className="w-full flex items-center justify-center py-1 select-none pointer-events-none">
           <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400 dark:text-[#64748B] opacity-80">
-            {isBlocked ? 'Sponsored Recommendation' : 'Advertisement'}
+            {isFallback ? 'Sponsored Recommendation' : 'Advertisement'}
           </span>
         </div>
       )}
 
-      {/* Render Fallback Card if Ad-Blocked or unconfigured */}
-      {isBlocked && affiliateSettings.isEnabled && campaign ? (
+      {/* Render Fallback Card if unconfigured or failed */}
+      {isFallback && affiliateSettings.isEnabled && campaign ? (
         <div className="w-full h-full flex items-center justify-center">
           {/* Top Leaderboard Fallback */}
           {slotId === 'slot_top_banner' && (
@@ -331,33 +276,17 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           )}
         </div>
       ) : (
-        /* Regular Ad Injection Container with proportional scale-down for desktop banners on mobile */
+        /* Regular Ad Injection Container */
         <div
           ref={outerWrapperRef}
           className="w-full flex items-center justify-center overflow-hidden"
-          style={slotId === 'slot_top_banner' && scaleRatio < 1 ? { height: `${Math.round(90 * scaleRatio)}px` } : undefined}
         >
           <div
-            style={
-              slotId === 'slot_top_banner' && scaleRatio < 1
-                ? {
-                    width: '728px',
-                    height: '90px',
-                    transform: `scale(${scaleRatio})`,
-                    transformOrigin: 'top center',
-                    flexShrink: 0
-                  }
-                : undefined
-            }
-            className="w-full flex items-center justify-center"
-          >
-            <div
-              ref={containerRef}
-              className={`w-full flex items-center justify-center ${
-                isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
-              }`}
-            />
-          </div>
+            ref={containerRef}
+            className={`w-full flex items-center justify-center overflow-hidden [&_iframe]:max-w-full [&_ins]:max-w-full ${
+              isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
+            }`}
+          />
         </div>
       )}
     </div>

@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { getStealthHeaders } from '../utils/userAgents.js';
+import { safeFetch } from '../utils/safeFetch.js';
 import { normalizeVideo } from '../utils/normalizer.js';
 
 /**
@@ -17,10 +16,18 @@ export async function scrapeJsonApi(source, limit = 15) {
   const { url, mapping = {}, category = 'Trending' } = source;
   console.log(`  [JSON API] Fetching: ${url}`);
 
-  const response = await axios.get(url, {
-    headers: getStealthHeaders(url),
-    timeout: 12000
-  });
+  const response = await safeFetch(url, { timeout: 12000 });
+  if (response.isChallenge) {
+    console.warn(`  [JSON API] Cloudflare/anti-bot challenge encountered on: ${url}`);
+    const res = [];
+    res.isChallenge = true;
+    res.challengeReason = response.challengeReason || 'Cloudflare challenge active';
+    return res;
+  }
+  if (!response.ok || !response.data) {
+    console.warn(`  [JSON API] Failed fetching API endpoint: HTTP ${response.status}`);
+    return [];
+  }
 
   const body = response.data;
   let items = [];

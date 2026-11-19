@@ -555,9 +555,9 @@ const SEED_VIDEOS = [
 const DEFAULT_AD_SETTINGS = {
   slot_top_banner: {
     id: 'slot_top_banner',
-    name: 'Top Leaderboard Banner (728x90)',
-    network: 'ExoClick / 728x90',
-    dimensions: '728x90',
+    name: 'Top Banner (Desktop 728x90 / Mobile 6096160)',
+    network: 'ExoClick / Adaptive Banner',
+    dimensions: '728x90 / 300x250',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
@@ -571,11 +571,11 @@ const DEFAULT_AD_SETTINGS = {
   },
   slot_sticky_footer: {
     id: 'slot_sticky_footer',
-    name: 'Sticky Screen-Bottom Mobile Footer',
+    name: 'Mobile Sticky Bottom',
     network: 'ExoClick Sticky Banner',
-    dimensions: '300x50 / 728x90',
+    dimensions: '300x50 / 300x250',
     isActive: true,
-    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6096158"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_below_player: {
     id: 'slot_below_player',
@@ -599,20 +599,22 @@ const DEFAULT_AD_SETTINGS = {
   },
   slot_popunder: {
     id: 'slot_popunder',
-    name: 'Background Popunder (24h Capped)',
+    name: 'Background Popunder (1h Capped)',
     network: 'ExoClick / Popunder',
     dimensions: 'Full Tab',
     isActive: true,
-    code: '<script type="application/javascript">var adConfig={"ads_host":"a.pemsrv.com","syndication_host":"s.pemsrv.com","idzone":6093374,"popup_fallback":false,"popup_force":false,"chrome_enabled":true,"new_tab":true,"frequency_period":1440,"frequency_count":1,"trigger_method":1,"trigger_class":"","trigger_delay":0,"capping_enabled":true,"tcf_enabled":true,"agego_cross_site_enabled":true,"only_inline":false};</script><script async type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>',
-    frequencyHours: 24
+    code: '<script type="application/javascript">var ad_idzone = "6093374", ad_popup_fallback = false, ad_popup_force = false, ad_chrome_enabled = true, ad_new_tab = true, ad_frequency_period = 60, ad_frequency_count = 1, ad_trigger_method = 1, ad_tcf_enabled = true;</script><script async type="application/javascript" id="popmagicldr" data-ad_idzone="6093374" data-ad_frequency_period="60" data-ad_frequency_count="1" data-ad_trigger_method="1" data-ad_tcf_enabled="true" src="https://a.pemsrv.com/popunder1000.js"></script>',
+    frequencyHours: 1
   },
   slot_interstitial: {
     id: 'slot_interstitial',
-    name: 'Full-Page Interstitial / In-Page Push',
+    name: 'Desktop Fullpage Interstitial',
     network: 'ExoClick / Interstitial',
     dimensions: 'Full Screen',
+    format: 'interstitial',
     isActive: true,
-    code: '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+    code: '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
+    frequencyHours: 1
   },
   affiliate_fallbacks: {
     isEnabled: true,
@@ -838,8 +840,14 @@ export const store = {
           );
         }
 
-        // Clean out legacy third-party test networks if left in popunder
-        if (parsed.slot_popunder?.code && (parsed.slot_popunder.code.includes('benchform.org') || parsed.slot_popunder.code.includes('Adsterra'))) {
+        // Clean out legacy third-party test networks or broken adConfig tags in popunder
+        if (
+          parsed.slot_popunder?.code &&
+          (parsed.slot_popunder.code.includes('benchform.org') ||
+            parsed.slot_popunder.code.includes('Adsterra') ||
+            parsed.slot_popunder.code.includes('adConfig') ||
+            parsed.slot_popunder.code.includes('frequency_period":1440'))
+        ) {
           parsed.slot_popunder = DEFAULT_AD_SETTINGS.slot_popunder;
         }
 
@@ -1012,7 +1020,7 @@ export const store = {
     }
   },
 
-  addToHistory(video, progressPercent = 25) {
+  addToHistory(video, progressPercent = 0) {
     if (!video || !video.id) return [];
     try {
       const current = this.getHistory();
@@ -1091,17 +1099,17 @@ export const store = {
     localStorage.setItem(STORAGE_KEYS.DEV_MODE, val ? 'true' : 'false');
   },
 
-  // Admin Auth (Default master pin: "admin123")
+  // Admin Auth (Authenticated cloud session)
   isAdminLoggedIn() {
     return sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true';
   },
 
-  adminLogin(password) {
-    if (password === 'admin123' || password === 'admin@123') {
+  setAdminLoggedIn(val) {
+    if (val) {
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
-      return true;
+    } else {
+      sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
     }
-    return false;
   },
 
   adminLogout() {

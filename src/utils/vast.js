@@ -91,55 +91,68 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
   const timeoutId = setTimeout(() => controller.abort(), maxTimeoutMs);
 
   try {
-    const res = await fetch(vastUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!res.ok) return null;
+    let currentUrl = vastUrl;
+    let redirectCount = 0;
+    const maxRedirects = 3;
 
-    const xml = await res.text();
-    const parsed = parseVastXmlDocument(xml);
-    if (!parsed) return null;
+    let mediaUrl = null;
+    let clickUrl = null;
+    const impressionUrls = [];
+    const clickTrackingUrls = [];
+    const trackingEvents = {};
 
-    // Handle Wrapper if present
-    if (parsed.wrapperUrl && !parsed.mediaUrl) {
-      try {
-        const wrapRes = await fetch(parsed.wrapperUrl);
-        if (wrapRes.ok) {
-          const wrapXml = await wrapRes.text();
-          const wrapParsed = parseVastXmlDocument(wrapXml);
-          if (wrapParsed && wrapParsed.mediaUrl) {
-            return {
-              mediaUrl: wrapParsed.mediaUrl,
-              clickUrl: wrapParsed.clickUrl || parsed.clickUrl || vastUrl,
-              clickTrackingUrls: [
-                ...parsed.clickTrackingUrls,
-                ...wrapParsed.clickTrackingUrls
-              ],
-              impressionUrl: wrapParsed.impressionUrl || parsed.impressionUrl,
-              impressionUrls: [
-                ...parsed.impressionUrls,
-                ...wrapParsed.impressionUrls
-              ],
-              trackingEvents: {
-                ...parsed.trackingEvents,
-                ...wrapParsed.trackingEvents
-              }
-            };
-          }
-        }
-      } catch (e) {
-        console.warn('VAST wrapper resolution failed:', e);
+    const mergeTracking = (newEvents) => {
+      if (!newEvents) return;
+      Object.keys(newEvents).forEach((evt) => {
+        if (!trackingEvents[evt]) trackingEvents[evt] = [];
+        trackingEvents[evt].push(...newEvents[evt]);
+      });
+    };
+
+    while (currentUrl && redirectCount <= maxRedirects) {
+      const res = await fetch(currentUrl, { signal: controller.signal });
+      if (!res.ok) break;
+
+      const xml = await res.text();
+      const parsed = parseVastXmlDocument(xml);
+      if (!parsed) break;
+
+      // Accumulate impressions, click trackers, and tracking events
+      if (parsed.impressionUrls?.length) {
+        impressionUrls.push(...parsed.impressionUrls);
+      }
+      if (parsed.clickTrackingUrls?.length) {
+        clickTrackingUrls.push(...parsed.clickTrackingUrls);
+      }
+      if (parsed.clickUrl) {
+        clickUrl = parsed.clickUrl;
+      }
+      mergeTracking(parsed.trackingEvents);
+
+      if (parsed.mediaUrl) {
+        mediaUrl = parsed.mediaUrl;
+        break; // Found creative media file
+      }
+
+      if (parsed.wrapperUrl && redirectCount < maxRedirects) {
+        currentUrl = parsed.wrapperUrl;
+        redirectCount++;
+      } else {
+        break;
       }
     }
 
-    if (!parsed.mediaUrl) return null;
+    clearTimeout(timeoutId);
+
+    if (!mediaUrl) return null;
 
     return {
-      mediaUrl: parsed.mediaUrl,
-      clickUrl: parsed.clickUrl || vastUrl,
-      clickTrackingUrls: parsed.clickTrackingUrls,
-      impressionUrl: parsed.impressionUrl,
-      impressionUrls: parsed.impressionUrls,
-      trackingEvents: parsed.trackingEvents
+      mediaUrl,
+      clickUrl: clickUrl || vastUrl,
+      clickTrackingUrls: Array.from(new Set(clickTrackingUrls)),
+      impressionUrls: Array.from(new Set(impressionUrls)),
+      impressionUrl: impressionUrls[0] || null,
+      trackingEvents
     };
   } catch (err) {
     clearTimeout(timeoutId);

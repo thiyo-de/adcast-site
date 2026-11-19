@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CORE_CATEGORIES } from '../constants/categories';
 
 export default function Navbar({
   searchQuery,
@@ -10,10 +11,32 @@ export default function Navbar({
   isDevMode,
   onToggleDevMode,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  selectedCategory = 'All',
+  onSelectCategory,
+  categoryCounts = {}
 }) {
   const [isSearchOpenMobile, setIsSearchOpenMobile] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const categoriesRef = useRef(null);
   const isDark = theme === 'dark';
+
+  // Close categories popup on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (categoriesRef.current && !categoriesRef.current.contains(e.target)) {
+        setIsCategoriesOpen(false);
+      }
+    };
+    if (isCategoriesOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('touchstart', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [isCategoriesOpen]);
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b">
@@ -71,6 +94,73 @@ export default function Navbar({
           >
             <i className="ri-search-line not-italic text-base"></i>
           </button>
+
+          {/* Categories Popover Trigger */}
+          <div className="relative" ref={categoriesRef}>
+            <button
+              onClick={() => setIsCategoriesOpen((prev) => !prev)}
+              className={`min-h-[44px] min-w-[44px] px-3 py-2 rounded-full glass-button flex items-center justify-center gap-1.5 text-xs font-bold active:scale-95 transition-all cursor-pointer ${
+                selectedCategory !== 'All' ? 'border-rose-500/50 bg-rose-500/10 text-rose-500' : ''
+              }`}
+              title="Categories"
+              aria-label="Browse categories"
+              aria-expanded={isCategoriesOpen}
+            >
+              <i className="ri-apps-2-line not-italic text-sm text-rose-500"></i>
+              <span className="hidden sm:inline font-bold">
+                {selectedCategory === 'All' ? 'Categories' : selectedCategory}
+              </span>
+              <i className={`ri-arrow-down-s-line not-italic text-xs transition-transform duration-200 ${isCategoriesOpen ? 'rotate-180' : ''}`}></i>
+            </button>
+
+            {/* Categories Floating Dropdown Menu */}
+            {isCategoriesOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/[0.06] mb-1 flex items-center justify-between">
+                  <span>Browse Categories</span>
+                  <i className="ri-folder-video-line text-xs"></i>
+                </div>
+                <div className="space-y-1">
+                  {CORE_CATEGORIES.map((cat) => {
+                    const isSelected = selectedCategory === cat.id;
+                    const count = categoryCounts[cat.id] ?? 0;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          if (typeof onSelectCategory === 'function') {
+                            onSelectCategory(cat.id);
+                          }
+                          setIsCategoriesOpen(false);
+                        }}
+                        className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <i className={`${cat.icon} text-sm ${isSelected ? 'text-white' : cat.color}`}></i>
+                          <span>{cat.label}</span>
+                        </div>
+                        {count > 0 && (
+                          <span
+                            className={`text-[10px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
+                              isSelected
+                                ? 'bg-black/25 text-white'
+                                : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Theme Toggle (Dark / Light with smooth micro-animation) */}
           <button

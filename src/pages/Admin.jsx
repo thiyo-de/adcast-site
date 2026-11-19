@@ -4,7 +4,7 @@ import { api, auth, getSupabaseConfig, saveSupabaseConfig, getSupabaseClient } f
 
 export default function Admin({ onBack }) {
   const [user, setUser] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => store.isAdminLoggedIn());
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authErrorMsg, setAuthErrorMsg] = useState(null);
@@ -43,39 +43,71 @@ export default function Admin({ onBack }) {
   const [deadVideos, setDeadVideos] = useState([]);
   const [isPurging, setIsPurging] = useState(false);
 
+  // Review Queue (Moderation) State
+  const [pendingVideos, setPendingVideos] = useState([]);
+
   // Crawler & Engine State
   const [crawlerSources, setCrawlerSources] = useState([]);
   const [sourceForm, setSourceForm] = useState({
     name: '',
     url: '',
     category: 'Trending',
-    video_limit: 15
+    video_limit: 15,
+    type: 'json_api',
+    auto_approve: true
   });
   const [editingSourceId, setEditingSourceId] = useState(null);
   const [isSyncingEngine, setIsSyncingEngine] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryResult, setDiscoveryResult] = useState(null);
 
   useEffect(() => {
     let mounted = true;
 
+    // Purge any lingering third-party ad elements or floating badges from DOM when in Admin
+    try {
+      const adElements = document.querySelectorAll(
+        '[data-adcast-popunder], [class*="eas-"], [id*="eas-"], ins.eas6, div[class*="slot_sticky_footer"]'
+      );
+      adElements.forEach((el) => el.remove());
+
+      const bodyChildren = Array.from(document.body.children);
+      bodyChildren.forEach((child) => {
+        if (child.id !== 'root' && !child.hasAttribute('data-react-modal')) {
+          const style = window.getComputedStyle(child);
+          if (style.position === 'fixed' || child.tagName === 'IFRAME' || child.tagName === 'INS') {
+            child.remove();
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Ad cleanup notice:', e);
+    }
+
     // Check active Supabase Auth session on mount
     auth.getSession().then((session) => {
       if (!mounted) return;
-      if (session?.user) {
+      if (session?.user && (session.user.email === 'admin@hornyleaks.site' || session.user.app_metadata?.role === 'admin')) {
         setUser(session.user);
+        store.setAdminLoggedIn(true);
         setIsLoggedIn(true);
-      } else if (store.isAdminLoggedIn()) {
-        setIsLoggedIn(true);
+      } else {
+        setUser(null);
+        store.setAdminLoggedIn(false);
+        setIsLoggedIn(false);
       }
     });
 
     const subscription = auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      if (session?.user) {
+      if (session?.user && (session.user.email === 'admin@hornyleaks.site' || session.user.app_metadata?.role === 'admin')) {
         setUser(session.user);
+        store.setAdminLoggedIn(true);
         setIsLoggedIn(true);
-      } else if (!store.isAdminLoggedIn()) {
+      } else {
         setUser(null);
+        store.setAdminLoggedIn(false);
         setIsLoggedIn(false);
       }
     });
@@ -97,12 +129,62 @@ export default function Admin({ onBack }) {
     setVideos(vList);
     const deadList = await api.getDeadVideos();
     setDeadVideos(deadList);
+    const pendingList = await api.getPendingVideos();
+    setPendingVideos(pendingList);
     const ads = await api.getAdSettings();
     setAdSettings(ads);
     const dmcas = await api.getDMCARequests();
     setDmcaList(dmcas);
     const sources = await api.getCrawlerSources();
     setCrawlerSources(sources);
+  };
+
+  const handleApproveVideo = async (id) => {
+    await api.approveVideo(id);
+    loadData();
+  };
+
+  const handleRejectVideo = async (id) => {
+    await api.rejectVideo(id);
+    loadData();
+  };
+
+  const handleBatchApproveAll = async () => {
+    if (window.confirm(`Approve all ${pendingVideos.length} pending video(s) for public publication?`)) {
+      for (const v of pendingVideos) {
+        await api.approveVideo(v.id);
+      }
+      loadData();
+    }
+  };
+
+  const handleDiscoverUrl = async () => {
+    if (!sourceForm.url || !sourceForm.url.trim()) return;
+    setIsDiscovering(true);
+    setDiscoveryResult(null);
+    try {
+      const res = await api.discoverSource(sourceForm.url);
+      setDiscoveryResult(res);
+      if (res.ok) {
+        let detectedName = sourceForm.name;
+        if (!detectedName || detectedName.trim() === '') {
+          try {
+            detectedName = new URL(res.recommendedUrl || sourceForm.url).hostname.replace('www.', '');
+            detectedName = detectedName.charAt(0).toUpperCase() + detectedName.slice(1);
+          } catch (e) {}
+        }
+        setSourceForm((prev) => ({
+          ...prev,
+          name: detectedName,
+          url: res.recommendedUrl || prev.url,
+          type: res.detectedType || prev.type || 'json_api'
+        }));
+      }
+    } catch (err) {
+      setDiscoveryResult({ ok: false, message: err.message });
+    } finally {
+      setIsDiscovering(false);
+    }
   };
 
   const handleLogin = async (e) => {
@@ -112,14 +194,25 @@ export default function Admin({ onBack }) {
     setAuthLoading(true);
 
     try {
-      if (store.adminLogin(passwordInput)) {
-        setUser(null);
-        setIsLoggedIn(true);
-      } else {
-        throw new Error('Invalid master password. Please verify and try again.');
+      if (!passwordInput || !passwordInput.trim()) {
+        throw new Error('Please enter the administrator password.');
       }
+
+      // Supabase Cloud Authentication is the strict, blocking gate
+      const supaRes = await auth.signIn('admin@hornyleaks.site', passwordInput.trim());
+      if (!supaRes?.user) {
+        throw new Error('Authentication failed: Cloud session could not be established.');
+      }
+
+      setUser(supaRes.user);
+      store.setAdminLoggedIn(true);
+      setIsLoggedIn(true);
+      setAuthSuccessMsg('Authenticated as verified administrator.');
     } catch (err) {
-      setAuthErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
+      store.setAdminLoggedIn(false);
+      setIsLoggedIn(false);
+      setUser(null);
+      setAuthErrorMsg(err.message || 'Authentication failed. Please verify your administrator password.');
     } finally {
       setAuthLoading(false);
     }
@@ -129,7 +222,7 @@ export default function Admin({ onBack }) {
     try {
       await auth.signOut();
     } catch (e) {}
-    store.adminLogout();
+    store.setAdminLoggedIn(false);
     setUser(null);
     setIsLoggedIn(false);
   };
@@ -221,7 +314,9 @@ export default function Admin({ onBack }) {
         name: sourceForm.name,
         url: sourceForm.url,
         category: sourceForm.category,
-        video_limit: parseInt(sourceForm.video_limit, 10) || 15
+        video_limit: parseInt(sourceForm.video_limit, 10) || 15,
+        source_type: sourceForm.type || 'json_api',
+        auto_approve: sourceForm.auto_approve !== false
       });
       setEditingSourceId(null);
     } else {
@@ -230,11 +325,14 @@ export default function Admin({ onBack }) {
         url: sourceForm.url,
         category: sourceForm.category,
         video_limit: parseInt(sourceForm.video_limit, 10) || 15,
+        source_type: sourceForm.type || 'json_api',
+        auto_approve: sourceForm.auto_approve !== false,
         is_enabled: true
       });
     }
 
-    setSourceForm({ name: '', url: '', category: 'Trending', video_limit: 15 });
+    setSourceForm({ name: '', url: '', category: 'Trending', video_limit: 15, type: 'json_api', auto_approve: true });
+    setDiscoveryResult(null);
     loadData();
   };
 
@@ -244,7 +342,9 @@ export default function Admin({ onBack }) {
       name: s.name,
       url: s.url,
       category: s.category || 'Trending',
-      video_limit: s.video_limit || 15
+      video_limit: s.video_limit || 15,
+      type: s.source_type || 'json_api',
+      auto_approve: s.auto_approve !== false
     });
   };
 
@@ -516,6 +616,18 @@ export default function Admin({ onBack }) {
         </button>
 
         <button
+          onClick={() => setActiveTab('review')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === 'review'
+              ? 'bg-rose-600 text-white shadow-sm'
+              : 'glass-button'
+          }`}
+        >
+          <i className="ri-checkbox-multiple-line not-italic text-sm"></i>
+          Review Queue ({pendingVideos.length})
+        </button>
+
+        <button
           onClick={() => setActiveTab('crawler')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
             activeTab === 'crawler'
@@ -662,6 +774,100 @@ export default function Admin({ onBack }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* TAB: REVIEW QUEUE (CONTENT MODERATION UX13) */}
+      {activeTab === 'review' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i className="ri-checkbox-multiple-line not-italic text-rose-500"></i>
+                Staging & Review Queue
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Videos from sources configured for review before being visible to public visitors.
+              </p>
+            </div>
+            {pendingVideos.length > 0 && (
+              <button
+                onClick={handleBatchApproveAll}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+              >
+                <i className="ri-check-double-line not-italic text-sm"></i>
+                Approve All ({pendingVideos.length})
+              </button>
+            )}
+          </div>
+
+          {pendingVideos.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl glass-panel">
+              <i className="ri-checkbox-circle-line not-italic text-3xl text-emerald-500 mb-2 block"></i>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Review Queue is Clear</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                All imported streams are approved and active in the public catalog.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl glass-panel overflow-hidden border border-slate-200/80 dark:border-white/10">
+              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                <thead className="bg-slate-100/70 dark:bg-white/[0.03] text-slate-800 dark:text-slate-200 uppercase font-mono text-[10px] tracking-wider border-b border-slate-200/80 dark:border-white/10">
+                  <tr>
+                    <th className="p-3.5">Preview</th>
+                    <th className="p-3.5">Title & Source</th>
+                    <th className="p-3.5">Category</th>
+                    <th className="p-3.5">Duration</th>
+                    <th className="p-3.5 text-right">Moderation Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/60 dark:divide-white/[0.05]">
+                  {pendingVideos.map((vid) => (
+                    <tr key={vid.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02]">
+                      <td className="p-3.5 w-24">
+                        <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-950">
+                          <img
+                            src={vid.thumbnail_url || '/icon.png'}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.src = '/icon.png'; }}
+                          />
+                        </div>
+                      </td>
+                      <td className="p-3.5 max-w-xs sm:max-w-md">
+                        <div className="font-bold text-slate-900 dark:text-white truncate">{vid.title}</div>
+                        <div className="text-[11px] text-slate-400 font-mono truncate">{vid.embed_url}</div>
+                      </td>
+                      <td className="p-3.5">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                          {vid.category}
+                        </span>
+                      </td>
+                      <td className="p-3.5 font-mono text-slate-600 dark:text-slate-300">
+                        {vid.duration || '10:00'}
+                      </td>
+                      <td className="p-3.5 text-right space-x-2">
+                        <button
+                          onClick={() => handleApproveVideo(vid.id)}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600/10 hover:bg-emerald-600 text-emerald-600 hover:text-white font-bold text-xs transition-all cursor-pointer"
+                          title="Publish video to public catalog"
+                        >
+                          <i className="ri-check-line not-italic text-sm mr-1"></i> Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectVideo(vid.id)}
+                          className="px-3 py-1.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-600 hover:text-white font-bold text-xs transition-all cursor-pointer"
+                          title="Reject and exclude from catalog"
+                        >
+                          <i className="ri-close-line not-italic text-sm mr-1"></i> Reject
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -831,18 +1037,59 @@ export default function Admin({ onBack }) {
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Target Website Catalog URL *
                   </label>
-                  <input
-                    type="url"
-                    required
-                    value={sourceForm.url}
-                    onChange={(e) => setSourceForm({ ...sourceForm, url: e.target.value })}
-                    placeholder="https://www.hornyleak.tv/latest-updates/"
-                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-rose-500"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      required
+                      value={sourceForm.url}
+                      onChange={(e) => setSourceForm({ ...sourceForm, url: e.target.value })}
+                      placeholder="https://www.eporner.com or https://site.com/feed"
+                      className="flex-1 px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-rose-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleDiscoverUrl}
+                      disabled={isDiscovering || !sourceForm.url}
+                      className="px-3.5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                      title="Auto-detect source type and discover video streams"
+                    >
+                      {isDiscovering ? <i className="ri-loader-4-line not-italic animate-spin text-sm"></i> : <i className="ri-magic-line not-italic text-sm"></i>}
+                      {isDiscovering ? 'Probing...' : 'Auto-Discover'}
+                    </button>
+                  </div>
+                  {discoveryResult && (
+                    <div className={`mt-2 p-2.5 rounded-xl text-xs border ${
+                      discoveryResult.ok
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                        : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                    }`}>
+                      <div className="font-bold flex items-center gap-1">
+                        <i className={`${discoveryResult.ok ? 'ri-checkbox-circle-fill' : 'ri-alert-fill'} not-italic text-sm`}></i>
+                        {discoveryResult.ok ? `Discovered: ${discoveryResult.detectedType}` : 'Discovery Notice'}
+                      </div>
+                      <div className="text-[11px] opacity-90">{discoveryResult.details?.message || discoveryResult.message}</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Adapter Type
+                  </label>
+                  <select
+                    value={sourceForm.type || 'json_api'}
+                    onChange={(e) => setSourceForm({ ...sourceForm, type: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
+                  >
+                    <option value="json_api" className="bg-white dark:bg-[#0F111A]">JSON API (Fastest)</option>
+                    <option value="mrss_feed" className="bg-white dark:bg-[#0F111A]">MRSS / RSS Feed (Standard)</option>
+                    <option value="hornyleak" className="bg-white dark:bg-[#0F111A]">HornyLeak Platform</option>
+                    <option value="html_scrape" className="bg-white dark:bg-[#0F111A]">HTML Web Crawler</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Default Category
@@ -861,7 +1108,7 @@ export default function Admin({ onBack }) {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Video Limiter (Max videos to import per run)
+                    Video Limiter (per run)
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -871,11 +1118,24 @@ export default function Admin({ onBack }) {
                       required
                       value={sourceForm.video_limit}
                       onChange={(e) => setSourceForm({ ...sourceForm, video_limit: e.target.value })}
-                      className="w-32 px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white font-mono"
+                      className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white font-mono"
                     />
-                    <span className="text-xs text-slate-400">videos per run (default: 15)</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Publication / Moderation Setting */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-white/5">
+                <input
+                  type="checkbox"
+                  id="auto_approve_toggle"
+                  checked={sourceForm.auto_approve !== false}
+                  onChange={(e) => setSourceForm({ ...sourceForm, auto_approve: e.target.checked })}
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                />
+                <label htmlFor="auto_approve_toggle" className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                  <strong>Auto-publish imported videos immediately</strong> (uncheck to route imported streams to the Review Queue first)
+                </label>
               </div>
 
               <div className="flex justify-end pt-2">
@@ -930,17 +1190,31 @@ export default function Admin({ onBack }) {
                           {source.category}
                         </span>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
-                          Limit: {source.video_limit || 15} vids
+                          {source.source_type || 'json_api'}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                            source.is_enabled
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : 'bg-slate-500/10 text-slate-400'
-                          }`}
-                        >
-                          {source.is_enabled ? 'Active' : 'Paused'}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                          Limit: {source.video_limit || 15}
                         </span>
+                        {source.auto_approve === false && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                            Queue Review
+                          </span>
+                        )}
+                        {source.access_state === 'blocked_challenge' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center gap-1">
+                            <i className="ri-shield-alert-fill"></i> Challenge Blocked
+                          </span>
+                        ) : (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                              source.is_enabled
+                                ? 'bg-emerald-500/10 text-emerald-500'
+                                : 'bg-slate-500/10 text-slate-400'
+                            }`}
+                          >
+                            {source.is_enabled ? 'Active' : 'Paused'}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono truncate">

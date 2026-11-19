@@ -1,6 +1,5 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getStealthHeaders } from '../utils/userAgents.js';
+import { safeFetch } from '../utils/safeFetch.js';
 import { normalizeVideo } from '../utils/normalizer.js';
 
 /**
@@ -10,11 +9,18 @@ export async function scrapeFeed(source, limit = 15) {
   const { url, category = 'Trending' } = source;
   console.log(`  [MRSS FEED] Fetching: ${url}`);
 
-  const response = await axios.get(url, {
-    headers: getStealthHeaders(url),
-    timeout: 15000,
-    responseType: 'text'
-  });
+  const response = await safeFetch(url, { timeout: 15000 });
+  if (response.isChallenge) {
+    console.warn(`  [MRSS FEED] Cloudflare/anti-bot challenge encountered on: ${url}`);
+    const res = [];
+    res.isChallenge = true;
+    res.challengeReason = response.challengeReason || 'Cloudflare challenge active';
+    return res;
+  }
+  if (!response.ok || !response.data) {
+    console.warn(`  [MRSS FEED] Failed fetching feed: HTTP ${response.status}`);
+    return [];
+  }
 
   const xml = response.data;
   const $ = cheerio.load(xml, { xmlMode: true });

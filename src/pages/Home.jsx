@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import VideoCard from '../components/VideoCard';
 import AdSlot from '../components/AdSlot';
-import { store, parseDurationToSeconds } from '../services/store';
+import { store } from '../services/store';
 import { resetDefaultSEO } from '../utils/seo';
+import { CATEGORY_TAG_MAP } from '../constants/categories';
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest Uploads', icon: 'ri-flashlight-line' },
@@ -11,9 +12,16 @@ const SORT_OPTIONS = [
   { id: 'views', label: 'Most Viewed', icon: 'ri-eye-line' }
 ];
 
-export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isBookmarked, searchQuery, onClearSearch }) {
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [durationFilter, setDurationFilter] = useState('all');
+export default function Home({
+  videos = [],
+  onSelectVideo,
+  onBookmarkToggle,
+  isBookmarked,
+  searchQuery,
+  onClearSearch,
+  selectedCategory = 'All',
+  onSelectCategory
+}) {
   const [sortBy, setSortBy] = useState('newest');
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [history, setHistory] = useState(() => store.getHistory());
@@ -22,39 +30,6 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
     resetDefaultSEO();
     setHistory(store.getHistory());
   }, []);
-
-  // 4 Core High-Demand Categories Taxonomy
-  const CORE_CATEGORIES = React.useMemo(() => [
-    { id: 'All', label: 'All Streams', icon: 'ri-apps-2-line', color: 'text-rose-500' },
-    { id: 'Trending', label: 'Trending', icon: 'ri-fire-fill', color: 'text-amber-500' },
-    { id: 'Creator Leaks', label: 'Creator Leaks', icon: 'ri-shield-star-fill', color: 'text-rose-400' },
-    { id: 'Amateur', label: 'Amateur', icon: 'ri-camera-lens-fill', color: 'text-cyan-400' },
-    { id: 'Hardcore', label: 'Hardcore', icon: 'ri-flashlight-fill', color: 'text-purple-400' },
-  ], []);
-
-  const CATEGORY_TAG_MAP = React.useMemo(() => ({
-    'Creator Leaks': ['onlyfans', 'fansly', 'leak', 'vip', 'stripper', 'patreon', 'model', 'featured'],
-    'Amateur': ['amateur', 'pov', 'homemade', 'couple', 'bedroom', 'ex-girlfriend', 'ex!'],
-    'Hardcore': ['threesome', 'creampie', 'bbc', 'bdsm', 'facial', 'asshole', 'cum', 'anal', 'rough', 'action'],
-    'Trending': ['viral', 'popular', 'top-rated'],
-  }), []);
-
-  // Compute dynamic real-time counts across current catalog (auto-scales with future videos)
-  const categoryCounts = React.useMemo(() => {
-    const counts = { All: (videos || []).length };
-    CORE_CATEGORIES.forEach((cat) => {
-      if (cat.id === 'All') return;
-      const matching = (videos || []).filter((v) => {
-        if (!v) return false;
-        if (v.category === cat.id) return true;
-        if (cat.id === 'Trending') return false;
-        const tagKeywords = CATEGORY_TAG_MAP[cat.id] || [];
-        return Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && tagKeywords.includes(t.toLowerCase()));
-      });
-      counts[cat.id] = matching.length;
-    });
-    return counts;
-  }, [videos, CORE_CATEGORIES, CATEGORY_TAG_MAP]);
 
   const handleClearHistory = (e) => {
     e.stopPropagation();
@@ -87,14 +62,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
       (v.category && v.category.toLowerCase().includes(q)) ||
       (v.tags && Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(q)));
 
-    let matchesDuration = true;
-    const durSec = v.duration_seconds || parseDurationToSeconds(v.duration);
-    const durMin = durSec / 60;
-    if (durationFilter === 'short') matchesDuration = durMin < 10;
-    if (durationFilter === 'medium') matchesDuration = durMin >= 10 && durMin <= 20;
-    if (durationFilter === 'long') matchesDuration = durMin > 20;
-
-    return matchesCategory && matchesSearch && matchesDuration;
+    return matchesCategory && matchesSearch;
   });
 
   processedVideos = [...processedVideos].sort((a, b) => {
@@ -106,39 +74,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-      {/* 1. Category Pill Row (Wrapping Layout - All Categories 100% Visible) */}
-      <div className="flex flex-wrap items-center gap-2">
-        {CORE_CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat.id;
-          const count = categoryCounts[cat.id] ?? 0;
-
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`min-h-[38px] sm:min-h-[44px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${
-                isSelected
-                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
-                  : 'glass-button text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <i className={`${cat.icon} not-italic text-sm ${isSelected ? 'text-white' : cat.color}`}></i>
-              <span>{cat.label}</span>
-              <span
-                className={`text-[10px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
-                  isSelected
-                    ? 'bg-black/25 text-white'
-                    : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 2. Top Leaderboard Banner (Fully Responsive Container) */}
+      {/* 1. Top Leaderboard Banner (Fully Responsive Container) */}
       <div className="w-full my-2 flex justify-center overflow-hidden">
         <div className="w-full max-w-4xl overflow-hidden flex justify-center [&_iframe]:max-w-full [&_ins]:max-w-full [&_img]:max-w-full">
           <AdSlot slotId="slot_top_banner" className="w-full max-w-full overflow-hidden" />
@@ -195,13 +131,15 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
                   >
                     <i className="ri-close-line text-xs"></i>
                   </button>
-                  {/* Progress Indicator Bar */}
-                  <div className="absolute bottom-0 inset-x-0 h-1 bg-black/60">
-                    <div
-                      className="h-full bg-gradient-to-r from-rose-600 to-rose-400"
-                      style={{ width: `${item.progressPercent || 25}%` }}
-                    />
-                  </div>
+                  {/* Progress Indicator Bar (rendered only for actual recorded playback progress) */}
+                  {item.progressPercent > 0 && (
+                    <div className="absolute bottom-0 inset-x-0 h-1 bg-black/60">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-600 to-rose-400"
+                        style={{ width: `${Math.min(100, Math.max(0, item.progressPercent))}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="p-2.5">
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-rose-400 transition-colors">
@@ -218,43 +156,29 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
         </section>
       )}
 
-      {/* 3. Duration Filter & Sorting Bar (Frosted Glass Panel) */}
-      <div className="p-3.5 rounded-2xl glass-panel flex flex-wrap items-center justify-between gap-3 text-xs">
-        {/* Duration Tabs */}
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-slate-500 dark:text-slate-400 font-semibold mr-1 flex items-center gap-1">
-            <i className="ri-time-line not-italic text-sm"></i> Duration:
+      {/* 3. Stream Feed Header & Sorting Bar */}
+      <div className="relative z-30 p-3 sm:p-3.5 rounded-2xl glass-panel flex items-center justify-between gap-2 sm:gap-3 text-xs">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+            <i className="ri-movie-2-line not-italic text-rose-500 text-sm sm:text-base"></i>
+            <span>{selectedCategory === 'All' ? 'Curated Streams' : `${selectedCategory}`}</span>
+          </h2>
+          <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+            {processedVideos.length}
+            <span className="hidden sm:inline ml-1 font-semibold">Available</span>
           </span>
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'short', label: '< 10 min' },
-            { id: 'medium', label: '10–20 min' },
-            { id: 'long', label: '20+ min' }
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setDurationFilter(item.id)}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                durationFilter === item.id
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
 
         {/* Custom Glassmorphic Sorting Dropdown (No emojis, CDN icons only - UX01) */}
-        <div className="relative ml-auto">
+        <div className="relative shrink-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
+            <span className="hidden sm:inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 font-semibold">
               <i className="ri-equalizer-line not-italic text-sm"></i> Sort:
             </span>
             <button
               type="button"
               onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100/90 dark:bg-white/[0.05] hover:bg-slate-200/90 dark:hover:bg-white/[0.1] border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 transition-all active:scale-95 cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-slate-100/90 dark:bg-white/[0.05] hover:bg-slate-200/90 dark:hover:bg-white/[0.1] border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 transition-all active:scale-95 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
               aria-expanded={isSortOpen}
             >
               <i className={`${SORT_OPTIONS.find((o) => o.id === sortBy)?.icon || 'ri-flashlight-line'} not-italic text-rose-500 text-xs`}></i>
@@ -267,10 +191,10 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
           {isSortOpen && (
             <>
               <div
-                className="fixed inset-0 z-30"
+                className="fixed inset-0 z-40"
                 onClick={() => setIsSortOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-48 py-1.5 rounded-2xl bg-white/95 dark:bg-[#0F111A]/95 backdrop-blur-2xl border border-slate-200 dark:border-white/10 shadow-2xl z-40 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 mt-2 w-48 py-1.5 rounded-2xl bg-white/95 dark:bg-[#0F111A]/95 backdrop-blur-2xl border border-slate-200 dark:border-white/10 shadow-2xl z-50 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
                 {SORT_OPTIONS.map((opt) => {
                   const isSelected = sortBy === opt.id;
                   return (
@@ -303,17 +227,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
         </div>
       </div>
 
-      {/* 4. Stream Catalog Count */}
-      <div className="flex items-center justify-between pt-1">
-        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-          {selectedCategory === 'All' ? 'Curated Streams' : `${selectedCategory} Streams`}
-          <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full inline-flex items-center">
-            {processedVideos.length} Available
-          </span>
-        </h2>
-      </div>
-
-      {/* 5. Responsive Video Grid with Native Ads */}
+      {/* 4. Responsive Video Grid with Native Ads */}
       {processedVideos.length === 0 ? (
         <div className="p-12 text-center rounded-2xl glass-card space-y-3">
           <i className="ri-movie-line not-italic text-4xl text-slate-400 mb-2 block"></i>
@@ -323,14 +237,13 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
             {videos.length === 0
               ? 'The catalog is currently empty. Use the admin panel to sync streams from your crawler sources.'
-              : 'Try changing the duration or category filter, or reset your search query.'}
+              : 'Try selecting another category or reset your search query.'}
           </p>
-          {(selectedCategory !== 'All' || durationFilter !== 'all' || searchQuery) && (
+          {(selectedCategory !== 'All' || searchQuery) && (
             <div className="pt-2">
               <button
                 onClick={() => {
-                  setSelectedCategory('All');
-                  setDurationFilter('all');
+                  if (typeof onSelectCategory === 'function') onSelectCategory('All');
                   if (typeof onClearSearch === 'function') onClearSearch();
                 }}
                 className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all active:scale-95"
@@ -348,46 +261,8 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl col-span-1">
-                    {/* 1. Thumbnail Container (16:9) framing the ad creative */}
-                    <div className="relative aspect-video w-full overflow-hidden bg-slate-950 flex items-center justify-center">
-                      <AdSlot slotId="slot_native_feed" className="w-full h-full flex items-center justify-center" devBadge={false} />
-
-                      {/* Promoted Badge */}
-                      <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
-                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-amber-500 text-black shadow-sm">
-                          Promoted
-                        </span>
-                      </div>
-
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm z-10 pointer-events-none">
-                        Ad
-                      </div>
-                    </div>
-
-                    {/* 2. Matching Card Info Section */}
-                    <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
-                      <div>
-                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
-                          SPONSORED
-                        </span>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
-                          Featured Partner Media Stream
-                        </h3>
-                      </div>
-
-                      {/* Matching Meta Stats Bar */}
-                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
-                        <div className="flex items-center gap-1 font-semibold text-amber-500 dark:text-amber-400">
-                          <i className="ri-external-link-line not-italic text-xs"></i>
-                          <span>Visit Partner</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                          <i className="ri-shield-check-line not-italic text-xs text-emerald-500"></i>
-                          <span>Verified</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="col-span-1 flex flex-col h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl">
+                    <AdSlot slotId="slot_native_feed" className="w-full h-full flex flex-col justify-start" devBadge={false} />
                   </div>
                 )}
 

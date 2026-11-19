@@ -97,6 +97,7 @@ export const api = {
         .from('videos')
         .select('*')
         .or('is_active.eq.true,is_active.is.null')
+        .or('publication_state.eq.published,publication_state.is.null')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -164,7 +165,10 @@ export const api = {
   async deleteVideo(id) {
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { error } = await supabase.from('videos').delete().eq('id', id);
+      const { error } = await supabase.rpc('hard_delete_and_suppress_video', {
+        p_video_id: id,
+        p_reason: 'admin_deleted'
+      });
       if (error) {
         console.error('Supabase video delete error:', error);
         throw error;
@@ -216,14 +220,55 @@ export const api = {
     }
   },
 
-  async hardDeleteAllDeadVideos() {
+  async getPendingVideos() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('publication_state', 'pending')
+        .order('created_at', { ascending: false });
+      return data || [];
+    } catch (err) {
+      console.error('Error fetching pending videos:', err);
+      return [];
+    }
+  },
+
+  async approveVideo(id) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        await supabase.from('videos').delete().eq('is_active', false);
-      } catch (err) {
-        console.error('Error purging dead videos:', err);
+        await supabase.rpc('approve_video', { p_video_id: id });
+      } catch (rpcErr) {
+        await supabase.from('videos').update({ publication_state: 'published' }).eq('id', id);
       }
+    }
+  },
+
+  async rejectVideo(id) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.rpc('reject_video', { p_video_id: id });
+      } catch (rpcErr) {
+        await supabase.from('videos').update({ publication_state: 'rejected', is_active: false }).eq('id', id);
+      }
+    }
+  },
+
+  async hardDeleteAllDeadVideos() {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase.rpc('hard_delete_and_suppress_dead_videos', {
+        p_reason: 'bulk_purged_quarantine'
+      });
+      if (error) {
+        console.error('Error purging dead videos:', error);
+        throw error;
+      }
+      return data;
     }
   },
 
@@ -252,6 +297,11 @@ export const api = {
         // Targeted migration: Repair historical typo in top banner class if present in DB
         if (item.slot_id === 'slot_top_banner' && code && code.includes('class="eas6a9788e2"')) {
           code = code.replace('class="eas6a9788e2"', 'class="eas6a97888e2"');
+        }
+
+        // Targeted migration: Upgrade legacy adConfig popunder to verified ad_idzone tag
+        if (item.slot_id === 'slot_popunder' && code && (code.includes('adConfig') || code.includes('1440'))) {
+          code = existing.code;
         }
 
         const existing = mapped[item.slot_id] || {};
@@ -448,7 +498,22 @@ export const api = {
           is_enabled: sourceData.is_enabled !== false
         }])
         .select();
-      return data ? data[0] : null;
+      const created = data ? data[0] : null;
+      if (created && created.id) {
+        try {
+          await supabase
+            .from('source_schedules')
+            .upsert({
+              source_id: created.id,
+              timezone: 'Asia/Calcutta',
+              cron_expression: '0 */4 * * *',
+              is_active: true
+            }, { onConflict: 'source_id' });
+        } catch (schedErr) {
+          console.warn('Initial schedule setup notice:', schedErr);
+        }
+      }
+      return created;
     } catch (err) {
       console.error('Failed to add crawler source:', err);
       return null;
@@ -523,7 +588,7 @@ export const api = {
         return {
           ok: true,
           status: 'dispatched',
-          jobId: result.jobId || result.run_id || `job-${Date.now()}`,
+          jobId: result.jobId || result.run_id || null,
           message: result.message || 'Crawler sync job successfully dispatched.'
         };
       }
@@ -538,6 +603,35 @@ export const api = {
         ok: false,
         status: 'unconfigured',
         message: 'No active serverless trigger endpoint detected.'
+      };
+    }
+  },
+
+  async discoverSource(targetUrl) {
+    const session = await auth.getSession();
+    const token = session?.access_token;
+    const discoverUrl = '/.netlify/functions/discover-source';
+
+    try {
+      const response = await fetch(discoverUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ targetUrl })
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        return { ok: false, message: err.message || `Probing failed with status ${response.status}` };
+      }
+
+      return await response.json();
+    } catch (err) {
+      return {
+        ok: false,
+        message: 'Could not contact discovery service. Check serverless functions or specify type manually.'
       };
     }
   }

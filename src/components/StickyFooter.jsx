@@ -1,62 +1,69 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdSlot from './AdSlot';
 import { useAdSettings } from '../services/store';
+import { useAdBlock } from '../services/adBlockContext';
 
-export default function StickyFooter() {
-  const [isDismissed, setIsDismissed] = useState(() => {
-    try {
-      return sessionStorage.getItem('adcast_sticky_dismissed') === 'true';
-    } catch {
-      return false;
-    }
-  });
+export default function StickyFooter({ currentView }) {
+  const { isNoticeOpen } = useAdBlock();
+  const [isDismissed, setIsDismissed] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const wrapperRef = useRef(null);
   const adSettings = useAdSettings();
   const slot = adSettings['slot_sticky_footer'];
 
+  // Reset dismissal when user navigates to a new page (matching ExoClick 'Show on every page' setting)
   useEffect(() => {
-    if (!slot || !slot.isActive || isDismissed) return;
+    setIsDismissed(false);
+    setIsLoaded(false);
+  }, [currentView]);
 
-    // Detect when the ad container actually has rendered content
+  useEffect(() => {
+    if (!slot || !slot.isActive || isDismissed || isNoticeOpen) return;
+
+    // Detect when the ad container actually has rendered creative content (not empty static wrapper)
     let intervalId = null;
     let checks = 0;
 
-    const checkHeight = () => {
+    const checkRenderedCreative = () => {
       checks++;
       if (wrapperRef.current) {
-        const adEl = wrapperRef.current.querySelector('ins, iframe, img, [class*="eas"], div[class*="slot_sticky_footer"]');
-        const height = wrapperRef.current.offsetHeight;
-        if (height > 25 || (adEl && (adEl.offsetHeight > 20 || adEl.children.length > 0))) {
+        const iframe = wrapperRef.current.querySelector('iframe');
+        const ins = wrapperRef.current.querySelector('ins');
+        const img = wrapperRef.current.querySelector('a > img, div > img');
+
+        const hasIframeWithContent = iframe && (iframe.offsetHeight > 10 || iframe.offsetWidth > 10);
+        const hasFilledIns = ins && (ins.children.length > 0 || ins.offsetHeight > 20 || ins.getAttribute('data-ad-status') === 'filled');
+        const hasRenderedImage = img && img.offsetHeight > 20;
+
+        if (hasIframeWithContent || hasFilledIns || hasRenderedImage) {
           setIsLoaded(true);
           if (intervalId) clearInterval(intervalId);
           return;
         }
       }
-      if (checks >= 20 && intervalId) {
+      if (checks >= 25 && intervalId) {
         clearInterval(intervalId);
       }
     };
 
-    intervalId = setInterval(checkHeight, 300);
-    checkHeight();
+    intervalId = setInterval(checkRenderedCreative, 300);
+    checkRenderedCreative();
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [slot, isDismissed]);
+  }, [slot, isDismissed, isNoticeOpen, currentView]);
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    try {
-      sessionStorage.setItem('adcast_sticky_dismissed', 'true');
-    } catch {}
   };
 
-  if (!slot || !slot.isActive || isDismissed) return null;
+  if (!slot || !slot.isActive || isDismissed || isNoticeOpen) return null;
+  if (typeof window !== 'undefined' && (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/'))) return null;
 
   return (
     <aside
+      id="adcast-sticky-footer"
       aria-label="Sponsored"
       className={`fixed bottom-0 left-0 right-0 z-40 w-full transition-opacity duration-300 pointer-events-auto ${
         isLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'

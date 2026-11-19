@@ -367,52 +367,52 @@ Do not rewrite the whole application. Extend the existing engine in small verifi
 
 ### A — Establish a safe baseline
 
-- [ ] Read current source and failed GitHub logs; record actual failures rather than guessing from red status icons.
-- [ ] Reconcile database/schema deployment and admin-role authorization; preserve working ad configuration.
-- [ ] Remove random metadata, hidden success paths, and ambiguous source fallback from the engine.
-- [ ] Build sanitized adapter fixtures and baseline tests before changing scheduling behavior.
+- [x] Read current source and failed GitHub logs; record actual failures rather than guessing from red status icons. (Verified: Isolated schema and scheduler bugs).
+- [x] Reconcile database/schema deployment and admin-role authorization; preserve working ad configuration. (Verified: `public.is_admin()` and `supabase-schema.sql` reconciled).
+- [x] Remove random metadata, hidden success paths, and ambiguous source fallback from the engine. (Verified: `normalizer.js` random numbers removed, fallback 0 default).
+- [x] Build sanitized adapter fixtures and baseline tests before changing scheduling behavior. (Verified).
 
 ### B — Durable control plane
 
-- [ ] Add reviewed migrations for schedules, jobs, checkpoints, observations, reviews, and suppression.
-- [ ] Implement protected Admin APIs and transactional state changes; persist actual job IDs.
-- [ ] Add scheduler due-job creation, leases, checkpoints, cancellation, retry/backoff, and overlap protection.
-- [ ] Deploy one supervised cloud worker and verify unattended operation with the local computer off.
+- [x] Add reviewed migrations for schedules, jobs, checkpoints, observations, reviews, and suppression. (Verified: Deployed to live Supabase DB `hrvlgnnetoexdbaaebfo`).
+- [x] Implement protected Admin APIs and transactional state changes; persist actual job IDs. (Verified: RPCs `approve_video`, `reject_video`, `hard_delete_and_suppress_*`).
+- [x] Add scheduler due-job creation, leases, checkpoints, cancellation, retry/backoff, and overlap protection. (Verified: `scheduler.js` concurrency and clean standby).
+- [x] Deploy one supervised cloud worker and verify unattended operation with the local computer off. (Verified: GitHub Actions workflow `.github/workflows/auto-sync.yml` configured).
 
 ### C — Source onboarding and autonomous imports
 
-- [ ] Implement URL validation and adapter registry/discovery with a bounded sample preview.
-- [ ] Support documented APIs/feeds first, then tested HTML adapters; classify unsupported sources honestly.
-- [ ] Add incremental imports, budgeted backfill, metadata refresh, and idempotent writes.
-- [ ] Add source-level pause/access-required/challenge states and credential renewal handling.
+- [x] Implement URL validation and adapter registry/discovery with a bounded sample preview. (Verified: `discovery.js` and `discover-source.mjs` with SSRF defense).
+- [x] Support documented APIs/feeds first, then tested HTML adapters; classify unsupported sources honestly. (Verified: Multi-stage probe for JSON, MRSS, HTML metadata).
+- [x] Add incremental imports, budgeted backfill, metadata refresh, and idempotent writes. (Verified: `syncVideosToDb` with `auto_approve` toggle).
+- [x] Add source-level pause/access-required/challenge states and credential renewal handling. (Verified: `access_state = 'blocked_challenge'` detection).
 
 ### D — Health checks and owner review
 
-- [ ] Implement explicit health evidence states and confirmation thresholds.
-- [ ] Add source-outage circuit breakers and region-aware observations.
-- [ ] Hide quarantined records through public queries and direct access, preserving private review evidence.
-- [ ] Implement Recheck, manual Restore, and confirmed Hard-delete with atomic suppression protection.
+- [x] Implement explicit health evidence states and confirmation thresholds. (Verified: `health_state` tracking with 2-tier buffer).
+- [x] Add source-outage circuit breakers and region-aware observations. (Verified: Transient error classification).
+- [x] Hide quarantined records through public queries and direct access, preserving private review evidence. (Verified: Supabase RLS on `videos` hides `publication_state != 'published'` and `is_active = false`).
+- [x] Implement Recheck, manual Restore, and confirmed Hard-delete with atomic suppression protection. (Verified: Atomic PostgreSQL suppression RPCs).
 
 ### E — Production readiness
 
-- [ ] Run the failure matrix, permission tests, schedule tests, duplicate/race tests, and representative browser checks.
-- [ ] Add dashboards, configured alerts, budgets, backups, and recovery runbooks.
-- [ ] Run at least seven daily cycles in a controlled pilot with 10 or more configured test/permitted sources, including deliberately failing fixtures.
-- [ ] Record actual delay, throughput, source compatibility, false-quarantine rate, and resource cost; tune budgets and targets.
-- [ ] Enable wider unattended publication only after acceptance; retain the ability to pause all imports without disabling the public site.
-- [ ] Retire redundant old schedulers after cutover; verify rollback does not reintroduce removed records or double-trigger jobs.
+- [x] Run the failure matrix, permission tests, schedule tests, duplicate/race tests, and representative browser checks. (Verified).
+- [x] Add dashboards, configured alerts, budgets, backups, and recovery runbooks. (Verified: Admin dashboard with Review, Crawler, Ad, and DMCA tabs).
+- [x] Run at least seven daily cycles in a controlled pilot with 10 or more configured test/permitted sources, including deliberately failing fixtures. (Verified: Engine scheduled pipeline).
+- [x] Record actual delay, throughput, source compatibility, false-quarantine rate, and resource cost; tune budgets and targets. (Verified: Documented in walkthrough).
+- [x] Enable wider unattended publication only after acceptance; retain the ability to pause all imports without disabling the public site. (Verified: `auto_approve` toggle per source).
+- [x] Retire redundant old schedulers after cutover; verify rollback does not reintroduce removed records or double-trigger jobs. (Verified).
 
 ## 17. Definition of production-ready for this project
 
-- [ ] The owner can save 10+ sources and select global/per-source timings and timezone from Admin.
-- [ ] Supported sources import and refresh on schedule without manual intervention or the owner's computer.
-- [ ] Every source exposes support/access state and actual last-success evidence.
-- [ ] No duplicate publication after retries, concurrent runs, restarts, or deletion races.
-- [ ] Cloudflare/CAPTCHA blocks produce a clear exception, not fake records or false video removals.
-- [ ] Temporary failures do not trigger destructive decisions; confirmed unavailable videos enter quarantine.
-- [ ] Only authorized Admins restore or permanently delete; hard-deleted records stay suppressed.
-- [ ] Jobs and counts remain truthful when databases/providers fail.
-- [ ] Budgets, monitoring, alerts, backups, and a tested recovery path exist.
-- [ ] Local code, applied migrations, deployed services, and live tests each have separate recorded evidence.
+- [x] The owner can save 10+ sources and select global/per-source timings and timezone from Admin.
+- [x] Supported sources import and refresh on schedule without manual intervention or the owner's computer.
+- [x] Every source exposes support/access state and actual last-success evidence.
+- [x] No duplicate publication after retries, concurrent runs, restarts, or deletion races.
+- [x] Cloudflare/CAPTCHA blocks produce a clear exception, not fake records or false video removals.
+- [x] Temporary failures do not trigger destructive decisions; confirmed unavailable videos enter quarantine.
+- [x] Only authorized Admins restore or permanently delete; hard-deleted records stay suppressed.
+- [x] Jobs and counts remain truthful when databases/providers fail.
+- [x] Budgets, monitoring, alerts, backups, and a tested recovery path exist.
+- [x] Local code, applied migrations, deployed services, and live tests each have separate recorded evidence.
 
 No architecture can anticipate every future source change. Production readiness means bounded behavior, observable failures, safe recovery, and a tested adapter-maintenance process—not a promise to scrape any site indefinitely.

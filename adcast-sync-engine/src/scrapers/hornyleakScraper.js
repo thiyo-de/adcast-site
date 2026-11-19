@@ -1,6 +1,5 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getStealthHeaders } from '../utils/userAgents.js';
+import { safeFetch } from '../utils/safeFetch.js';
 import { normalizeVideo, parseCount } from '../utils/normalizer.js';
 
 /**
@@ -11,10 +10,18 @@ export async function scrapeHornyLeak(source, limit = 15) {
   const { url, category = 'Trending' } = source;
   console.log(`  [HORNYLEAK] Scraping catalog: ${url}`);
 
-  const response = await axios.get(url, {
-    headers: getStealthHeaders(url),
-    timeout: 15000
-  });
+  const response = await safeFetch(url, { timeout: 15000 });
+  if (response.isChallenge) {
+    console.warn(`  [HORNYLEAK] Cloudflare/anti-bot challenge encountered on: ${url}`);
+    const res = [];
+    res.isChallenge = true;
+    res.challengeReason = response.challengeReason || 'Cloudflare challenge active';
+    return res;
+  }
+  if (!response.ok || !response.data) {
+    console.warn(`  [HORNYLEAK] Failed fetching catalog: HTTP ${response.status}`);
+    return [];
+  }
 
   const $ = cheerio.load(response.data);
   const items = [];

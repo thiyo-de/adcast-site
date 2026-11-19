@@ -8,7 +8,7 @@ import crypto from 'crypto';
 /**
  * Parse strings like "612K", "1.2M", "45,000" into integer
  */
-export function parseCount(val, fallback = 1000) {
+export function parseCount(val, fallback = 0) {
   if (!val) return fallback;
   if (typeof val === 'number') return Math.round(val);
 
@@ -132,8 +132,8 @@ export function normalizeVideo(raw) {
   const thumbnail_url = raw.thumbnail_url || raw.thumb || 
     'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80';
 
-  const views = parseCount(raw.views, randomBetween(45000, 480000));
-  const likes = parseCount(raw.likes, Math.round(views * 0.045));
+  const views = parseCount(raw.views, 0);
+  const likes = parseCount(raw.likes, 0);
 
   return {
     id: crypto.randomUUID(),

@@ -30,11 +30,17 @@ ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS quality TEXT DEFAULT '1080p';
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS rating INTEGER DEFAULT 95;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS dead_reason TEXT;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS health_state TEXT DEFAULT 'healthy';
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS first_failed_at TIMESTAMPTZ;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS last_health_check_at TIMESTAMPTZ;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS publication_state TEXT DEFAULT 'published';
 
 -- Indexes for fast catalog browsing & health checks
 CREATE UNIQUE INDEX IF NOT EXISTS idx_videos_embed_url ON public.videos (embed_url);
 CREATE INDEX IF NOT EXISTS idx_videos_category ON public.videos (category);
 CREATE INDEX IF NOT EXISTS idx_videos_is_active ON public.videos (is_active);
+CREATE INDEX IF NOT EXISTS idx_videos_health_state ON public.videos (health_state);
+CREATE INDEX IF NOT EXISTS idx_videos_publication_state ON public.videos (publication_state);
 CREATE INDEX IF NOT EXISTS idx_videos_created_at ON public.videos (created_at DESC);
 
 -- 2. Create Ad Settings Table
@@ -77,18 +83,67 @@ CREATE TABLE IF NOT EXISTS public.crawler_sources (
     category TEXT DEFAULT 'Trending',
     video_limit INTEGER DEFAULT 15,
     is_enabled BOOLEAN DEFAULT true,
+    mapping JSONB DEFAULT '{}'::jsonb,
+    source_type TEXT DEFAULT 'json_api',
+    access_state TEXT DEFAULT 'ok',
     last_synced_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_crawler_sources_is_enabled ON public.crawler_sources (is_enabled);
+ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS mapping JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'json_api';
+ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS access_state TEXT DEFAULT 'ok';
+ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS auto_approve BOOLEAN DEFAULT true;
+
+-- 5. Create Suppressed Videos (Tombstones for deleted / DMCA / dead videos)
+CREATE TABLE IF NOT EXISTS public.suppressed_videos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    embed_url TEXT NOT NULL UNIQUE,
+    reason TEXT NOT NULL,
+    suppressed_at TIMESTAMPTZ DEFAULT now(),
+    suppressed_by TEXT DEFAULT 'system'
+);
+CREATE INDEX IF NOT EXISTS idx_suppressed_videos_embed_url ON public.suppressed_videos (embed_url);
+
+-- 6. Create Source Schedules (Asia/Calcutta Autonomous Engine Schedules)
+CREATE TABLE IF NOT EXISTS public.source_schedules (
+    source_id UUID PRIMARY KEY REFERENCES public.crawler_sources(id) ON DELETE CASCADE,
+    cron_expression TEXT DEFAULT '0 */6 * * *',
+    timezone TEXT DEFAULT 'Asia/Calcutta',
+    interval_minutes INTEGER DEFAULT 360,
+    next_run_at TIMESTAMPTZ,
+    last_run_at TIMESTAMPTZ,
+    run_state TEXT DEFAULT 'idle',
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 7. Create Source Checkpoints (Incremental Pagination State)
+CREATE TABLE IF NOT EXISTS public.source_checkpoints (
+    source_id UUID PRIMARY KEY REFERENCES public.crawler_sources(id) ON DELETE CASCADE,
+    last_page INTEGER DEFAULT 1,
+    cursor_value TEXT,
+    last_video_external_id TEXT,
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
 -- ==============================================================
--- 5. Row Level Security (RLS) Configuration (Hardened for C01)
+-- 8. Admin Security Helper Function
+-- ==============================================================
+CREATE OR REPLACE FUNCTION public.is_admin() RETURNS boolean AS $$
+BEGIN
+  RETURN (auth.jwt() ->> 'email' = 'admin@hornyleaks.site' OR (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==============================================================
+-- 9. Row Level Security (RLS) Configuration (Strict Admin Lock)
 -- ==============================================================
 ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ad_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.takedown_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crawler_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.suppressed_videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.source_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.source_checkpoints ENABLE ROW LEVEL SECURITY;
 
 -- Clean up permissive legacy policies
 DROP POLICY IF EXISTS "Allow video mutations" ON public.videos;
@@ -99,53 +154,102 @@ DROP POLICY IF EXISTS "Public ad settings can be read by anyone" ON public.ad_se
 DROP POLICY IF EXISTS "Anyone can submit a takedown request" ON public.takedown_requests;
 
 -- A. Videos Policies
--- Public can ONLY read active videos
 CREATE POLICY "Public videos can be read by anyone" ON public.videos
-    FOR SELECT USING (is_active = true OR is_active IS NULL);
+    FOR SELECT USING ((is_active = true OR is_active IS NULL) AND (publication_state = 'published' OR publication_state IS NULL));
 
--- Only authenticated users (admins) can insert/update/delete videos
 CREATE POLICY "Admins can mutate videos" ON public.videos
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- B. Ad Settings Policies
--- Public can read ad configurations
 CREATE POLICY "Public ad settings can be read by anyone" ON public.ad_settings
     FOR SELECT USING (true);
 
--- Only authenticated users (admins) can modify ad settings
 CREATE POLICY "Admins can mutate ad settings" ON public.ad_settings
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- C. Takedown Requests Policies
--- Public can SUBMIT takedowns, but CANNOT read existing claimant submissions!
 CREATE POLICY "Anyone can submit a takedown request" ON public.takedown_requests
     FOR INSERT WITH CHECK (true);
 
--- Only authenticated admins can read and update takedowns
 CREATE POLICY "Admins can view and manage takedowns" ON public.takedown_requests
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- D. Crawler Sources Policies
--- Public/anon can read active source list
 CREATE POLICY "Public can view crawler sources" ON public.crawler_sources
     FOR SELECT USING (true);
 
--- Only authenticated admins can mutate crawler sources
 CREATE POLICY "Admins can mutate crawler sources" ON public.crawler_sources
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- E. Engine Support Policies (Suppressed Videos, Schedules, Checkpoints)
+CREATE POLICY "Admins can manage suppressed_videos" ON public.suppressed_videos
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can manage source_schedules" ON public.source_schedules
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can manage source_checkpoints" ON public.source_checkpoints
+    FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- ==============================================================
--- 6. Seed Verified Live ExoClick Zones (Site ID: 1120332)
+-- 10. Atomic Hard-Deletion & Suppression RPCs
+-- ==============================================================
+CREATE OR REPLACE FUNCTION public.hard_delete_and_suppress_video(p_video_id uuid, p_reason text DEFAULT 'admin_deleted')
+RETURNS boolean AS $$
+DECLARE v_embed_url text;
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  SELECT embed_url INTO v_embed_url FROM public.videos WHERE id = p_video_id;
+  IF v_embed_url IS NULL THEN RETURN false; END IF;
+  INSERT INTO public.suppressed_videos (embed_url, reason, suppressed_at, suppressed_by)
+  VALUES (TRIM(v_embed_url), p_reason, now(), auth.jwt() ->> 'email')
+  ON CONFLICT (embed_url) DO UPDATE SET reason = EXCLUDED.reason, suppressed_at = now();
+  DELETE FROM public.videos WHERE id = p_video_id;
+  RETURN true;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.hard_delete_and_suppress_dead_videos(p_reason text DEFAULT 'bulk_purged_quarantine')
+RETURNS integer AS $$
+DECLARE v_count integer;
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  INSERT INTO public.suppressed_videos (embed_url, reason, suppressed_at, suppressed_by)
+  SELECT TRIM(embed_url), p_reason, now(), auth.jwt() ->> 'email'
+  FROM public.videos WHERE is_active = false
+  ON CONFLICT (embed_url) DO UPDATE SET reason = EXCLUDED.reason, suppressed_at = now();
+  WITH deleted AS (DELETE FROM public.videos WHERE is_active = false RETURNING id)
+  SELECT count(*) INTO v_count FROM deleted;
+  RETURN v_count;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.approve_video(p_video_id uuid)
+RETURNS boolean AS $$
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  UPDATE public.videos SET publication_state = 'published' WHERE id = p_video_id;
+  RETURN true;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.reject_video(p_video_id uuid)
+RETURNS boolean AS $$
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  UPDATE public.videos SET publication_state = 'rejected', is_active = false WHERE id = p_video_id;
+  RETURN true;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==============================================================
+-- 11. Seed Verified Live ExoClick Zones (Site ID: 1120332)
 -- ==============================================================
 INSERT INTO public.ad_settings (slot_id, name, network, dimensions, format, is_active, code, vast_url, frequency_hours)
 VALUES
-    ('slot_top_banner', 'Top Leaderboard Banner', 'ExoClick / 728x90', '728x90', 'banner', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
+    ('slot_top_banner', 'Top Banner (Desktop 728x90 / Mobile 6096160)', 'ExoClick / Adaptive Banner', '728x90 / 300x250', 'banner', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_native_feed', 'Native In-Feed Recommendation Card', 'ExoClick / Native', '1x1 Card', 'native', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e20" data-zoneid="6093504"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
-    ('slot_sticky_footer', 'Sticky Screen-Bottom Mobile Footer', 'ExoClick Sticky Banner', '300x50 / 728x90', 'sticky', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
+    ('slot_sticky_footer', 'Mobile Sticky Bottom', 'ExoClick Sticky Banner', '300x50 / 300x250', 'sticky', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6096158"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_below_player', 'Below-Video High-CTR Rectangle Banner', 'ExoClick / 300x250', '300x250', 'banner', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093362"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_video_preroll', 'In-Stream 5-Second Video Pre-Roll Ad', 'ExoClick VAST / In-Stream', 'Video Overlay', 'vast', true, NULL, 'https://s.magsrv.com/v1/vast.php?idz=6093414', 1),
-    ('slot_popunder', 'Background Popunder (24h Capped)', 'ExoClick / Popunder', 'Full Tab', 'popunder', true, '<script type="application/javascript">var adConfig={"ads_host":"a.pemsrv.com","syndication_host":"s.pemsrv.com","idzone":6093374,"popup_fallback":false,"popup_force":false,"chrome_enabled":true,"new_tab":true,"frequency_period":1440,"frequency_count":1,"trigger_method":1,"trigger_class":"","trigger_delay":0,"capping_enabled":true,"tcf_enabled":true,"agego_cross_site_enabled":true,"only_inline":false};</script><script async type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>', NULL, 24),
-    ('slot_interstitial', 'Desktop Fullpage Interstitial', 'ExoClick / Interstitial', 'Full Screen', 'interstitial', true, '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 12)
+    ('slot_popunder', 'Background Popunder (1h Capped)', 'ExoClick / Popunder', 'Full Tab', 'popunder', true, '<script type="application/javascript">var ad_idzone = "6093374", ad_popup_fallback = false, ad_popup_force = false, ad_chrome_enabled = true, ad_new_tab = true, ad_frequency_period = 60, ad_frequency_count = 1, ad_trigger_method = 1, ad_tcf_enabled = true;</script><script async type="application/javascript" id="popmagicldr" data-ad_idzone="6093374" data-ad_frequency_period="60" data-ad_frequency_count="1" data-ad_trigger_method="1" data-ad_tcf_enabled="true" src="https://a.pemsrv.com/popunder1000.js"></script>', NULL, 1),
+    ('slot_interstitial', 'Desktop Fullpage Interstitial', 'ExoClick / Interstitial', 'Full Screen', 'interstitial', true, '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1)
 ON CONFLICT (slot_id) DO UPDATE SET
     name = EXCLUDED.name,
     network = EXCLUDED.network,
@@ -157,7 +261,7 @@ ON CONFLICT (slot_id) DO UPDATE SET
     frequency_hours = EXCLUDED.frequency_hours,
     updated_at = now();
 
--- 7. Seed Initial Crawler Sources
+-- 12. Seed Initial Crawler Sources
 INSERT INTO public.crawler_sources (name, url, category, video_limit, is_enabled)
 VALUES
     ('Eporner Trending HD', 'https://www.eporner.com/api/v2/video/search/?query=trending&per_page=15&thumbsize=big&order=top-weekly&format=json', 'Trending', 15, true),

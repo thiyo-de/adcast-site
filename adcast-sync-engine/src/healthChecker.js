@@ -1,6 +1,6 @@
-import axios from 'axios';
 import { getDbClient } from './db.js';
-import { getStealthHeaders, sleep } from './utils/userAgents.js';
+import { safeFetch } from './utils/safeFetch.js';
+import { sleep } from './utils/userAgents.js';
 
 // Common dead video phrase signatures found across tube and video platforms
 const DEAD_SIGNATURES = [
@@ -18,33 +18,33 @@ const DEAD_SIGNATURES = [
   'content has been disabled'
 ];
 
+const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+
 /**
- * Checks a single embed URL to see if it is still live
+ * Checks a single embed URL to see if it is still live using SSRF-safe fetch
  */
 export async function checkStreamHealth(embedUrl) {
   if (!embedUrl) return { isAlive: false, reason: 'Missing embed URL' };
 
   try {
-    const res = await axios.get(embedUrl, {
-      headers: getStealthHeaders(embedUrl),
-      timeout: 10000,
-      maxRedirects: 4,
-      validateStatus: () => true // Allow handling all status codes manually
-    });
+    const res = await safeFetch(embedUrl, { timeout: 10000 });
 
-    // C15: Only explicit HTTP 404 (Not Found) or 410 (Gone) indicate a confirmed dead stream.
+    // Cloudflare challenges must NOT be marked dead
+    if (res.isChallenge) {
+      return { isAlive: null, isTransient: true, reason: 'Cloudflare challenge active' };
+    }
+
+    // Explicit HTTP 404 (Not Found) or 410 (Gone) indicate potential dead stream
     if (res.status === 404 || res.status === 410) {
-      return { isAlive: false, reason: `HTTP ${res.status} Not Found` };
+      return { isAlive: false, isTransient: false, reason: `HTTP ${res.status} Not Found` };
     }
 
-    // Temporary server issues, 5xx, 429 rate limits, and 403 anti-bot challenges are transient.
-    // They must NOT quarantine healthy streams!
+    // Temporary server issues, 5xx, 429 rate limits, and generic 403 are transient
     if (res.status >= 500 || res.status === 429 || res.status === 403) {
-      return { isAlive: true, isRetryable: true, reason: `HTTP ${res.status} Transient` };
+      return { isAlive: null, isTransient: true, reason: `HTTP ${res.status} Transient` };
     }
 
-    // Check specific HTML title or header tags for removal notices rather than full document body
-    // (which could match JS script names or footer text)
+    // Check specific HTML title or header tags for removal notices
     if (typeof res.data === 'string') {
       const titleMatch = res.data.match(/<title[^>]*>(.*?)<\/title>/i);
       const h1Match = res.data.match(/<h1[^>]*>(.*?)<\/h1>/i);
@@ -52,40 +52,39 @@ export async function checkStreamHealth(embedUrl) {
 
       for (const sig of DEAD_SIGNATURES) {
         if (headline.includes(sig)) {
-          return { isAlive: false, reason: `Source Notice: "${sig}"` };
+          return { isAlive: false, isTransient: false, reason: `Source Notice: "${sig}"` };
         }
       }
     }
 
-    return { isAlive: true, reason: null };
+    return { isAlive: true, isTransient: false, reason: null };
   } catch (err) {
-    if (err.response && (err.response.status === 404 || err.response.status === 410)) {
-      return { isAlive: false, reason: `HTTP ${err.response.status} Not Found` };
+    if (err.message.includes('Blocked destination')) {
+      return { isAlive: false, isTransient: false, reason: 'Blocked: Private/internal destination (SSRF Defense)' };
     }
-    // DNS resolution failure (domain gone permanently)
     if (err.code === 'ENOTFOUND') {
-      return { isAlive: false, reason: `Domain Offline (${err.code})` };
+      return { isAlive: false, isTransient: false, reason: `Domain Offline (${err.code})` };
     }
-    // Network timeouts, ECONNREFUSED, or temporary connection drops are NOT marked dead
-    return { isAlive: true, isRetryable: true, reason: err.code || 'Network timeout' };
+    // Network timeouts or temporary connection drops are transient
+    return { isAlive: null, isTransient: true, reason: err.code || 'Network timeout' };
   }
 }
 
 /**
- * Run full health audit across all active videos in database
+ * Run full two-tier health audit across all active videos in database
  */
 export async function runHealthCheck() {
   const startTime = Date.now();
   console.log('\n======================================================');
-  console.log(`[HEALTH CHECKER] Starting Stream Audit at ${new Date().toISOString()}`);
+  console.log(`[HEALTH CHECKER] Starting Two-Tier Stream Audit at ${new Date().toISOString()}`);
   console.log('======================================================');
 
   const db = getDbClient();
 
-  // Fetch active videos
+  // Fetch active and suspect videos
   const { data: videos, error } = await db
     .from('videos')
-    .select('id, title, embed_url, is_active')
+    .select('id, title, embed_url, is_active, health_state, first_failed_at')
     .or('is_active.eq.true,is_active.is.null');
 
   if (error) {
@@ -95,43 +94,96 @@ export async function runHealthCheck() {
 
   console.log(`[AUDIT] Checking ${videos.length} active video stream(s)...`);
 
-  let activeCount = 0;
+  let healthyCount = 0;
+  let suspectCount = 0;
   let quarantinedCount = 0;
+  let transientCount = 0;
+  const now = new Date();
 
   for (let i = 0; i < videos.length; i++) {
     const v = videos[i];
-    process.stdout.write(`  [${i + 1}/${videos.length}] Checking: "${v.title.substring(0, 35)}..." `);
+    process.stdout.write(`  [${i + 1}/${videos.length}] Checking: "${v.title.substring(0, 32)}..." `);
 
     const health = await checkStreamHealth(v.embed_url);
 
-    if (health.isAlive) {
-      activeCount++;
-      process.stdout.write('\x1b[32m[OK]\x1b[0m\n');
-    } else {
-      quarantinedCount++;
-      process.stdout.write(`\x1b[31m[DEAD -> QUARANTINED]\x1b[0m (${health.reason})\n`);
-
-      // Soft delete in database
+    if (health.isTransient) {
+      transientCount++;
+      process.stdout.write(`\x1b[35m[TRANSIENT/SKIPPED]\x1b[0m (${health.reason})\n`);
+      // Transient error: leave health_state and first_failed_at UNTOUCHED
       await db
         .from('videos')
-        .update({
-          is_active: false,
-          dead_reason: health.reason
-        })
+        .update({ last_health_check_at: now.toISOString() })
         .eq('id', v.id);
+    } else if (health.isAlive === true) {
+      healthyCount++;
+      process.stdout.write('\x1b[32m[HEALTHY]\x1b[0m\n');
+
+      // If video was previously suspect, recover it back to healthy
+      if (v.health_state === 'suspect') {
+        await db
+          .from('videos')
+          .update({
+            health_state: 'healthy',
+            first_failed_at: null,
+            dead_reason: null,
+            last_health_check_at: now.toISOString()
+          })
+          .eq('id', v.id);
+      } else {
+        await db
+          .from('videos')
+          .update({ last_health_check_at: now.toISOString() })
+          .eq('id', v.id);
+      }
+    } else {
+      // Stream failed health check. Apply two-tier confirmation buffer.
+      const firstFailed = v.first_failed_at ? new Date(v.first_failed_at).getTime() : null;
+      const elapsed = firstFailed ? Date.now() - firstFailed : 0;
+
+      if (v.health_state === 'suspect' && elapsed >= THIRTY_MINUTES_MS) {
+        // Tier 2: Confirmed dead (2 independent checks >= 30 mins apart) -> Quarantine
+        quarantinedCount++;
+        process.stdout.write(`\x1b[31m[CONFIRMED DEAD -> QUARANTINED]\x1b[0m (${health.reason})\n`);
+
+        await db
+          .from('videos')
+          .update({
+            is_active: false,
+            health_state: 'quarantined',
+            dead_reason: health.reason,
+            last_health_check_at: now.toISOString()
+          })
+          .eq('id', v.id);
+      } else {
+        // Tier 1: First observation of failure -> Mark suspect, buffer for 30 minutes
+        suspectCount++;
+        process.stdout.write(`\x1b[33m[SUSPECT (BUFFERING)]\x1b[0m (${health.reason})\n`);
+
+        await db
+          .from('videos')
+          .update({
+            health_state: 'suspect',
+            first_failed_at: v.first_failed_at || now.toISOString(),
+            dead_reason: health.reason,
+            last_health_check_at: now.toISOString()
+          })
+          .eq('id', v.id);
+      }
     }
 
-    // Small delay between checks
-    await sleep(150);
+    // Safe delay between checks
+    await sleep(200);
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log('\n------------------------------------------------------');
   console.log(`[AUDIT COMPLETE] Duration: ${duration}s`);
-  console.log(`Total Streams Checked:  ${videos.length}`);
-  console.log(`Live Streams (Active):  \x1b[32m${activeCount}\x1b[0m`);
-  console.log(`Dead Streams (Quarantine): \x1b[31m${quarantinedCount}\x1b[0m`);
+  console.log(`Total Streams Checked:    ${videos.length}`);
+  console.log(`Healthy Streams:          \x1b[32m${healthyCount}\x1b[0m`);
+  console.log(`Suspect Streams (Buffer): \x1b[33m${suspectCount}\x1b[0m`);
+  console.log(`Transient / Skipped:      \x1b[35m${transientCount}\x1b[0m`);
+  console.log(`Confirmed Quarantined:    \x1b[31m${quarantinedCount}\x1b[0m`);
   console.log('------------------------------------------------------\n');
 }
 

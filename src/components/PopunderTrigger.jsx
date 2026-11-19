@@ -1,24 +1,46 @@
 import React, { useEffect } from 'react';
 import { useAdSettings, isPlaceholderAdCode } from '../services/store';
+import { useAdBlock } from '../services/adBlockContext';
 
 export default function PopunderTrigger() {
   const adSettings = useAdSettings();
+  const { isNoticeOpen } = useAdBlock();
   const slot = adSettings['slot_popunder'];
 
   useEffect(() => {
-    // 1. Guard check: Slot must be active, have valid code, and not be placeholder
-    if (!slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code)) {
+    // 1. Guard check: Slot must be active, have valid code, not be placeholder, and not be paused by AdBlock notice
+    if (!slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code) || isNoticeOpen) {
       if (typeof window !== 'undefined') {
         window.__popunderDiagnostics = {
           status: 'inactive',
-          reason: !slot ? 'No slot configuration' : !slot.isActive ? 'Slot disabled in settings' : 'Placeholder or empty code',
+          reason: isNoticeOpen
+            ? 'Paused while AdBlock notice is open'
+            : !slot
+            ? 'No slot configuration'
+            : !slot.isActive
+            ? 'Slot disabled in settings'
+            : 'Placeholder or empty code',
           timestamp: new Date().toISOString()
         };
       }
       return;
     }
 
-    // 2. Clean up any previously installed popunder scripts (if code updated or re-mounted)
+    // 2. Explicitly wire global window.ad_idzone and ExoClick variables for complete script compatibility
+    const zoneMatch = slot.code.match(/ad_idzone["':\s=]+["']?(\d+)/i) || slot.code.match(/idzone["':\s]+(\d+)/i);
+    if (zoneMatch && zoneMatch[1] && typeof window !== 'undefined') {
+      window.ad_idzone = zoneMatch[1];
+      window.ad_frequency_period = 60; // 1-hour cap
+      window.ad_frequency_count = 1;
+      window.ad_trigger_method = 1;
+      window.ad_tcf_enabled = true;
+      window.ad_popup_fallback = false;
+      window.ad_popup_force = false;
+      window.ad_chrome_enabled = true;
+      window.ad_new_tab = true;
+    }
+
+    // 3. Clean up any previously installed popunder scripts
     const existingScripts = document.querySelectorAll('[data-adcast-popunder="true"]');
     existingScripts.forEach((el) => el.remove());
 
@@ -27,7 +49,8 @@ export default function PopunderTrigger() {
     if (typeof window !== 'undefined') {
       window.__popunderDiagnostics = {
         status: 'initializing',
-        zoneId: slot.code.match(/idzone["':\s]+(\d+)/i)?.[1] || 'unknown',
+        zoneId: zoneMatch?.[1] || '6093374',
+        frequencyPeriod: 60,
         scriptLoaded: false,
         error: null,
         timestamp: new Date().toISOString()
@@ -84,7 +107,7 @@ export default function PopunderTrigger() {
         }
       });
     };
-  }, [slot?.isActive, slot?.code]);
+  }, [slot?.isActive, slot?.code, isNoticeOpen]);
 
   return null;
 }

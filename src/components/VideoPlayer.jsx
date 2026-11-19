@@ -12,6 +12,7 @@ export default function VideoPlayer({ video, onEnded }) {
   const [playbackError, setPlaybackError] = useState(false);
   const videoRef = useRef(null);
   const firedTrackingRef = useRef(new Set());
+  const firedImpressionRef = useRef(false);
 
   const adSettings = useAdSettings();
   const preRollSlot = adSettings['slot_video_preroll'];
@@ -23,6 +24,25 @@ export default function VideoPlayer({ video, onEnded }) {
   const isDirectVideo = (url) => {
     if (!url) return false;
     return url.endsWith('.mp4') || url.endsWith('.m3u8') || url.endsWith('.webm') || url.includes('.mp4?');
+  };
+
+  const fireImpressionBeacons = () => {
+    if (firedImpressionRef.current || !adData) return;
+    firedImpressionRef.current = true;
+
+    if (adData.impressionUrls && Array.isArray(adData.impressionUrls)) {
+      adData.impressionUrls.forEach((url) => {
+        try {
+          const beacon = new Image();
+          beacon.src = url;
+        } catch {}
+      });
+    } else if (adData.impressionUrl) {
+      try {
+        const beacon = new Image();
+        beacon.src = adData.impressionUrl;
+      } catch {}
+    }
   };
 
   const fireTrackingEvents = (eventKey) => {
@@ -47,51 +67,29 @@ export default function VideoPlayer({ video, onEnded }) {
     setIsLoadingAd(false);
     setPlaybackError(false);
     firedTrackingRef.current.clear();
+    firedImpressionRef.current = false;
   }, [video?.id]);
-
-  useEffect(() => {
-    let timer;
-    if (isPlaying && showPreRoll && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            setCanSkip(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isPlaying, showPreRoll, countdown]);
 
   const handleStartPlay = async () => {
     if (video) {
       store.addToHistory(video);
     }
 
-    if (hasPreRoll && preRollSlot?.vastUrl) {
+    // 5-minute frequency cap check (matching ExoClick zone setting)
+    const now = Date.now();
+    const lastPreroll = parseInt(sessionStorage.getItem('adcast_last_preroll') || '0', 10);
+    const fiveMinutesMs = 5 * 60 * 1000;
+    const isDue = (now - lastPreroll) >= fiveMinutesMs;
+
+    if (hasPreRoll && preRollSlot?.vastUrl && isDue) {
       setIsLoadingAd(true);
       const vastResult = await resolveVastAd(preRollSlot.vastUrl);
       setIsLoadingAd(false);
 
       if (vastResult?.mediaUrl) {
-        // Fire VAST impression beacons
-        if (vastResult.impressionUrls && Array.isArray(vastResult.impressionUrls)) {
-          vastResult.impressionUrls.forEach((url) => {
-            try {
-              const beacon = new Image();
-              beacon.src = url;
-            } catch {}
-          });
-        } else if (vastResult.impressionUrl) {
-          try {
-            const beacon = new Image();
-            beacon.src = vastResult.impressionUrl;
-          } catch {}
-        }
-
+        sessionStorage.setItem('adcast_last_preroll', now.toString());
         firedTrackingRef.current.clear();
+        firedImpressionRef.current = false;
         setAdData(vastResult);
         setShowPreRoll(true);
         setCountdown(5);
@@ -181,8 +179,8 @@ export default function VideoPlayer({ video, onEnded }) {
         } catch {}
       });
     }
-    const dest = adData?.clickUrl || preRollSlot?.targetUrl || 'https://s.magsrv.com/v1/vast.php?idz=6091580';
-    if (dest) {
+    const dest = adData?.clickUrl || preRollSlot?.targetUrl;
+    if (dest && typeof dest === 'string' && !dest.includes('vast.php') && (dest.startsWith('http://') || dest.startsWith('https://'))) {
       window.open(dest, '_blank', 'noopener,noreferrer');
     }
   };
@@ -244,14 +242,26 @@ export default function VideoPlayer({ video, onEnded }) {
             src={adData.mediaUrl}
             autoPlay
             playsInline
-            onPlay={() => fireTrackingEvents('start')}
+            onPlaying={() => {
+              fireImpressionBeacons();
+              fireTrackingEvents('start');
+            }}
             onTimeUpdate={(e) => {
               const el = e.currentTarget;
+              if (el.currentTime) {
+                const remaining = Math.max(0, 5 - Math.floor(el.currentTime));
+                setCountdown(remaining);
+                if (remaining === 0) setCanSkip(true);
+              }
               if (!el.duration) return;
               const progress = el.currentTime / el.duration;
               if (progress >= 0.25) fireTrackingEvents('firstQuartile');
               if (progress >= 0.50) fireTrackingEvents('midpoint');
               if (progress >= 0.75) fireTrackingEvents('thirdQuartile');
+            }}
+            onError={() => {
+              console.warn('Preroll ad media playback failed, falling back to main video');
+              setShowPreRoll(false);
             }}
             onEnded={() => {
               fireTrackingEvents('complete');

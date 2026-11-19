@@ -31,7 +31,7 @@ jobs:
           MAX_VIDEOS_PER_RUN: 15
         run: |
           cd adcast-sync-engine
-          npm run sync
+          npm run scheduler
 
       - name: Run Stream Health Audit (Auto Soft-Delete Dead Streams)
         env:
