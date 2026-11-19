@@ -9,26 +9,88 @@ import { config } from './config.js';
 const DEFAULT_TIMEZONE = 'Asia/Calcutta';
 
 /**
- * Calculates the next run time in milliseconds given an interval in hours (e.g. 4h)
+ * Calculates the exact next run time from a cron expression and timezone.
+ * Handles daily time definitions (e.g. "0 14 * * *"), interval steps (e.g. "0 */6 * * *"),
+ * and respects the source's specified timezone.
  */
-function getNextIntervalTime(hours = 4) {
-  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+export function calculateNextCronRun(cronExpr = '0 */4 * * *', timezone = DEFAULT_TIMEZONE) {
+  if (!cronExpr || typeof cronExpr !== 'string') {
+    return new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+  }
+
+  const parts = cronExpr.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+  }
+
+  const [minPart, hourPart] = parts;
+
+  // Case 1: Specific daily scheduled time e.g. "0 14 * * *" (daily at 14:00 in timezone)
+  if (!hourPart.includes('*') && !hourPart.includes('/') && !minPart.includes('*') && !minPart.includes('/')) {
+    const targetHour = parseInt(hourPart, 10);
+    const targetMin = parseInt(minPart, 10);
+
+    if (!isNaN(targetHour) && !isNaN(targetMin)) {
+      const now = new Date();
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false
+      });
+      const tzParts = dtf.formatToParts(now).reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+      const tzHour = parseInt(tzParts.hour === '24' ? '0' : tzParts.hour, 10);
+      const tzMin = parseInt(tzParts.minute, 10);
+
+      let dayOffset = 0;
+      if (tzHour > targetHour || (tzHour === targetHour && tzMin >= targetMin)) {
+        dayOffset = 1; // Due tomorrow at target time
+      }
+
+      const diffHours = targetHour - tzHour;
+      const diffMins = targetMin - tzMin;
+      const nextTime = new Date(now.getTime() + (dayOffset * 24 * 60 * 60 * 1000) + (diffHours * 60 * 60 * 1000) + (diffMins * 60 * 1000));
+      return nextTime.toISOString();
+    }
+  }
+
+  // Case 2: Step hours e.g. "0 */6 * * *"
+  const stepMatch = hourPart.match(/\*\/(\d+)/);
+  if (stepMatch && stepMatch[1]) {
+    const stepHours = parseInt(stepMatch[1], 10);
+    return new Date(Date.now() + stepHours * 60 * 60 * 1000).toISOString();
+  }
+
+  // Default fallback: 4 hours
+  return new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
 }
 
 /**
- * Evaluates and returns all sources that are due for execution
+ * Evaluates and returns all sources that are due for execution (or a specific targeted source)
  */
-export async function getDueSources() {
+export async function getDueSources(filterSourceId = null) {
   const db = getDbClient();
   const nowIso = new Date().toISOString();
 
   try {
-    // 1. Fetch enabled schedules where next_run_at <= now or null
-    const { data: dueSchedules, error } = await db
+    let query = db
       .from('source_schedules')
       .select('*, crawler_sources(*)')
-      .eq('is_active', true)
-      .or(`next_run_at.lte.${nowIso},next_run_at.is.null`);
+      .eq('is_active', true);
+
+    if (filterSourceId && filterSourceId !== 'all') {
+      // Direct targeting: query specifically by source_id
+      query = query.eq('source_id', filterSourceId);
+    } else {
+      // Scheduled tick: query only sources that are currently due
+      query = query.or(`next_run_at.lte.${nowIso},next_run_at.is.null`);
+    }
+
+    const { data: dueSchedules, error } = await query;
 
     if (dueSchedules && dueSchedules.length > 0) {
       return dueSchedules
@@ -41,7 +103,6 @@ export async function getDueSources() {
         }));
     }
 
-    // No schedules are currently due
     return [];
   } catch (err) {
     console.warn('[SCHEDULER NOTICE] source_schedules query notice:', err.message);
@@ -84,7 +145,7 @@ export async function processSource(source) {
           .from('source_schedules')
           .update({
             last_run_at: new Date().toISOString(),
-            next_run_at: getNextIntervalTime(4),
+            next_run_at: calculateNextCronRun(source.cron_expression, source.timezone),
             updated_at: new Date().toISOString()
           })
           .eq('id', source.schedule_id);
@@ -113,14 +174,14 @@ export async function processSource(source) {
       console.log(`    Sync outcome: \x1b[32m+${inserted} new\x1b[0m, \x1b[33m${skipped} skipped (duplicates / tombstones)\x1b[0m`);
     }
 
-    // Advance next_run_at in source_schedules
+    // Advance next_run_at in source_schedules using source's actual cron and timezone
     if (source.schedule_id) {
       const db = getDbClient();
       await db
         .from('source_schedules')
         .update({
           last_run_at: new Date().toISOString(),
-          next_run_at: getNextIntervalTime(4),
+          next_run_at: calculateNextCronRun(source.cron_expression, source.timezone),
           updated_at: new Date().toISOString()
         })
         .eq('id', source.schedule_id);
@@ -134,16 +195,32 @@ export async function processSource(source) {
 }
 
 /**
- * Runs one scheduler tick: discovers due sources and executes under concurrency limits
+ * Runs one scheduler tick: discovers due sources (or targeted source) and executes under concurrency limits
  */
 export async function runSchedulerTick() {
   const startTime = Date.now();
+
+  // Parse CLI flags and environment variables for specific source targeting & correlation
+  const args = process.argv.slice(2);
+  let filterSource = null;
+  let correlationId = null;
+  args.forEach(arg => {
+    if (arg.startsWith('--source=')) filterSource = arg.split('=')[1];
+    if (arg.startsWith('--correlation=')) correlationId = arg.split('=')[1];
+  });
+  if (!filterSource && process.env.INPUT_SOURCE_ID && process.env.INPUT_SOURCE_ID !== 'all') {
+    filterSource = process.env.INPUT_SOURCE_ID;
+  }
+  if (!correlationId && process.env.INPUT_CORRELATION_ID) {
+    correlationId = process.env.INPUT_CORRELATION_ID;
+  }
+
   console.log('======================================================');
   console.log(`[AUTONOMOUS SCHEDULER TICK] Starting at ${new Date().toISOString()}`);
-  console.log(`Target Timezone: ${DEFAULT_TIMEZONE}`);
+  console.log(`Target Timezone: ${DEFAULT_TIMEZONE}${filterSource ? ` | Filter Source: ${filterSource}` : ''}${correlationId ? ` | Correlation ID: ${correlationId}` : ''}`);
   console.log('======================================================');
 
-  const dueSources = await getDueSources();
+  const dueSources = await getDueSources(filterSource);
 
   if (dueSources.length === 0) {
     console.log('[SCHEDULER] No sources currently due for ingest. Standing by.');

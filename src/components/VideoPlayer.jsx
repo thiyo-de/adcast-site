@@ -9,11 +9,13 @@ export default function VideoPlayer({ video, onEnded }) {
   const [canSkip, setCanSkip] = useState(false);
   const [adData, setAdData] = useState(null);
   const [isAdMuted, setIsAdMuted] = useState(false);
+  const [isAdAutoplayRefused, setIsAdAutoplayRefused] = useState(false);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const [playbackError, setPlaybackError] = useState(false);
   const videoRef = useRef(null);
   const adVideoRef = useRef(null);
   const prefetchedAdRef = useRef(null);
+  const prerollCooldownRecordedRef = useRef(false);
   const firedTrackingRef = useRef(new Set());
   const firedImpressionRef = useRef(false);
 
@@ -23,6 +25,16 @@ export default function VideoPlayer({ video, onEnded }) {
 
   const rawUrl = video?.embed_url || '';
   const resolvedEmbedUrl = parseToEmbedUrl(rawUrl);
+
+  const recordAdDiagnostic = (code, message) => {
+    if (typeof window !== 'undefined') {
+      window.__adDiagnostics = {
+        lastEvent: code,
+        message,
+        timestamp: new Date().toISOString()
+      };
+    }
+  };
 
   const isDirectVideo = (url) => {
     if (!url) return false;
@@ -66,10 +78,12 @@ export default function VideoPlayer({ video, onEnded }) {
     setShowPreRoll(false);
     setAdData(null);
     setIsAdMuted(false);
+    setIsAdAutoplayRefused(false);
     setCountdown(5);
     setCanSkip(false);
     setIsLoadingAd(false);
     setPlaybackError(false);
+    prerollCooldownRecordedRef.current = false;
     firedTrackingRef.current.clear();
     firedImpressionRef.current = false;
   }, [video?.id]);
@@ -97,7 +111,7 @@ export default function VideoPlayer({ video, onEnded }) {
     };
   }, [video?.id, hasPreRoll, preRollSlot?.vastUrl]);
 
-  // Mobile WebKit Autoplay Policy Recovery: if unmuted autoplay is rejected, fall back to muted autoplay
+  // Mobile WebKit Autoplay Policy Recovery: if unmuted autoplay is rejected, fall back to muted autoplay, then prompt manual play
   useEffect(() => {
     if (showPreRoll && adVideoRef.current) {
       const playPromise = adVideoRef.current.play();
@@ -108,8 +122,8 @@ export default function VideoPlayer({ video, onEnded }) {
           if (adVideoRef.current) {
             adVideoRef.current.muted = true;
             adVideoRef.current.play().catch((finalErr) => {
-              console.warn('Muted ad playback failed, skipping ad:', finalErr);
-              setShowPreRoll(false);
+              console.warn('Muted ad playback failed, prompting manual play overlay:', finalErr);
+              setIsAdAutoplayRefused(true);
             });
           }
         });
@@ -137,8 +151,9 @@ export default function VideoPlayer({ video, onEnded }) {
       }
 
       if (vastResult?.mediaUrl) {
-        sessionStorage.setItem('adcast_last_preroll', now.toString());
+        // NOTE: Cooldown timestamp is intentionally deferred to onPlaying so failed ads never lock users out
         prefetchedAdRef.current = null;
+        prerollCooldownRecordedRef.current = false;
         firedTrackingRef.current.clear();
         firedImpressionRef.current = false;
         setAdData(vastResult);
@@ -147,6 +162,11 @@ export default function VideoPlayer({ video, onEnded }) {
         setCanSkip(false);
         setIsPlaying(true);
         return;
+      } else {
+        recordAdDiagnostic(
+          vastResult?.errorCode || 'NO_FILL',
+          vastResult?.errorMessage || 'No video creative available from ad provider'
+        );
       }
     }
 
@@ -306,6 +326,17 @@ export default function VideoPlayer({ video, onEnded }) {
             onPlaying={() => {
               fireImpressionBeacons();
               fireTrackingEvents('start');
+              setIsAdAutoplayRefused(false);
+
+              // Confirmed playback: record cooldown only once per ad session (buffering does not duplicate)
+              if (!prerollCooldownRecordedRef.current) {
+                prerollCooldownRecordedRef.current = true;
+                try {
+                  sessionStorage.setItem('adcast_last_preroll', Date.now().toString());
+                } catch (e) {
+                  console.warn('sessionStorage write error:', e);
+                }
+              }
             }}
             onTimeUpdate={(e) => {
               const el = e.currentTarget;
@@ -322,6 +353,7 @@ export default function VideoPlayer({ video, onEnded }) {
             }}
             onError={() => {
               console.warn('Preroll ad media playback failed, falling back to main video');
+              recordAdDiagnostic('MEDIA_DECODE_ERROR', 'Preroll ad media failed to decode/play');
               setShowPreRoll(false);
             }}
             onEnded={() => {
@@ -331,6 +363,30 @@ export default function VideoPlayer({ video, onEnded }) {
             className="w-full h-full object-contain cursor-pointer"
             onClick={handleAdClick}
           />
+
+          {/* Manual Play Overlay if mobile browser completely refused autoplay */}
+          {isAdAutoplayRefused && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm p-4 text-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAdAutoplayRefused(false);
+                  if (adVideoRef.current) {
+                    adVideoRef.current.play().catch(() => {
+                      recordAdDiagnostic('MEDIA_DECODE_ERROR', 'Manual ad playback failed on mobile device');
+                      setShowPreRoll(false);
+                    });
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-2xl active:scale-95 cursor-pointer"
+                aria-label="Play video ad"
+              >
+                <i className="ri-play-fill not-italic text-2xl ml-0.5"></i>
+                <span>Tap to Play Ad</span>
+              </button>
+            </div>
+          )}
 
           {/* Top-Left Sponsor Badge */}
           <div className="absolute top-4 left-4 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-xs font-bold text-white shadow-lg pointer-events-none">

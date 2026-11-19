@@ -144,7 +144,13 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
 
     clearTimeout(timeoutId);
 
-    if (!mediaUrl) return null;
+    if (!mediaUrl) {
+      return {
+        mediaUrl: null,
+        errorCode: 'NO_FILL',
+        errorMessage: 'Ad provider returned no active video creative (no-fill or empty response).'
+      };
+    }
 
     return {
       mediaUrl,
@@ -156,6 +162,11 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
     };
   } catch (err) {
     clearTimeout(timeoutId);
-    return null;
+    const isTimeout = err?.name === 'AbortError';
+    return {
+      mediaUrl: null,
+      errorCode: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
+      errorMessage: isTimeout ? 'VAST ad request timed out after 3.5s' : (err?.message || 'Network error fetching VAST ad')
+    };
   }
 }

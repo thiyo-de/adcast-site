@@ -31,9 +31,6 @@ export default function InterstitialTrigger({ currentView }) {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-    // Record trigger timestamp
-    localStorage.setItem('adcast_last_interstitial', now.toString());
-
     // 3. Clean up any previous interstitial artifacts
     const oldElements = document.querySelectorAll('[data-adcast-interstitial="true"]');
     oldElements.forEach((el) => el.remove());
@@ -64,7 +61,35 @@ export default function InterstitialTrigger({ currentView }) {
       document.body.appendChild(newScript);
     });
 
+    // 5. Monitor for confirmed display: stamp cooldown ONLY once the full-page interstitial is actually visible
+    let checkInterval = null;
+    let checks = 0;
+    const maxChecks = 25; // Check for up to 12.5 seconds (500ms * 25)
+
+    const checkConfirmedDisplay = () => {
+      checks++;
+      const hasOverlay =
+        document.querySelector('.eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], [id*="interstitial"]') ||
+        (interstitialContainer &&
+         Array.from(interstitialContainer.querySelectorAll('*')).some(el => el.offsetHeight > 50 || el.offsetWidth > 50));
+
+      if (hasOverlay) {
+        try {
+          localStorage.setItem('adcast_last_interstitial', Date.now().toString());
+        } catch {}
+        if (checkInterval) clearInterval(checkInterval);
+        return;
+      }
+
+      if (checks >= maxChecks && checkInterval) {
+        clearInterval(checkInterval);
+      }
+    };
+
+    checkInterval = setInterval(checkConfirmedDisplay, 500);
+
     return () => {
+      if (checkInterval) clearInterval(checkInterval);
       const existing = document.querySelectorAll('[data-adcast-interstitial="true"]');
       existing.forEach((el) => el.remove());
       mountedRef.current = false;

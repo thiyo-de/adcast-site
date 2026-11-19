@@ -1,16 +1,69 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAdBlock } from '../services/adBlockContext';
 
 export default function AdBlockNotice() {
   const { isNoticeOpen, isRechecking, recheck } = useAdBlock();
+  const dialogRef = useRef(null);
+  const buttonRef = useRef(null);
+  const prevActiveElementRef = useRef(null);
 
-  // Lock background page scrolling while the lockout wall is active
+  // Manage body scroll, autofocus, keyboard focus-trap, and focus restoration
   useEffect(() => {
     if (!isNoticeOpen) return;
+
+    // Record previous active element to restore focus when dismissed
+    prevActiveElementRef.current = document.activeElement;
+
+    // Lock page background scrolling
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    // Autofocus the primary action button
+    const focusTimer = setTimeout(() => {
+      buttonRef.current?.focus();
+    }, 50);
+
+    // Trap focus inside the modal dialog
+    const handleKeyDown = (e) => {
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusables = dialogRef.current.querySelectorAll(
+          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = prevOverflow;
+
+      // Restore focus to previous element if available
+      if (prevActiveElementRef.current && typeof prevActiveElementRef.current.focus === 'function') {
+        try {
+          prevActiveElementRef.current.focus();
+        } catch {}
+      }
     };
   }, [isNoticeOpen]);
 
@@ -18,10 +71,12 @@ export default function AdBlockNotice() {
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn"
       role="dialog"
       aria-modal="true"
       aria-labelledby="adblock-dialog-title"
+      aria-describedby="adblock-dialog-desc"
     >
       <div
         className="relative w-full max-w-lg bg-[#0F111A] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl text-white"
@@ -43,7 +98,7 @@ export default function AdBlockNotice() {
         </div>
 
         {/* Modal Body */}
-        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
+        <p id="adblock-dialog-desc" className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
           Our video streams and high-speed servers are <strong>100% free</strong> and supported entirely by advertisements. To access this catalog and watch videos, you must turn off your ad blocker or protective shield.
         </p>
 
@@ -77,6 +132,7 @@ export default function AdBlockNotice() {
         {/* Primary Action Button (The ONLY way to unlock the site) */}
         <div>
           <button
+            ref={buttonRef}
             type="button"
             onClick={recheck}
             disabled={isRechecking}

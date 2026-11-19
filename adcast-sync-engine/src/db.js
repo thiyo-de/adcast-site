@@ -22,20 +22,28 @@ export function getDbClient() {
  * Check if a video with the same embed_url already exists
  */
 export async function videoExists(embedUrl) {
-  if (!embedUrl) return true;
+  const record = await getVideoByEmbedUrl(embedUrl);
+  return Boolean(record);
+}
+
+/**
+ * Fetch existing video record by embed_url for non-destructive inspection
+ */
+export async function getVideoByEmbedUrl(embedUrl) {
+  if (!embedUrl) return null;
   const db = getDbClient();
   const { data, error } = await db
     .from('videos')
-    .select('id')
+    .select('id, title, category, is_featured, is_active, publication_state, duration, thumbnail_url, views, rating')
     .eq('embed_url', embedUrl.trim())
     .limit(1);
 
   if (error) {
     console.error('[DB CHECK ERROR]', error.message);
     // C13: Do not treat a failed existence query as proof that a video is new!
-    return true;
+    return { id: null, queryError: true };
   }
-  return Boolean(data && data.length > 0);
+  return (data && data.length > 0) ? data[0] : null;
 }
 
 /**
@@ -96,9 +104,34 @@ export async function syncVideosToDb(videos, source = null) {
     }
 
     // 2. Check if video already exists in master catalog
-    const exists = await videoExists(cleanUrl);
-    if (exists) {
+    const existingVideo = await getVideoByEmbedUrl(cleanUrl);
+    if (existingVideo) {
       skipped++;
+      if (existingVideo.id) {
+        // Non-destructive update:
+        // Refresh transient stats (higher views, rating) or fill in missing fields (duration, thumbnail)
+        // STRICTLY PRESERVE curated fields: title, category, is_featured, is_active, publication_state
+        const updates = {};
+        if (video.views && video.views > (existingVideo.views || 0)) {
+          updates.views = video.views;
+        }
+        if (video.rating && !existingVideo.rating) {
+          updates.rating = video.rating;
+        }
+        if (!existingVideo.duration && video.duration) {
+          updates.duration = video.duration;
+        }
+        if (!existingVideo.thumbnail_url && video.thumbnail_url) {
+          updates.thumbnail_url = video.thumbnail_url;
+        }
+        if (Object.keys(updates).length > 0) {
+          try {
+            await db.from('videos').update(updates).eq('id', existingVideo.id);
+          } catch (updateErr) {
+            console.warn('[DB NON-DESTRUCTIVE UPDATE NOTICE]', updateErr.message);
+          }
+        }
+      }
     } else {
       toInsert.push({
         ...video,

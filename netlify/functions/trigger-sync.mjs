@@ -53,6 +53,22 @@ export default async (req, context) => {
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
+    const userData = await userRes.json().catch(() => ({}));
+    const isAdmin =
+      userData.email === 'admin@hornyleaks.site' ||
+      userData.app_metadata?.role === 'admin';
+
+    if (!isAdmin) {
+      return new Response(JSON.stringify({
+        ok: false,
+        status: 'forbidden',
+        message: 'Administrator authorization required to trigger crawler sync.'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   } catch (err) {
     console.error('[AUTH ERROR]', err);
     return new Response(JSON.stringify({
@@ -65,7 +81,16 @@ export default async (req, context) => {
     });
   }
 
-  // 2. Check for GitHub PAT in server environment
+  // 2. Parse Trigger Parameters (source_id & correlation token)
+  let requestBody = {};
+  try {
+    requestBody = await req.json();
+  } catch {}
+
+  const sourceId = requestBody.source_id ? String(requestBody.source_id) : 'all';
+  const correlationId = `sync_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  // 3. Check for GitHub PAT in server environment
   const githubToken = process.env.GITHUB_PAT || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
   if (!githubToken) {
     return new Response(JSON.stringify({
@@ -78,7 +103,7 @@ export default async (req, context) => {
     });
   }
 
-  // 3. Dispatch GitHub Actions workflow
+  // 4. Dispatch GitHub Actions workflow with correlation ID and source_id inputs
   try {
     const ghRes = await fetch('https://api.github.com/repos/thiyo-de/adcast-site/actions/workflows/auto-sync.yml/dispatches', {
       method: 'POST',
@@ -88,7 +113,11 @@ export default async (req, context) => {
         'User-Agent': 'AdCast-Admin-Sync-Dispatcher'
       },
       body: JSON.stringify({
-        ref: 'main'
+        ref: 'main',
+        inputs: {
+          source_id: sourceId,
+          correlation_id: correlationId
+        }
       })
     });
 
@@ -96,8 +125,12 @@ export default async (req, context) => {
       return new Response(JSON.stringify({
         ok: true,
         status: 'dispatched',
-        jobId: `gha-${Date.now()}`,
-        message: 'GitHub Actions workflow auto-sync.yml dispatched successfully.'
+        jobId: correlationId,
+        correlationId,
+        sourceId,
+        message: sourceId === 'all'
+          ? 'GitHub Actions workflow auto-sync.yml dispatched for all active sources.'
+          : `GitHub Actions workflow auto-sync.yml dispatched for source "${sourceId}".`
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

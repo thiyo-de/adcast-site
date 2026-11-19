@@ -1,3 +1,71 @@
+import dns from 'node:dns/promises';
+
+// Checks whether an IP address is in a loopback, private, or cloud metadata range
+function isPrivateIp(ip) {
+  if (!ip) return true;
+  // IPv4 validation
+  if (ip.includes('.')) {
+    const parts = ip.split('.').map(n => parseInt(n, 10));
+    if (parts.length !== 4 || parts.some(isNaN)) return true;
+    if (parts[0] === 127) return true; // Loopback 127.0.0.0/8
+    if (parts[0] === 10) return true;  // Private 10.0.0.0/8
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true; // Private 172.16.0.0/12
+    if (parts[0] === 192 && parts[1] === 168) return true; // Private 192.168.0.0/16
+    if (parts[0] === 169 && parts[1] === 254) return true; // Link-local / AWS metadata 169.254.0.0/16
+    if (parts[0] === 0 || parts[0] >= 224) return true;    // Current / Multicast / Reserved
+  }
+  // IPv6 validation
+  if (ip.includes(':')) {
+    const clean = ip.toLowerCase().trim();
+    if (clean === '::1' || clean === '::') return true;
+    if (clean.startsWith('fc') || clean.startsWith('fd') || clean.startsWith('fe80')) return true;
+    if (clean.includes(':ffff:')) {
+      const v4 = clean.split(':ffff:')[1];
+      if (v4 && isPrivateIp(v4)) return true;
+    }
+  }
+  return false;
+}
+
+// Validates URL scheme and resolves DNS hostnames to verify absence of private IPs
+async function validateUrlDns(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('Malformed URL provided.');
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Invalid protocol: ${parsed.protocol}. Only http: and https: are permitted.`);
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  if (
+    host === 'localhost' ||
+    host.endsWith('.local') ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host === '::1'
+  ) {
+    throw new Error('Destination blocked by SSRF defense.');
+  }
+
+  // Pre-resolve hostname via DNS and check every returned IP address
+  const addresses = await dns.lookup(host, { all: true });
+  if (!addresses || addresses.length === 0) {
+    throw new Error(`DNS resolution failed for host: ${host}`);
+  }
+
+  for (const record of addresses) {
+    if (isPrivateIp(record.address)) {
+      throw new Error(`SSRF Blocked: ${host} resolved to internal/private IP ${record.address}`);
+    }
+  }
+
+  return { parsed, host, ip: addresses[0].address };
+}
+
 // Netlify Serverless Function: Autonomous Source Discovery
 export default async (req, context) => {
   if (req.method !== 'POST') {
@@ -7,7 +75,7 @@ export default async (req, context) => {
     });
   }
 
-  // 1. Authorization Verification
+  // 1. Authorization Verification (Strict Admin Role Required)
   const authHeader = req.headers.get('authorization') || '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
@@ -25,27 +93,61 @@ export default async (req, context) => {
     });
   }
 
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': supabaseKey
-        }
-      });
-      if (!userRes.ok) {
-        return new Response(JSON.stringify({
-          ok: false,
-          status: 'unauthorized',
-          message: 'Invalid or expired administrator session.'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        });
+  if (!supabaseUrl || !supabaseKey) {
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'server_configuration_error',
+      message: 'Supabase credentials are not configured on server environment.'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  try {
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': supabaseKey
       }
-    } catch (err) {
-      console.error('[AUTH ERROR]', err);
+    });
+
+    if (!userRes.ok) {
+      return new Response(JSON.stringify({
+        ok: false,
+        status: 'unauthorized',
+        message: 'Invalid or expired administrator session.'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
+
+    const userData = await userRes.json().catch(() => ({}));
+    const isAdmin =
+      userData.email === 'admin@hornyleaks.site' ||
+      userData.app_metadata?.role === 'admin';
+
+    if (!isAdmin) {
+      return new Response(JSON.stringify({
+        ok: false,
+        status: 'forbidden',
+        message: 'Administrator privileges required for crawler source discovery.'
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  } catch (err) {
+    console.error('[AUTH ERROR]', err);
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'unauthorized',
+      message: 'Authentication verification service error.'
+    }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // 2. Parse Target URL
@@ -72,49 +174,68 @@ export default async (req, context) => {
     url = `https://${url}`;
   }
 
-  // 3. SSRF Defense: Disallow localhost & private IP spaces
+  // 3. SSRF Defense: Validate URL and Resolve DNS
   try {
-    const parsedUrl = new URL(url);
-    const host = parsedUrl.hostname.toLowerCase();
-    if (
-      host === 'localhost' ||
-      host.endsWith('.local') ||
-      host === '127.0.0.1' ||
-      host === '0.0.0.0' ||
-      host.startsWith('10.') ||
-      host.startsWith('192.168.') ||
-      host === '169.254.169.254' ||
-      host === '::1'
-    ) {
-      return new Response(JSON.stringify({
-        ok: false,
-        status: 'ssrf_blocked',
-        message: 'Destination blocked by SSRF defense.'
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    await validateUrlDns(url);
   } catch (err) {
-    return new Response(JSON.stringify({ ok: false, message: 'Malformed URL provided.' }), {
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'ssrf_blocked',
+      message: err.message
+    }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
   }
 
-  // 4. Probe Destination
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+  // 4. Probe Destination with Manual Redirect Validation (Max 3 Hops)
+  let currentUrl = url;
+  let res = null;
+  let redirectCount = 0;
+  const maxRedirects = 3;
 
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml,application/json;q=0.9,*/*;q=0.8'
+  try {
+    while (redirectCount <= maxRedirects) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
+      res = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml,application/json;q=0.9,*/*;q=0.8'
+        }
+      });
+      clearTimeout(timeout);
+
+      // Handle HTTP redirects: Validate target IP address before following hop
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location');
+        if (!location) break;
+
+        const nextUrl = new URL(location, currentUrl).href;
+        await validateUrlDns(nextUrl);
+        currentUrl = nextUrl;
+        redirectCount++;
+        continue;
       }
+
+      break;
+    }
+  } catch (probeErr) {
+    return new Response(JSON.stringify({
+      ok: false,
+      status: 'probe_error',
+      message: probeErr.message || 'Failed connecting to target destination.'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
     });
-    clearTimeout(timeout);
+  }
+
+  try {
 
     // Check Cloudflare / Bot Protection
     const cfMitigated = res.headers.get('cf-mitigated') || '';

@@ -62,12 +62,25 @@ export default function App() {
       path = `/watch/${encodeURIComponent(videoId)}`;
     } else if (view === 'admin') {
       path = '/admin';
+      // Hard navigation boundary to ensure completely clean, isolated JS runtime on Admin (purges 3rd-party ad listeners)
+      if (typeof window !== 'undefined' && window.location.pathname !== '/admin') {
+        window.location.href = '/admin';
+        return;
+      }
     } else if (view === 'dmca') {
       path = '/dmca';
     } else if (view === 'terms') {
       path = '/terms';
     } else if (view === 'privacy') {
       path = '/privacy';
+    }
+
+    // When leaving Admin to browse public content, perform clean page load to re-initialize ad zones cleanly
+    if (currentView === 'admin' && view !== 'admin') {
+      if (typeof window !== 'undefined') {
+        window.location.href = path;
+        return;
+      }
     }
 
     if (window.location.pathname !== path) {

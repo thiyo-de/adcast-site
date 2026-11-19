@@ -16,6 +16,7 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
   const [isNoticeOpen, setIsNoticeOpen] = useState(false);
   const [isRechecking, setIsRechecking] = useState(false);
   const recheckCooldownRef = useRef(false);
+  const activeCheckIdRef = useRef(0);
 
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
   const isExempt =
@@ -26,7 +27,17 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
     pathname.startsWith('/terms');
 
   const runDetection = useCallback(async (isManual = false) => {
-    if (isExempt) {
+    const checkId = ++activeCheckIdRef.current;
+
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+    const isCurrentlyExempt =
+      EXEMPT_VIEWS.includes(currentView) ||
+      currentPath.startsWith('/admin') ||
+      currentPath.startsWith('/dmca') ||
+      currentPath.startsWith('/privacy') ||
+      currentPath.startsWith('/terms');
+
+    if (isCurrentlyExempt) {
       setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
       setIsNoticeOpen(false);
       return;
@@ -38,6 +49,27 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
 
     try {
       const state = await detectAdBlock({ timeoutMs: 4000 });
+
+      // If user navigated away or another check superseded this one, discard the result
+      if (activeCheckIdRef.current !== checkId) {
+        return;
+      }
+
+      // Re-verify route status immediately after the promise settles
+      const latestPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+      const isStillExempt =
+        EXEMPT_VIEWS.includes(currentView) ||
+        latestPath.startsWith('/admin') ||
+        latestPath.startsWith('/dmca') ||
+        latestPath.startsWith('/privacy') ||
+        latestPath.startsWith('/terms');
+
+      if (isStillExempt) {
+        setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
+        setIsNoticeOpen(false);
+        return;
+      }
+
       setDetectionState(state);
 
       if (state === AD_BLOCK_STATES.SUSPECTED_BLOCKING) {
@@ -46,17 +78,22 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
         setIsNoticeOpen(false);
       }
     } catch (e) {
-      setDetectionState(AD_BLOCK_STATES.INCONCLUSIVE);
-      setIsNoticeOpen(false);
+      if (activeCheckIdRef.current === checkId) {
+        setDetectionState(AD_BLOCK_STATES.INCONCLUSIVE);
+        setIsNoticeOpen(false);
+      }
     } finally {
-      if (isManual) {
+      if (isManual && activeCheckIdRef.current === checkId) {
         setIsRechecking(false);
       }
     }
-  }, [isExempt]);
+  }, [currentView]);
 
   // Initial detection run on mount after 1.5 seconds (allowing initial render and layout to settle)
   useEffect(() => {
+    // Invalidate any check in-flight from a previous view
+    activeCheckIdRef.current++;
+
     if (isExempt) {
       setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
       setIsNoticeOpen(false);
@@ -67,7 +104,10 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
       runDetection(false);
     }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      activeCheckIdRef.current++; // Invalidate pending check on unmount or view change
+    };
   }, [currentView, isExempt, runDetection]);
 
   const dismissNotice = useCallback(() => {

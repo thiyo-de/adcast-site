@@ -94,6 +94,12 @@ ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS mapping JSONB DEFAUL
 ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'json_api';
 ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS access_state TEXT DEFAULT 'ok';
 ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS auto_approve BOOLEAN DEFAULT true;
+ALTER TABLE public.crawler_sources ADD COLUMN IF NOT EXISTS selectors JSONB DEFAULT '{}'::jsonb;
+
+-- Health State Constraint for videos (healthy, suspect, quarantined, unknown)
+ALTER TABLE public.videos DROP CONSTRAINT IF EXISTS videos_health_state_check;
+ALTER TABLE public.videos ADD CONSTRAINT videos_health_state_check 
+    CHECK (health_state IN ('healthy', 'suspect', 'quarantined', 'unknown'));
 
 -- 5. Create Suppressed Videos (Tombstones for deleted / DMCA / dead videos)
 CREATE TABLE IF NOT EXISTS public.suppressed_videos (

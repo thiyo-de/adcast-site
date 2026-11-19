@@ -38,6 +38,34 @@ function isElementHidden(el) {
 }
 
 /**
+ * Verifies neutral internet/host connectivity using non-ad resources.
+ * Returns true if the user's connection is active and can reach standard servers.
+ */
+async function checkNeutralConnectivity() {
+  const neutralUrls = [
+    '/favicon.ico',
+    'https://cdn.jsdelivr.net/npm/remixicon@4.2.0/package.json'
+  ];
+
+  for (const url of neutralUrls) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      await fetch(url, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      return true;
+    } catch {
+      // Continue to next neutral fallback
+    }
+  }
+  return false;
+}
+
+/**
  * Canary network request to check for network-level ad blockers (Opera native, Brave Shields, DNS blockers, uBlock)
  */
 async function checkNetworkAdBlock() {
@@ -50,6 +78,8 @@ async function checkNetworkAdBlock() {
     'https://a.magsrv.com/ad-provider.js',
     'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
   ];
+
+  let anyCanaryBlocked = false;
 
   for (const url of canaries) {
     try {
@@ -65,9 +95,22 @@ async function checkNetworkAdBlock() {
     } catch (err) {
       // If blocked by browser extension/Shields/Opera (net::ERR_BLOCKED_BY_CLIENT)
       if (err && err.name !== 'AbortError') {
-        return true;
+        anyCanaryBlocked = true;
+        break;
       }
     }
+  }
+
+  // If an ad canary failed, verify whether the user actually has internet connectivity
+  // to avoid falsely locking out users during offline state, captive portal, or packet loss
+  if (anyCanaryBlocked) {
+    const isOnlineAndReachable = await checkNeutralConnectivity();
+    if (isOnlineAndReachable) {
+      // Internet is active, but ad domains were specifically blocked -> true adblocker
+      return true;
+    }
+    // Neutral network also failed -> general network drop, do not falsely accuse
+    return false;
   }
 
   return false;
@@ -151,9 +194,12 @@ export function detectAdBlock(options = {}) {
       if (isCancelled) return;
 
       if (isNetworkBlocked) {
-        cleanup();
-        resolve(AD_BLOCK_STATES.SUSPECTED_BLOCKING);
-        return;
+        // Confirm that the document/tab is rendered and control element is not hidden
+        if (!isElementHidden(controlEl)) {
+          cleanup();
+          resolve(AD_BLOCK_STATES.SUSPECTED_BLOCKING);
+          return;
+        }
       }
 
       const controlHidden = isElementHidden(controlEl);

@@ -2,10 +2,19 @@ name: HornyLeaks Auto Sync & Health Check
 
 on:
   schedule:
-    # Runs automatically every 4 hours (UTC)
-    - cron: '0 */4 * * *'
-  # Allows 1-click manual trigger anytime from GitHub Actions tab
+    # Runs automatically every 30 minutes to satisfy source-level cron schedules
+    - cron: '*/30 * * * *'
+  # Allows 1-click manual trigger anytime from GitHub Actions tab or via Netlify function
   workflow_dispatch:
+    inputs:
+      source_id:
+        description: 'Specific source ID to run (or "all")'
+        required: false
+        default: 'all'
+      correlation_id:
+        description: 'Correlation ID from manual trigger'
+        required: false
+        default: 'manual'
 
 jobs:
   sync-and-audit:
@@ -29,9 +38,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           MAX_VIDEOS_PER_RUN: 15
+          INPUT_SOURCE_ID: ${{ github.event.inputs.source_id }}
+          INPUT_CORRELATION_ID: ${{ github.event.inputs.correlation_id }}
         run: |
           cd adcast-sync-engine
-          npm run scheduler
+          node src/scheduler.js --source="${INPUT_SOURCE_ID:-all}" --correlation="${INPUT_CORRELATION_ID:-cron}"
 
       - name: Run Stream Health Audit (Auto Soft-Delete Dead Streams)
         env:

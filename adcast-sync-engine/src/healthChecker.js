@@ -29,19 +29,28 @@ export async function checkStreamHealth(embedUrl) {
   try {
     const res = await safeFetch(embedUrl, { timeout: 10000 });
 
-    // Cloudflare challenges must NOT be marked dead
+    // Explicit connection drops (status 0), timeouts (status 408 / isTimeout), or Cloudflare challenges
+    if (res.isTimeout || res.status === 408 || res.status === 0) {
+      return {
+        isAlive: null,
+        isTransient: true,
+        isUnknown: true,
+        reason: res.error || (res.status === 408 ? 'HTTP 408 Request Timeout' : 'Connection dropped/refused (Status 0)')
+      };
+    }
+
     if (res.isChallenge) {
-      return { isAlive: null, isTransient: true, reason: 'Cloudflare challenge active' };
+      return { isAlive: null, isTransient: true, isUnknown: true, reason: 'Cloudflare challenge active' };
     }
 
     // Explicit HTTP 404 (Not Found) or 410 (Gone) indicate potential dead stream
     if (res.status === 404 || res.status === 410) {
-      return { isAlive: false, isTransient: false, reason: `HTTP ${res.status} Not Found` };
+      return { isAlive: false, isTransient: false, isUnknown: false, reason: `HTTP ${res.status} Not Found` };
     }
 
     // Temporary server issues, 5xx, 429 rate limits, and generic 403 are transient
     if (res.status >= 500 || res.status === 429 || res.status === 403) {
-      return { isAlive: null, isTransient: true, reason: `HTTP ${res.status} Transient` };
+      return { isAlive: null, isTransient: true, isUnknown: true, reason: `HTTP ${res.status} Transient` };
     }
 
     // Check specific HTML title or header tags for removal notices
@@ -52,21 +61,21 @@ export async function checkStreamHealth(embedUrl) {
 
       for (const sig of DEAD_SIGNATURES) {
         if (headline.includes(sig)) {
-          return { isAlive: false, isTransient: false, reason: `Source Notice: "${sig}"` };
+          return { isAlive: false, isTransient: false, isUnknown: false, reason: `Source Notice: "${sig}"` };
         }
       }
     }
 
-    return { isAlive: true, isTransient: false, reason: null };
+    return { isAlive: true, isTransient: false, isUnknown: false, reason: null };
   } catch (err) {
     if (err.message.includes('Blocked destination')) {
-      return { isAlive: false, isTransient: false, reason: 'Blocked: Private/internal destination (SSRF Defense)' };
+      return { isAlive: false, isTransient: false, isUnknown: false, reason: 'Blocked: Private/internal destination (SSRF Defense)' };
     }
     if (err.code === 'ENOTFOUND') {
-      return { isAlive: false, isTransient: false, reason: `Domain Offline (${err.code})` };
+      return { isAlive: false, isTransient: false, isUnknown: false, reason: `Domain Offline (${err.code})` };
     }
-    // Network timeouts or temporary connection drops are transient
-    return { isAlive: null, isTransient: true, reason: err.code || 'Network timeout' };
+    // Network timeouts or temporary connection drops are transient unknowns
+    return { isAlive: null, isTransient: true, isUnknown: true, reason: err.code || 'Network connection timeout' };
   }
 }
 
@@ -108,12 +117,24 @@ export async function runHealthCheck() {
 
     if (health.isTransient) {
       transientCount++;
-      process.stdout.write(`\x1b[35m[TRANSIENT/SKIPPED]\x1b[0m (${health.reason})\n`);
-      // Transient error: leave health_state and first_failed_at UNTOUCHED
-      await db
-        .from('videos')
-        .update({ last_health_check_at: now.toISOString() })
-        .eq('id', v.id);
+      process.stdout.write(`\x1b[35m[UNKNOWN/TRANSIENT]\x1b[0m (${health.reason})\n`);
+
+      // If video was not previously confirmed suspect or quarantined, accurately record as unknown
+      if (v.health_state !== 'suspect' && v.health_state !== 'quarantined') {
+        await db
+          .from('videos')
+          .update({
+            health_state: 'unknown',
+            last_health_check_at: now.toISOString()
+          })
+          .eq('id', v.id);
+      } else {
+        // Preserve existing suspect/quarantined status and first_failed_at evidence
+        await db
+          .from('videos')
+          .update({ last_health_check_at: now.toISOString() })
+          .eq('id', v.id);
+      }
     } else if (health.isAlive === true) {
       healthyCount++;
       process.stdout.write('\x1b[32m[HEALTHY]\x1b[0m\n');
