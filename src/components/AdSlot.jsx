@@ -156,7 +156,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const getSlotContainerClasses = () => {
     switch (slotId) {
       case 'slot_top_banner':
-        return 'min-h-[100px] sm:min-h-[90px] w-full max-w-4xl mx-auto flex flex-col items-center justify-center';
+        return 'min-h-[90px] w-full max-w-full sm:max-w-4xl mx-auto flex flex-col items-center justify-center overflow-hidden [&_iframe]:max-w-full [&_ins]:max-w-full';
       case 'slot_below_player':
         return 'min-h-[250px] w-full flex flex-col items-center justify-center';
       case 'slot_native_feed':
@@ -312,7 +312,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         /* Regular Ad Injection Container */
         <div
           ref={containerRef}
-          className={`w-full flex items-center justify-center ${
+          className={`w-full max-w-full overflow-hidden flex items-center justify-center [&_iframe]:max-w-full [&_ins]:max-w-full [&_img]:max-w-full ${
             isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
           }`}
         />
