@@ -200,7 +200,6 @@ export default function App() {
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         bookmarkCount={bookmarks.length}
         onNavigateHome={() => navigate('home')}
-        onNavigateAdmin={() => navigate('admin')}
         isDevMode={isDevMode}
         onToggleDevMode={handleToggleDevMode}
         theme={theme}
@@ -255,11 +254,13 @@ export default function App() {
         )}
       </main>
 
-      {/* Sticky Bottom Mobile Ad Banner (Slot 3: ExoClick) */}
-      <StickyFooter />
-
-      {/* Popunder Trigger (Slot 6: ExoClick 24h Frequency-Capped) */}
-      <PopunderTrigger />
+      {/* Sticky Bottom Mobile Ad Banner and Popunder Trigger (Disabled on Admin to prevent ad overlap) */}
+      {currentView !== 'admin' && (
+        <>
+          <StickyFooter />
+          <PopunderTrigger />
+        </>
+      )}
 
       {/* Saved Bookmarks Drawer */}
       <BookmarksDrawer
@@ -307,13 +308,6 @@ export default function App() {
               className="hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               Privacy Policy
-            </button>
-            <span>•</span>
-            <button
-              onClick={() => navigate('admin')}
-              className="text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-1"
-            >
-              <i className="ri-lock-line not-italic text-sm"></i> Admin
             </button>
           </div>
 

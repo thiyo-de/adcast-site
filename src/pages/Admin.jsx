@@ -5,7 +5,6 @@ import { api, auth, getSupabaseConfig, saveSupabaseConfig, getSupabaseClient } f
 export default function Admin({ onBack }) {
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(() => store.isAdminLoggedIn());
-  const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authErrorMsg, setAuthErrorMsg] = useState(null);
@@ -113,19 +112,11 @@ export default function Admin({ onBack }) {
     setAuthLoading(true);
 
     try {
-      const email = emailInput.trim();
-      if (email) {
-        const res = await auth.signIn(email, passwordInput);
-        setUser(res.user);
+      if (store.adminLogin(passwordInput)) {
+        setUser(null);
         setIsLoggedIn(true);
       } else {
-        // Fallback local PIN
-        if (store.adminLogin(passwordInput)) {
-          setUser(null);
-          setIsLoggedIn(true);
-        } else {
-          throw new Error('Invalid master password. For Supabase Cloud write access, provide your admin email and password.');
-        }
+        throw new Error('Invalid master password. Please verify and try again.');
       }
     } catch (err) {
       setAuthErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
@@ -399,28 +390,15 @@ export default function Admin({ onBack }) {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Admin Email <span className="text-[10px] text-slate-400">(Required for Cloud RLS)</span>
-              </label>
-              <input
-                type="email"
-                autoFocus
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="admin@hornyleaks.site"
-                className="w-full px-4 py-3 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Password
+                Master Password
               </label>
               <input
                 type="password"
                 required
+                autoFocus
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Enter password"
+                placeholder="Enter admin master password"
                 className="w-full px-4 py-3 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
               />
             </div>
@@ -447,10 +425,6 @@ export default function Admin({ onBack }) {
               {authLoading && <i className="ri-loader-4-line not-italic animate-spin"></i>}
               {authLoading ? 'Authenticating...' : 'Sign In to Dashboard'}
             </button>
-
-            <p className="text-[11px] text-center text-slate-400">
-              💡 Tip: Supabase Cloud authentication issues a secure JWT token required for cloud mutations and DMCA management.
-            </p>
 
             <button
               type="button"

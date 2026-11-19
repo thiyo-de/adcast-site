@@ -98,16 +98,6 @@ export default function Navbar({
               </span>
             )}
           </button>
-
-          {/* Admin Dashboard Button */}
-          <button
-            onClick={onNavigateAdmin}
-            className="hidden sm:flex min-h-[44px] items-center gap-1 px-3 py-2 rounded-full glass-button text-xs font-bold"
-            title="Admin Login & Ad Manager"
-          >
-            <i className="ri-lock-line not-italic text-amber-500 text-xs"></i>
-            <span>Admin</span>
-          </button>
         </div>
       </div>
 
