@@ -8,9 +8,12 @@ export default function VideoPlayer({ video, onEnded }) {
   const [countdown, setCountdown] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
   const [adData, setAdData] = useState(null);
+  const [isAdMuted, setIsAdMuted] = useState(false);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const [playbackError, setPlaybackError] = useState(false);
   const videoRef = useRef(null);
+  const adVideoRef = useRef(null);
+  const prefetchedAdRef = useRef(null);
   const firedTrackingRef = useRef(new Set());
   const firedImpressionRef = useRef(false);
 
@@ -62,6 +65,7 @@ export default function VideoPlayer({ video, onEnded }) {
     setIsPlaying(false);
     setShowPreRoll(false);
     setAdData(null);
+    setIsAdMuted(false);
     setCountdown(5);
     setCanSkip(false);
     setIsLoadingAd(false);
@@ -69,6 +73,49 @@ export default function VideoPlayer({ video, onEnded }) {
     firedTrackingRef.current.clear();
     firedImpressionRef.current = false;
   }, [video?.id]);
+
+  // Pre-fetch VAST ad on mount/video change so playback starts synchronously with zero lag
+  useEffect(() => {
+    let isCancelled = false;
+    const now = Date.now();
+    const lastPreroll = parseInt(sessionStorage.getItem('adcast_last_preroll') || '0', 10);
+    const fiveMinutesMs = 5 * 60 * 1000;
+    const isDue = (now - lastPreroll) >= fiveMinutesMs;
+
+    if (hasPreRoll && preRollSlot?.vastUrl && isDue) {
+      resolveVastAd(preRollSlot.vastUrl)
+        .then((res) => {
+          if (!isCancelled && res?.mediaUrl) {
+            prefetchedAdRef.current = res;
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [video?.id, hasPreRoll, preRollSlot?.vastUrl]);
+
+  // Mobile WebKit Autoplay Policy Recovery: if unmuted autoplay is rejected, fall back to muted autoplay
+  useEffect(() => {
+    if (showPreRoll && adVideoRef.current) {
+      const playPromise = adVideoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Unmuted ad autoplay blocked by mobile policy, switching to muted autoplay:', err);
+          setIsAdMuted(true);
+          if (adVideoRef.current) {
+            adVideoRef.current.muted = true;
+            adVideoRef.current.play().catch((finalErr) => {
+              console.warn('Muted ad playback failed, skipping ad:', finalErr);
+              setShowPreRoll(false);
+            });
+          }
+        });
+      }
+    }
+  }, [showPreRoll]);
 
   const handleStartPlay = async () => {
     if (video) {
@@ -82,12 +129,16 @@ export default function VideoPlayer({ video, onEnded }) {
     const isDue = (now - lastPreroll) >= fiveMinutesMs;
 
     if (hasPreRoll && preRollSlot?.vastUrl && isDue) {
-      setIsLoadingAd(true);
-      const vastResult = await resolveVastAd(preRollSlot.vastUrl);
-      setIsLoadingAd(false);
+      let vastResult = prefetchedAdRef.current;
+      if (!vastResult?.mediaUrl) {
+        setIsLoadingAd(true);
+        vastResult = await resolveVastAd(preRollSlot.vastUrl);
+        setIsLoadingAd(false);
+      }
 
       if (vastResult?.mediaUrl) {
         sessionStorage.setItem('adcast_last_preroll', now.toString());
+        prefetchedAdRef.current = null;
         firedTrackingRef.current.clear();
         firedImpressionRef.current = false;
         setAdData(vastResult);
@@ -167,6 +218,13 @@ export default function VideoPlayer({ video, onEnded }) {
   }, [isPlaying, video?.id]);
 
   const handleSkipAd = () => {
+    if (adVideoRef.current) {
+      try {
+        adVideoRef.current.pause();
+        adVideoRef.current.src = '';
+        adVideoRef.current.load();
+      } catch {}
+    }
     setShowPreRoll(false);
   };
 
@@ -239,9 +297,12 @@ export default function VideoPlayer({ video, onEnded }) {
       {isPlaying && showPreRoll && adData?.mediaUrl && (
         <div className="absolute inset-0 z-30 bg-black flex items-center justify-center overflow-hidden">
           <video
+            ref={adVideoRef}
             src={adData.mediaUrl}
             autoPlay
             playsInline
+            webkit-playsinline="true"
+            muted={isAdMuted}
             onPlaying={() => {
               fireImpressionBeacons();
               fireTrackingEvents('start');
@@ -275,6 +336,26 @@ export default function VideoPlayer({ video, onEnded }) {
           <div className="absolute top-4 left-4 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-xs font-bold text-white shadow-lg pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
             <span>Ad • {countdown > 0 ? `Skip in ${countdown}s` : 'Video Sponsor'}</span>
+          </div>
+
+          {/* Top-Right Mute / Unmute Button (Mobile WebKit Autoplay Compliance) */}
+          <div className="absolute top-4 right-4 z-40">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (adVideoRef.current) {
+                  const nextMuted = !isAdMuted;
+                  adVideoRef.current.muted = nextMuted;
+                  setIsAdMuted(nextMuted);
+                }
+              }}
+              className="flex items-center gap-1.5 min-h-[36px] px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black backdrop-blur-md border border-white/20 text-white text-xs font-bold transition-all shadow-xl active:scale-95 cursor-pointer"
+              aria-label={isAdMuted ? 'Unmute ad audio' : 'Mute ad audio'}
+            >
+              <i className={`${isAdMuted ? 'ri-volume-mute-fill text-rose-400' : 'ri-volume-up-fill text-emerald-400'} not-italic text-sm`}></i>
+              <span>{isAdMuted ? 'Tap to Unmute' : 'Mute'}</span>
+            </button>
           </div>
 
           {/* Bottom-Left Visit Sponsor Link */}
