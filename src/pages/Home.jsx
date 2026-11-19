@@ -106,43 +106,36 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-      {/* 1. Category Pill Row (4 Core Categories + All with Real-Time Badges) */}
-      <div className="relative w-full">
-        <div
-          className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pr-8 sm:pr-0"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {CORE_CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
-            const count = categoryCounts[cat.id] ?? 0;
+      {/* 1. Category Pill Row (Wrapping Layout - All Categories 100% Visible) */}
+      <div className="flex flex-wrap items-center gap-2">
+        {CORE_CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat.id;
+          const count = categoryCounts[cat.id] ?? 0;
 
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`min-h-[40px] sm:min-h-[44px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-all duration-200 flex items-center gap-1.5 sm:gap-2 shrink-0 ${
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`min-h-[38px] sm:min-h-[44px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${
+                isSelected
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                  : 'glass-button text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <i className={`${cat.icon} not-italic text-sm ${isSelected ? 'text-white' : cat.color}`}></i>
+              <span>{cat.label}</span>
+              <span
+                className={`text-[10px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
                   isSelected
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
-                    : 'glass-button text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-black/25 text-white'
+                    : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
                 }`}
               >
-                <i className={`${cat.icon} not-italic text-sm ${isSelected ? 'text-white' : cat.color}`}></i>
-                <span>{cat.label}</span>
-                <span
-                  className={`text-[10px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
-                    isSelected
-                      ? 'bg-black/25 text-white'
-                      : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {/* Subtle Right Edge Fade on Mobile indicating horizontal scrollability */}
-        <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-slate-50 dark:from-obsidian to-transparent sm:hidden" />
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* 2. Top Leaderboard Banner (Fully Responsive Container) */}
@@ -228,7 +221,7 @@ export default function Home({ videos = [], onSelectVideo, onBookmarkToggle, isB
       {/* 3. Duration Filter & Sorting Bar (Frosted Glass Panel) */}
       <div className="p-3.5 rounded-2xl glass-panel flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Duration Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-1">
           <span className="text-slate-500 dark:text-slate-400 font-semibold mr-1 flex items-center gap-1">
             <i className="ri-time-line not-italic text-sm"></i> Duration:
           </span>

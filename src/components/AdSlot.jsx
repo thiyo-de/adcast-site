@@ -3,11 +3,33 @@ import { store, useAdSettings } from '../services/store';
 
 export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const containerRef = useRef(null);
+  const outerWrapperRef = useRef(null);
+  const [scaleRatio, setScaleRatio] = useState(1);
   const [isBlocked, setIsBlocked] = useState(false);
   const adSettings = useAdSettings();
   const slot = adSettings[slotId];
   const affiliateSettings = adSettings.affiliate_fallbacks || {};
   const isDevMode = store.isDevMode();
+
+  // Dynamic scale measurement for fixed-dimension desktop banners (e.g. 728x90) on mobile
+  useEffect(() => {
+    if (slotId !== 'slot_top_banner') return;
+
+    const handleResize = () => {
+      if (outerWrapperRef.current) {
+        const available = outerWrapperRef.current.offsetWidth || (typeof window !== 'undefined' ? window.innerWidth - 32 : 728);
+        if (available > 0 && available < 728) {
+          setScaleRatio(available / 728);
+        } else {
+          setScaleRatio(1);
+        }
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [slotId]);
 
   // Pick appropriate campaign based on slot position
   const getCampaign = () => {
@@ -309,13 +331,34 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           )}
         </div>
       ) : (
-        /* Regular Ad Injection Container */
+        /* Regular Ad Injection Container with proportional scale-down for desktop banners on mobile */
         <div
-          ref={containerRef}
-          className={`w-full max-w-full overflow-hidden flex items-center justify-center [&_iframe]:max-w-full [&_ins]:max-w-full [&_img]:max-w-full ${
-            isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
-          }`}
-        />
+          ref={outerWrapperRef}
+          className="w-full flex items-center justify-center overflow-hidden"
+          style={slotId === 'slot_top_banner' && scaleRatio < 1 ? { height: `${Math.round(90 * scaleRatio)}px` } : undefined}
+        >
+          <div
+            style={
+              slotId === 'slot_top_banner' && scaleRatio < 1
+                ? {
+                    width: '728px',
+                    height: '90px',
+                    transform: `scale(${scaleRatio})`,
+                    transformOrigin: 'top center',
+                    flexShrink: 0
+                  }
+                : undefined
+            }
+            className="w-full flex items-center justify-center"
+          >
+            <div
+              ref={containerRef}
+              className={`w-full flex items-center justify-center ${
+                isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
+              }`}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
