@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { store, useAdSettings } from '../services/store';
+import { hasRenderedAd } from '../services/adRendering';
 
 export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const containerRef = useRef(null);
   const outerWrapperRef = useRef(null);
   const [isFallback, setIsFallback] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const adSettings = useAdSettings();
   const slot = adSettings[slotId];
   const affiliateSettings = adSettings.affiliate_fallbacks || {};
@@ -59,6 +61,12 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     }
   }
 
+  const isNative = slotId === 'slot_native_feed';
+  const frameWidth = slotId === 'slot_below_player' ? 300
+    : (slotId === 'slot_top_banner' || slotId === 'slot_sticky_footer')
+      ? (isMobileViewport ? 300 : 728) : undefined;
+  const frameHeight = frameWidth === 728 ? 90 : 250;
+
   // Consolidated effect: parse and inject ad tag or switch to fallback
   useEffect(() => {
     let isMounted = true;
@@ -83,6 +91,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     }
 
     setIsFallback(false);
+    setIsLoaded(false);
 
     if (!containerRef.current) return;
     const container = containerRef.current;
@@ -91,128 +100,53 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = effectiveCode;
 
-    // Helper: force inline styles using setProperty without wiping out other inline properties
-    // Uses a recursion guard (isApplying) to safely allow attribute & childList observation without infinite loops.
-    let isApplying = false;
-    const forceAdStyles = (root) => {
-      if (!root || isApplying) return;
-      isApplying = true;
-      try {
-        const insElements = root.querySelectorAll('ins');
-        insElements.forEach((insEl) => {
-          if (slotId === 'slot_native_feed') {
-            insEl.style.setProperty('width', '100%', 'important');
-            insEl.style.setProperty('min-height', '360px', 'important');
-            insEl.style.setProperty('display', 'block', 'important');
-            insEl.style.setProperty('margin', '0 auto', 'important');
-            insEl.style.setProperty('float', 'none', 'important');
-          } else if (slotId === 'slot_sticky_footer') {
-            insEl.style.setProperty('width', '100%', 'important');
-            insEl.style.setProperty('max-width', '100%', 'important');
-            insEl.style.setProperty('height', 'auto', 'important');
-            insEl.style.setProperty('display', 'block', 'important');
-            insEl.style.setProperty('margin', '0 auto', 'important');
-            insEl.style.setProperty('float', 'none', 'important');
-            insEl.style.setProperty('text-align', 'center', 'important');
-          } else {
-            // Top banner and below-player banner
-            insEl.style.setProperty('width', '100%', 'important');
-            insEl.style.setProperty('max-width', '100%', 'important');
-            insEl.style.setProperty('height', 'auto', 'important');
-            insEl.style.setProperty('display', 'block', 'important');
-            insEl.style.setProperty('margin', '0 auto', 'important');
-            insEl.style.setProperty('float', 'none', 'important');
-            insEl.style.setProperty('text-align', 'center', 'important');
-          }
-        });
-
-        // 3. Center all children inside <ins> (div, table, iframe, a, img)
-        root.querySelectorAll('ins > *, ins table, ins div, ins iframe, ins a').forEach((el) => {
-          el.style.setProperty('margin-left', 'auto', 'important');
-          el.style.setProperty('margin-right', 'auto', 'important');
-          el.style.setProperty('float', 'none', 'important');
-          el.style.setProperty('text-align', 'center', 'important');
-          el.style.setProperty('max-width', '100%', 'important');
-          if (el.tagName !== 'SPAN' && el.tagName !== 'I') {
-            el.style.setProperty('display', 'block', 'important');
-          }
-        });
-
-        // 4. Force banner images centered; in native feed, make thumbnail fill the frame
-        root.querySelectorAll('img').forEach((img) => {
-          if (slotId === 'slot_native_feed') {
-            img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('width', '100%', 'important');
-            img.style.setProperty('max-height', '240px', 'important');
-            img.style.setProperty('object-fit', 'cover', 'important');
-            img.style.setProperty('margin', '0 auto', 'important');
-            img.style.setProperty('border-radius', '12px', 'important');
-            img.style.setProperty('float', 'none', 'important');
-          } else {
-            img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('margin', '0 auto', 'important');
-            img.style.setProperty('max-width', '100%', 'important');
-            img.style.setProperty('float', 'none', 'important');
-          }
-        });
-      } finally {
-        isApplying = false;
-      }
+    // Fit oversized fixed creatives proportionally; never crop or stretch their contents.
+    const fitFrame = () => {
+      const wrapper = outerWrapperRef.current;
+      if (!wrapper || !wrapper.clientWidth) return;
+      const naturalWidth = Math.max(container.offsetWidth,
+        ...[...container.querySelectorAll('iframe, img, video, ins > *')].map(el => el.offsetWidth || 0));
+      const scale = Math.min(1, wrapper.clientWidth / (naturalWidth || 1));
+      container.style.transform = scale < 1 ? `scale(${scale})` : '';
+      wrapper.style.height = `${Math.ceil(container.scrollHeight * scale)}px`;
     };
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fitFrame) : null;
+    resizeObserver?.observe(outerWrapperRef.current);
+    resizeObserver?.observe(container);
+    window.addEventListener('resize', fitFrame);
 
-    // 5. Attach MutationObserver with recursion guard
-    let observer = null;
-    try {
-      observer = new MutationObserver(() => {
-        if (isMounted) forceAdStyles(container);
-      });
-      observer.observe(container, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class']
-      });
-    } catch (e) {
-      // Fallback if MutationObserver is not supported
-    }
-
-    // 5. Polling lifecycle: fast initial poller (every 400ms for 6s) plus persistent 5s poller for 30s auto-refreshes
-    let pollCount = 0;
-    const pollInterval = setInterval(() => {
-      pollCount++;
-      if (isMounted) forceAdStyles(container);
-      if (pollCount >= 15) clearInterval(pollInterval);
-    }, 400);
-
-    const refreshInterval = setInterval(() => {
-      if (isMounted) forceAdStyles(container);
-    }, 5000);
-
-    // 6. Reapply on resize, orientationchange, and visibilitychange
-    const handleReapply = () => {
-      if (isMounted) forceAdStyles(container);
-    };
-    window.addEventListener('resize', handleReapply);
-    window.addEventListener('orientationchange', handleReapply);
-    document.addEventListener('visibilitychange', handleReapply);
-
-    // 9. No-fill timeout: if after 6.5s no content rendered, fall back cleanly rather than leaving empty black card
-    const noFillTimer = setTimeout(() => {
+    // Style only our frame. Never rewrite the provider's tables, links or thumbnails.
+    const loadedFrames = new WeakSet();
+    let lastDeliveredAt = Date.now();
+    const updateDelivery = () => {
       if (!isMounted) return;
-      const insEl = container.querySelector('ins');
-      const hasContent =
-        container.querySelector('iframe, img, video, table') ||
-        (insEl && (insEl.offsetHeight > 30 || insEl.childElementCount > 0));
-      if (!hasContent) {
+      fitFrame();
+      const delivered = hasRenderedAd(container, loadedFrames);
+      setIsLoaded(delivered);
+      if (delivered) {
+        lastDeliveredAt = Date.now();
+        setIsFallback(false);
+      } else if (Date.now() - lastDeliveredAt >= 10000) {
+        // Also handle a later provider refresh that leaves the placement empty.
         setIsFallback(true);
       }
-    }, 6500);
+    };
+    const handleLoad = (event) => {
+      if (event.target.tagName === 'IFRAME') loadedFrames.add(event.target);
+      updateDelivery();
+    };
+    container.addEventListener('load', handleLoad, true);
+    const observer = new MutationObserver(updateDelivery);
+    observer.observe(container, { childList: true, subtree: true });
+    const refreshInterval = setInterval(updateDelivery, 1000);
+    const noFillTimer = setTimeout(() => {
+      if (isMounted && !hasRenderedAd(container, loadedFrames)) setIsFallback(true);
+    }, 10000);
 
     const scripts = tempDiv.querySelectorAll('script');
     if (scripts.length > 0) {
       const nonScripts = effectiveCode.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       container.innerHTML = nonScripts;
-      forceAdStyles(container);
 
       scripts.forEach((oldScript) => {
         const newScript = document.createElement('script');
@@ -227,23 +161,21 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       });
     } else {
       container.innerHTML = effectiveCode;
-      forceAdStyles(container);
     }
 
     return () => {
       isMounted = false;
-      if (observer) observer.disconnect();
-      clearInterval(pollInterval);
+      observer.disconnect();
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', fitFrame);
       clearInterval(refreshInterval);
       clearTimeout(noFillTimer);
-      window.removeEventListener('resize', handleReapply);
-      window.removeEventListener('orientationchange', handleReapply);
-      document.removeEventListener('visibilitychange', handleReapply);
+      container.removeEventListener('load', handleLoad, true);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [effectiveCode, slot?.isActive, slotId]);
+  }, [effectiveCode, slot?.isActive, slotId, frameWidth]);
 
   if (!slot || !slot.isActive) return null;
 
@@ -253,26 +185,17 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     }
   };
 
-  // Pre-allocated dimension classes to prevent Cumulative Layout Shift (CLS)
-  const getSlotContainerClasses = () => {
-    switch (slotId) {
-      case 'slot_top_banner':
-        return 'min-h-[50px] sm:min-h-[90px] w-full max-w-[320px] sm:max-w-[728px] mx-auto flex flex-col items-center justify-center text-center overflow-hidden';
-      case 'slot_below_player':
-        return 'min-h-[250px] w-full max-w-[300px] sm:max-w-[320px] flex flex-col items-center justify-center text-center mx-auto overflow-hidden';
-      case 'slot_native_feed':
-        return 'w-full h-full min-h-[360px] flex flex-col justify-start items-center text-center';
-      case 'slot_sticky_footer':
-        return 'w-auto flex items-center justify-center text-center mx-auto';
-      default:
-        return 'min-h-[90px] w-full flex flex-col items-center justify-center text-center mx-auto';
-    }
-  };
+  const hasFallback = Boolean(affiliateSettings.isEnabled && campaign?.url);
 
   const showDisclosure = slotId !== 'slot_sticky_footer' && slotId !== 'slot_native_feed';
 
   return (
-    <div className={`relative overflow-hidden transition-all duration-200 ${getSlotContainerClasses()} ${className}`}>
+    <div
+      data-ad-slot={slotId}
+      data-ad-state={isFallback ? (hasFallback ? 'fallback' : 'empty') : isLoaded ? 'loaded' : 'loading'}
+      className={`relative min-w-0 w-full mx-auto self-start flex flex-col items-center ${isNative ? 'rounded-2xl glass-card p-2 gap-2' : ''} ${className}`}
+      style={{ maxWidth: frameWidth, display: isFallback && !hasFallback ? 'none' : undefined }}
+    >
       {/* Dev Mode Badge */}
       {isDevMode && devBadge && (
         <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-cyan-400 border border-cyan-500/40 shadow-md">
@@ -287,11 +210,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         </div>
       )}
 
-      {/* Sleek Native Ad Pill Badge */}
-      {slotId === 'slot_native_feed' && (
-        <div className="absolute top-2 left-2 z-10 pointer-events-none">
-          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/75 backdrop-blur-md text-slate-300 border border-white/10 shadow-sm">
-            Ad
+      {/* Keep the disclosure outside the creative, clear of provider controls. */}
+      {isNative && (
+        <div className="w-full flex items-center px-1 pointer-events-none">
+          <span className="text-[9px] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">
+            Advertisement
           </span>
         </div>
       )}
@@ -306,7 +229,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       )}
 
       {/* Render Fallback Card if unconfigured or failed */}
-      {isFallback && affiliateSettings.isEnabled && campaign ? (
+      {isFallback && hasFallback && (
         <div className="w-full h-full flex items-center justify-center">
           {/* Top Leaderboard Fallback */}
           {slotId === 'slot_top_banner' && (
@@ -341,7 +264,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           {slotId === 'slot_native_feed' && (
             <div
               onClick={handleAffiliateClick}
-              className="group relative flex flex-col h-full w-full rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl border border-rose-500/30"
+              className="group relative flex flex-col w-full rounded-xl overflow-hidden cursor-pointer bg-slate-100 dark:bg-black/20"
             >
               <div className="relative aspect-video w-full overflow-hidden bg-black/80">
                 <img
@@ -418,25 +341,22 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
             </div>
           )}
         </div>
-      ) : (
-        /* Regular Ad Injection Container */
-        <div
-          ref={outerWrapperRef}
-          className={`w-full flex items-center justify-center ${
-            slotId === 'slot_native_feed' ? 'h-full min-h-[360px]' : 'h-auto overflow-hidden'
-          }`}
-        >
-          <div
-            ref={containerRef}
-            className={`w-full ${
-              slotId === 'slot_native_feed' ? 'h-full min-h-[360px] block' : 'flex items-center justify-center overflow-hidden'
-            } ${
-              isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
-            }`}
-          />
-        </div>
       )}
+      {/* Keep the injection node mounted so changed settings/device zones can recover after no-fill. */}
+      <div
+        ref={outerWrapperRef}
+        className={`adcast-ad-frame w-full min-w-0 flex justify-center items-start ${isNative ? 'rounded-xl bg-slate-100 dark:bg-black/20' : ''}`}
+        style={{
+          display: isFallback ? 'none' : undefined,
+          minHeight: !isLoaded ? (isNative ? 180 : frameHeight) : undefined,
+        }}
+      >
+        <div
+          ref={containerRef}
+          className={`adcast-ad-content ${isNative ? 'adcast-ad-native' : 'adcast-ad-banner'}`}
+          style={{ width: frameWidth || '100%', flexShrink: 0, transformOrigin: 'top center' }}
+        />
+      </div>
     </div>
   );
 }
-

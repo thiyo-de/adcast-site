@@ -56,9 +56,9 @@ export default function Home({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
       {/* 1. Top Leaderboard Banner (Fully Responsive Container) */}
-      <div className="w-full my-2 flex justify-center overflow-hidden">
-        <div className="w-full max-w-4xl overflow-hidden flex justify-center [&_iframe]:max-w-full [&_ins]:max-w-full [&_img]:max-w-full">
-          <AdSlot slotId="slot_top_banner" className="w-full max-w-full overflow-hidden" />
+      <div className="w-full min-w-0 my-2 flex justify-center">
+        <div className="w-full min-w-0 flex justify-center">
+          <AdSlot slotId="slot_top_banner" className="w-full" />
         </div>
       </div>
 
@@ -138,7 +138,7 @@ export default function Home({
       )}
 
       {/* 3. Stream Feed Header & Sorting Bar */}
-      <div className="relative z-30 p-3 sm:p-3.5 rounded-2xl glass-panel flex items-center justify-between gap-2 sm:gap-3 text-xs">
+      <div className="relative z-30 p-3 sm:p-3.5 rounded-2xl glass-panel flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-xs">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5 shrink-0 whitespace-nowrap">
             <i className="ri-movie-2-line not-italic text-rose-500 text-sm sm:text-base"></i>
@@ -266,11 +266,11 @@ export default function Home({
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 relative flex flex-col min-h-[380px] h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl p-3 sm:p-4">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <AdSlot slotId="slot_native_feed" className="w-full h-full min-h-[350px]" devBadge={false} />
-                    </div>
-                  </div>
+                  <AdSlot
+                    slotId="slot_native_feed"
+                    className="col-span-1"
+                    devBadge={false}
+                  />
                 )}
 
                 <VideoCard

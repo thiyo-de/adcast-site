@@ -24,15 +24,8 @@ export default function StickyFooter({ currentView }) {
 
     const checkRenderedCreative = () => {
       if (!wrapperRef.current) return;
-      const iframe = wrapperRef.current.querySelector('iframe');
-      const ins = wrapperRef.current.querySelector('ins');
-      const img = wrapperRef.current.querySelector('a > img, div > img');
-
-      const hasIframeWithContent = iframe && (iframe.offsetHeight > 10 || iframe.offsetWidth > 10) && window.getComputedStyle(iframe).display !== 'none';
-      const hasFilledIns = ins && (ins.children.length > 0 || ins.offsetHeight > 20 || ins.getAttribute('data-ad-status') === 'filled') && window.getComputedStyle(ins).display !== 'none';
-      const hasRenderedImage = img && img.offsetHeight > 20 && window.getComputedStyle(img).display !== 'none';
-
-      const isCurrentlyVisible = Boolean(hasIframeWithContent || hasFilledIns || hasRenderedImage);
+      const ad = wrapperRef.current.querySelector('[data-ad-state]');
+      const isCurrentlyVisible = ad?.dataset.adState === 'loaded' || ad?.dataset.adState === 'fallback';
 
       setIsLoaded((prev) => (prev !== isCurrentlyVisible ? isCurrentlyVisible : prev));
     };
@@ -86,7 +79,7 @@ export default function StickyFooter({ currentView }) {
           </button>
         )}
 
-        <AdSlot slotId="slot_sticky_footer" devBadge={false} />
+        <AdSlot key={currentView} slotId="slot_sticky_footer" devBadge={false} />
       </div>
     </aside>
   );

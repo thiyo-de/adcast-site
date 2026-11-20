@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import VideoPlayer from '../components/VideoPlayer';
 import VideoCard from '../components/VideoCard';
 import AdSlot from '../components/AdSlot';
+import { showRecommendationAdAfter } from '../services/adRendering';
 import { store, FALLBACK_THUMB } from '../services/store';
 import { api } from '../services/supabase';
 import { updateVideoSEO, resetDefaultSEO } from '../utils/seo';
@@ -363,8 +364,8 @@ export default function Watch({
           )}
 
           {/* Ad Slot 4: Below-Player High CTR Banner (Centered with explicit max-width) */}
-          <div className="w-full max-w-[300px] sm:max-w-[320px] my-6 sm:my-8 mx-auto flex flex-col justify-center items-center text-center">
-            <AdSlot slotId="slot_below_player" className="w-full rounded-2xl overflow-hidden" />
+          <div className="w-full min-w-0 my-6 sm:my-8 flex justify-center">
+            <AdSlot key={video.id} slotId="slot_below_player" className="rounded-2xl" />
           </div>
 
           {/* Video Tags & Description */}
@@ -391,9 +392,9 @@ export default function Watch({
         </div>
 
         {/* Recommended Streams Grid (Full-Width directly underneath player & details) */}
-        <div className="space-y-4 pt-6 border-t border-slate-200/80 dark:border-white/[0.08]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+        <div className="min-w-0 w-full space-y-4 pt-6 border-t border-slate-200/80 dark:border-white/[0.08]">
+          <div className="min-w-0 w-full flex flex-col gap-3">
+            <div className="min-w-0 flex flex-wrap items-center gap-2">
               <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
                 <i className="ri-sparkling-fill not-italic text-rose-500 text-sm"></i>
                 Recommended Streams
@@ -403,8 +404,8 @@ export default function Watch({
               </span>
             </div>
 
-            {/* Recommendation Order Tabs (YouTube/Twitch-Style) */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {/* Equal-sized controls: two columns on phones, one row on larger screens. */}
+            <div role="group" aria-label="Recommendation filters" className="min-w-0 w-full md:max-w-2xl grid grid-cols-2 md:grid-cols-4 auto-rows-fr gap-2 pt-1">
               {(() => {
                 const categoryIcon =
                   video.category === 'Hardcore'
@@ -426,15 +427,17 @@ export default function Watch({
                 return (
                   <button
                     key={tab.id}
+                    type="button"
+                    aria-pressed={isActive}
                     onClick={() => setRecommendationMode(tab.id)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all duration-200 ${
+                    className={`min-w-0 w-full min-h-[44px] h-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] sm:text-xs leading-snug font-bold whitespace-normal text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#08090D] ${
                       isActive
                         ? 'bg-rose-600 text-white shadow-sm'
                         : 'glass-button text-slate-600 dark:text-slate-300'
                     }`}
                   >
-                    <i className={`${tab.icon} not-italic text-xs`}></i>
-                    <span>{tab.label}</span>
+                    <i aria-hidden="true" className={`${tab.icon} shrink-0 not-italic text-xs`}></i>
+                    <span className="min-w-0 break-words">{tab.label}</span>
                   </button>
                 );
               })}
@@ -456,24 +459,24 @@ export default function Watch({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {relatedVideos.map((item, index) => {
-                const showNativeAd = index === 3 || (index > 0 && index % 6 === 0);
+                const showNativeAd = showRecommendationAdAfter(index, relatedVideos.length);
 
                 return (
                   <React.Fragment key={item.id}>
-                    {showNativeAd && (
-                      <div className="col-span-1 sm:col-span-2 relative flex flex-col min-h-[380px] h-full rounded-2xl glass-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl p-3 sm:p-4">
-                        <div className="w-full h-full flex items-center justify-center">
-                          <AdSlot slotId="slot_native_feed" className="w-full h-full min-h-[350px]" devBadge={false} />
-                        </div>
-                      </div>
-                    )}
-
                     <VideoCard
                       video={item}
                       onSelect={onSelectVideo}
                       onBookmarkToggle={onBookmarkToggle}
                       isBookmarked={typeof isBookmarked === 'function' ? isBookmarked(item.id) : false}
                     />
+                    {showNativeAd && (
+                      <AdSlot
+                        key={`${video.id}-native-${item.id}`}
+                        slotId="slot_native_feed"
+                        className="col-span-1"
+                        devBadge={false}
+                      />
+                    )}
                   </React.Fragment>
                 );
               })}

@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Centre the provider's immediate frame without rewriting its internal card layout. */
+.adcast-ad-content {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+}
+.adcast-ad-content > ins {
+  display: flex;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  text-decoration: none;
+}
+.adcast-ad-native > ins {
+  width: 100%;
+}
+.adcast-ad-content > iframe,
+.adcast-ad-content > ins > iframe,
+.adcast-ad-content > ins > div,
+.adcast-ad-content > ins > a {
+  margin-inline: auto;
+  flex-shrink: 0;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
