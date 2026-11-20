@@ -91,10 +91,35 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = effectiveCode;
 
+    // Helper: force inline styles on injected <ins> and <img> elements
+    // This is required because ExoClick injects its own stylesheet that
+    // overrides Tailwind classes — only inline styles can win.
+    const forceAdStyles = (root) => {
+      if (!root) return;
+      const insEl = root.querySelector('ins');
+      if (insEl) {
+        if (slotId === 'slot_native_feed') {
+          // Native: fill the whole card container
+          insEl.style.cssText = 'display:block!important;width:100%!important;height:100%!important;min-height:300px!important;';
+        } else if (slotId === 'slot_sticky_footer') {
+          // Sticky: shrink-wrap to content, center in row
+          insEl.style.cssText = 'display:block!important;margin:0 auto!important;';
+        } else {
+          // Banners (top / below-player): center, don't stretch
+          insEl.style.cssText = 'display:block!important;margin:0 auto!important;max-width:100%!important;text-align:center!important;';
+        }
+      }
+      // Also center any direct <img> children
+      root.querySelectorAll('img').forEach((img) => {
+        img.style.cssText += 'display:block!important;margin:0 auto!important;max-width:100%!important;';
+      });
+    };
+
     const scripts = tempDiv.querySelectorAll('script');
     if (scripts.length > 0) {
       const nonScripts = effectiveCode.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       container.innerHTML = nonScripts;
+      forceAdStyles(container);
 
       scripts.forEach((oldScript) => {
         const newScript = document.createElement('script');
@@ -107,8 +132,22 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         };
         container.appendChild(newScript);
       });
+
+      // Re-apply after a short delay to override any styles ExoClick injects post-load
+      const retryTimer = setTimeout(() => {
+        if (isMounted) forceAdStyles(container);
+      }, 800);
+
+      return () => {
+        isMounted = false;
+        clearTimeout(retryTimer);
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+      };
     } else {
       container.innerHTML = effectiveCode;
+      forceAdStyles(container);
     }
 
     return () => {
@@ -296,16 +335,14 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         /* Regular Ad Injection Container */
         <div
           ref={outerWrapperRef}
-          className={`${slotId === 'slot_sticky_footer' ? 'w-auto' : 'w-full'} h-full flex items-center justify-center text-center overflow-hidden`}
+          className={`w-full flex items-center justify-center overflow-hidden ${
+            slotId === 'slot_native_feed' ? 'h-full min-h-[320px] sm:min-h-0' : 'h-auto'
+          }`}
         >
           <div
             ref={containerRef}
-            className={`${
-              slotId === 'slot_sticky_footer' ? 'w-auto' : 'w-full'
-            } flex items-center justify-center text-center overflow-hidden ${
-              slotId === 'slot_native_feed'
-                ? 'h-full min-h-[320px] sm:min-h-0 [&_iframe]:mx-auto [&_iframe]:max-w-full [&_ins]:w-full [&_ins]:h-full [&_ins]:flex [&_ins]:flex-col [&_ins]:items-center [&_ins]:justify-center [&_ins]:mx-auto [&_img]:mx-auto [&_img]:max-w-full [&_img]:max-h-full [&_img]:object-contain'
-                : 'h-auto [&_iframe]:mx-auto [&_iframe]:block [&_iframe]:max-w-full [&_ins]:mx-auto [&_ins]:block [&_ins]:text-center [&_ins]:max-w-full [&_img]:mx-auto [&_img]:block [&_img]:max-w-full [&_a]:inline-block [&_a]:mx-auto'
+            className={`w-full flex items-center justify-center overflow-hidden ${
+              slotId === 'slot_native_feed' ? 'h-full min-h-[320px] sm:min-h-0' : 'h-auto'
             } ${
               isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
             }`}
