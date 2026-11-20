@@ -210,11 +210,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         )}
 
         {/* 1. Thumbnail Container (16:9) matching VideoCard */}
-        <div className="relative aspect-video w-full overflow-hidden bg-slate-950 flex items-center justify-center">
+        <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
           {/* Live Ad Container inside the 16:9 slot */}
           <div
             ref={outerWrapperRef}
-            className="adcast-ad-frame adcast-ad-native-container relative w-full h-full overflow-hidden flex items-center justify-center"
+            className="adcast-ad-frame adcast-ad-native-container relative w-full h-full overflow-hidden"
           >
             <div
               ref={containerRef}

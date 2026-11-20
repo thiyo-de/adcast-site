@@ -46,8 +46,8 @@
   border: none !important;
   border-radius: 0 !important;
   overflow: hidden !important;
-  transform: scale(1.05) !important;
-  transform-origin: center center !important;
+  transform: scale(1.08) !important;
+  transform-origin: top center !important;
 }
 
 .adcast-ad-native img,
