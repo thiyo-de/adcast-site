@@ -44,7 +44,7 @@
   padding: 0 !important;
   margin: 0 !important;
   border: none !important;
-  border-radius: 1rem !important;
+  border-radius: 0 !important;
   overflow: hidden !important;
 }
 
@@ -59,7 +59,7 @@
   object-fit: cover !important;
   display: block !important;
   border: none !important;
-  border-radius: 1rem !important;
+  border-radius: 0 !important;
 }
 .adcast-ad-content > iframe,
 .adcast-ad-content > ins > iframe,
