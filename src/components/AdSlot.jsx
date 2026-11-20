@@ -41,15 +41,15 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   }, []);
 
   // Device-adaptive zone switching:
-  // Top banner: mobile zone 6096160 (<768px), desktop zone 6093488 (>=768px)
+  // Top banner: mobile 300x250 banner zone 6093362 (<768px), desktop 728x90 zone 6093488 (>=768px)
   // Sticky bottom: mobile zone 6096158 (<768px), desktop zone 6093426 (>=768px)
   const rawCode = slot?.code || '';
   let effectiveCode = rawCode;
   if (slotId === 'slot_top_banner' && rawCode) {
     if (isMobileViewport) {
-      effectiveCode = rawCode.includes('6093488') ? rawCode.replace('6093488', '6096160') : rawCode;
+      effectiveCode = rawCode.includes('6093488') ? rawCode.replace('6093488', '6093362') : (rawCode.includes('6096160') ? rawCode.replace('6096160', '6093362') : rawCode);
     } else {
-      effectiveCode = rawCode.includes('6096160') ? rawCode.replace('6096160', '6093488') : rawCode;
+      effectiveCode = rawCode.includes('6093362') ? rawCode.replace('6093362', '6093488') : (rawCode.includes('6096160') ? rawCode.replace('6096160', '6093488') : rawCode);
     }
   } else if (slotId === 'slot_sticky_footer' && rawCode) {
     if (isMobileViewport) {
@@ -177,13 +177,17 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       // Fallback if MutationObserver is not supported
     }
 
-    // 5. Short poller (every 500ms for 7 seconds = 14 intervals) to catch late ExoClick creative swaps
+    // 5. Polling lifecycle: fast initial poller (every 400ms for 6s) plus persistent 5s poller for 30s auto-refreshes
     let pollCount = 0;
     const pollInterval = setInterval(() => {
       pollCount++;
       if (isMounted) forceAdStyles(container);
-      if (pollCount >= 14) clearInterval(pollInterval);
-    }, 500);
+      if (pollCount >= 15) clearInterval(pollInterval);
+    }, 400);
+
+    const refreshInterval = setInterval(() => {
+      if (isMounted) forceAdStyles(container);
+    }, 5000);
 
     // 6. Reapply on resize, orientationchange, and visibilitychange
     const handleReapply = () => {
@@ -231,6 +235,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       isMounted = false;
       if (observer) observer.disconnect();
       clearInterval(pollInterval);
+      clearInterval(refreshInterval);
       clearTimeout(noFillTimer);
       window.removeEventListener('resize', handleReapply);
       window.removeEventListener('orientationchange', handleReapply);

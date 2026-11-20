@@ -90,11 +90,15 @@ export default function VideoPlayer({ video, onEnded }) {
     firedImpressionRef.current = false;
   }, [video?.id]);
 
-  // Pre-fetch VAST ad on mount/video change so playback starts synchronously with zero lag
+  // Pre-fetch VAST ad on mount/video change if 5-minute cooldown has passed
   useEffect(() => {
     let isCancelled = false;
 
-    if (hasPreRoll && preRollSlot?.vastUrl) {
+    const lastPreRoll = parseInt(localStorage.getItem('adcast_last_preroll') || '0', 10);
+    const cooldownMs = (preRollSlot?.frequencyMinutes || 5) * 60 * 1000;
+    const isCooldownActive = Date.now() - lastPreRoll < cooldownMs;
+
+    if (hasPreRoll && preRollSlot?.vastUrl && !isCooldownActive) {
       resolveVastAd(preRollSlot.vastUrl)
         .then((res) => {
           if (!isCancelled && res?.mediaUrl) {
@@ -107,7 +111,7 @@ export default function VideoPlayer({ video, onEnded }) {
     return () => {
       isCancelled = true;
     };
-  }, [video?.id, hasPreRoll, preRollSlot?.vastUrl]);
+  }, [video?.id, hasPreRoll, preRollSlot?.vastUrl, preRollSlot?.frequencyMinutes]);
 
   // Mobile WebKit Autoplay Policy Recovery: if unmuted autoplay is rejected, fall back to muted autoplay, then prompt manual play
   useEffect(() => {
@@ -142,8 +146,13 @@ export default function VideoPlayer({ video, onEnded }) {
       }
     }
 
-    // Run pre-roll on every video play
-    if (hasPreRoll && preRollSlot?.vastUrl) {
+    // Run pre-roll with 5-minute frequency cooldown (matching ExoClick zone setting)
+    const now = Date.now();
+    const lastPreRoll = parseInt(localStorage.getItem('adcast_last_preroll') || '0', 10);
+    const cooldownMs = (preRollSlot?.frequencyMinutes || 5) * 60 * 1000;
+    const isCooldownActive = now - lastPreRoll < cooldownMs;
+
+    if (hasPreRoll && preRollSlot?.vastUrl && !isCooldownActive) {
       let vastResult = prefetchedAdRef.current;
       if (!vastResult?.mediaUrl) {
         setIsLoadingAd(true);
@@ -152,7 +161,7 @@ export default function VideoPlayer({ video, onEnded }) {
       }
 
       if (vastResult?.mediaUrl) {
-        // NOTE: Cooldown timestamp is intentionally deferred to onPlaying so failed ads never lock users out
+        localStorage.setItem('adcast_last_preroll', now.toString());
         prefetchedAdRef.current = null;
         prerollCooldownRecordedRef.current = false;
         firedTrackingRef.current.clear();

@@ -555,7 +555,7 @@ const SEED_VIDEOS = [
 const DEFAULT_AD_SETTINGS = {
   slot_top_banner: {
     id: 'slot_top_banner',
-    name: 'Top Banner (Desktop 728x90 / Mobile 6096160)',
+    name: 'Top Banner (Desktop 728x90 / Mobile 300x250: 6093362)',
     network: 'ExoClick / Adaptive Banner',
     dimensions: '728x90 / 300x250',
     isActive: true,

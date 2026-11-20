@@ -292,8 +292,8 @@ export default function App() {
 
       {/* Main Dynamic View with Safe-Area Clearance for Sticky Footer */}
       <main
-        className="flex-1 pb-28 sm:pb-24"
-        style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom, 0px))' }}
+        className="flex-1 pb-36 sm:pb-28"
+        style={{ paddingBottom: 'calc(9rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {currentView === 'home' && (
           <Home

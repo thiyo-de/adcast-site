@@ -266,9 +266,9 @@ export default function Home({
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="col-span-1 relative flex flex-col min-h-[340px] sm:min-h-0 h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl">
-                    <div className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden">
-                      <AdSlot slotId="slot_native_feed" className="w-full h-full min-h-[320px] sm:min-h-0" devBadge={false} />
+                  <div className="col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 relative flex flex-col min-h-[380px] h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl p-3 sm:p-4">
+                    <div className="w-full h-full flex items-center justify-center">
+                      <AdSlot slotId="slot_native_feed" className="w-full h-full min-h-[350px]" devBadge={false} />
                     </div>
                   </div>
                 )}
