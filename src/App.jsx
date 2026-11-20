@@ -290,11 +290,8 @@ export default function App() {
         categoryCounts={categoryCounts}
       />
 
-      {/* Main Dynamic View with Safe-Area Clearance for Sticky Footer */}
-      <main
-        className="flex-1 pb-36 sm:pb-28"
-        style={{ paddingBottom: 'calc(9rem + env(safe-area-inset-bottom, 0px))' }}
-      >
+      {/* Main Dynamic View */}
+      <main className="flex-1 pb-4 sm:pb-6">
         {currentView === 'home' && (
           <Home
             videos={videos}

@@ -4,7 +4,7 @@ export default function Legal({ onBack, defaultTab = 'terms' }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-32 sm:pb-36 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-4 sm:pb-6 space-y-6">
       <button
         onClick={onBack}
         className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#12141F] hover:bg-[#1A1D2D] border border-[#222638] text-xs font-bold text-slate-300 hover:text-white transition-colors"
