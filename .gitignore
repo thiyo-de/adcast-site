@@ -16,3 +16,5 @@ adcast-sync-engine/.env
 *.log
 .DS_Store
 Thumbs.db
+Screenshot_*.jpg
+Screenshot_*.png
