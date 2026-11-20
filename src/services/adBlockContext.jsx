@@ -6,17 +6,20 @@ const AdBlockContext = createContext({
   isNoticeOpen: false,
   isRechecking: false,
   dismissNotice: () => {},
-  recheck: () => {}
+  recheck: () => {},
+  verifyBeforePlayback: async () => true
 });
 
 const EXEMPT_VIEWS = ['admin', 'dmca', 'privacy', 'terms'];
 
-export function AdBlockProvider({ children, currentView = 'home' }) {
+export function AdBlockProvider({ children, currentView = 'home', videoId = null }) {
   const [detectionState, setDetectionState] = useState(AD_BLOCK_STATES.CHECKING);
   const [isNoticeOpen, setIsNoticeOpen] = useState(false);
   const [isRechecking, setIsRechecking] = useState(false);
   const recheckCooldownRef = useRef(false);
   const activeCheckIdRef = useRef(0);
+  const lastCheckTimestampRef = useRef(0);
+  const isCheckingRef = useRef(false);
 
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
   const isExempt =
@@ -27,7 +30,12 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
     pathname.startsWith('/terms');
 
   const runDetection = useCallback(async (isManual = false) => {
+    if (isCheckingRef.current && !isManual) {
+      return;
+    }
+
     const checkId = ++activeCheckIdRef.current;
+    isCheckingRef.current = true;
 
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
     const isCurrentlyExempt =
@@ -38,6 +46,7 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
       currentPath.startsWith('/terms');
 
     if (isCurrentlyExempt) {
+      isCheckingRef.current = false;
       setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
       setIsNoticeOpen(false);
       return;
@@ -70,6 +79,7 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
         return;
       }
 
+      lastCheckTimestampRef.current = Date.now();
       setDetectionState(state);
 
       if (state === AD_BLOCK_STATES.SUSPECTED_BLOCKING) {
@@ -77,21 +87,44 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
       } else {
         setIsNoticeOpen(false);
       }
+      return state;
     } catch (e) {
       if (activeCheckIdRef.current === checkId) {
         setDetectionState(AD_BLOCK_STATES.INCONCLUSIVE);
         setIsNoticeOpen(false);
       }
+      return AD_BLOCK_STATES.INCONCLUSIVE;
     } finally {
-      if (isManual && activeCheckIdRef.current === checkId) {
-        setIsRechecking(false);
+      if (activeCheckIdRef.current === checkId) {
+        isCheckingRef.current = false;
+        if (isManual) {
+          setIsRechecking(false);
+        }
       }
     }
   }, [currentView]);
 
-  // Initial detection run on mount after 1.5 seconds (allowing initial render and layout to settle)
+  // Pre-playback verification hook: if previous check is stale (> 45s), run a quick check
+  const verifyBeforePlayback = useCallback(async () => {
+    if (isExempt) return true;
+    if (detectionState === AD_BLOCK_STATES.SUSPECTED_BLOCKING) {
+      setIsNoticeOpen(true);
+      return false;
+    }
+
+    const ageMs = Date.now() - lastCheckTimestampRef.current;
+    if (ageMs < 45000 && lastCheckTimestampRef.current > 0) {
+      // Recent fresh check confirmed no blocking
+      return true;
+    }
+
+    // Previous check is older than 45s: verify ad status before starting media
+    const result = await runDetection(false);
+    return result !== AD_BLOCK_STATES.SUSPECTED_BLOCKING;
+  }, [isExempt, detectionState, runDetection]);
+
+  // Trigger check on view change OR video change
   useEffect(() => {
-    // Invalidate any check in-flight from a previous view
     activeCheckIdRef.current++;
 
     if (isExempt) {
@@ -100,26 +133,60 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
       return;
     }
 
+    // On initial mount or route switch, wait 1.2s for layout/ads to settle
     const timer = setTimeout(() => {
       runDetection(false);
-    }, 1500);
+    }, 1200);
 
     return () => {
       clearTimeout(timer);
-      activeCheckIdRef.current++; // Invalidate pending check on unmount or view change
+      activeCheckIdRef.current++;
     };
-  }, [currentView, isExempt, runDetection]);
+  }, [currentView, videoId, isExempt, runDetection]);
 
-  const dismissNotice = useCallback(() => {
-    // Non-dismissible wall: no manual dismissal or session bypass
-  }, []);
+  // Tab Return Listener: Recheck when returning to the tab if last check was > 10s ago
+  useEffect(() => {
+    if (isExempt) return;
+
+    const handleTabReturn = () => {
+      if (document.visibilityState === 'visible') {
+        const timeSinceLastCheck = Date.now() - lastCheckTimestampRef.current;
+        if (timeSinceLastCheck >= 10000 && !isCheckingRef.current) {
+          runDetection(false);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleTabReturn);
+    window.addEventListener('focus', handleTabReturn);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleTabReturn);
+      window.removeEventListener('focus', handleTabReturn);
+    };
+  }, [isExempt, runDetection]);
+
+  // Periodic Heartbeat: Recheck every 20 seconds while the tab is active/visible
+  useEffect(() => {
+    if (isExempt) return;
+
+    const heartbeat = setInterval(() => {
+      if (document.visibilityState === 'visible' && !isCheckingRef.current) {
+        runDetection(false);
+      }
+    }, 20000);
+
+    return () => clearInterval(heartbeat);
+  }, [isExempt, runDetection]);
+
+  const dismissNotice = useCallback(() => {}, []);
 
   const recheck = useCallback(() => {
     if (recheckCooldownRef.current || isRechecking) return;
     recheckCooldownRef.current = true;
     setTimeout(() => {
       recheckCooldownRef.current = false;
-    }, 4000);
+    }, 3000);
 
     runDetection(true);
   }, [runDetection, isRechecking]);
@@ -131,7 +198,8 @@ export function AdBlockProvider({ children, currentView = 'home' }) {
         isNoticeOpen,
         isRechecking,
         dismissNotice,
-        recheck
+        recheck,
+        verifyBeforePlayback
       }}
     >
       {children}

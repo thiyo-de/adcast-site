@@ -209,7 +209,7 @@ export default function App() {
   };
 
   return (
-    <AdBlockProvider currentView={currentView}>
+    <AdBlockProvider currentView={currentView} videoId={selectedVideoId}>
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-obsidian text-slate-900 dark:text-[#F8FAFC] transition-colors duration-300">
         {/* 18+ Age Verification Modal */}
         <AgeModal />

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { store, useAdSettings, parseToEmbedUrl } from '../services/store';
+import { useAdBlock } from '../services/adBlockContext';
 import { resolveVastAd } from '../utils/vast';
 
 export default function VideoPlayer({ video, onEnded }) {
+  const { verifyBeforePlayback } = useAdBlock();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPreRoll, setShowPreRoll] = useState(false);
   const [countdown, setCountdown] = useState(5);
@@ -130,6 +132,14 @@ export default function VideoPlayer({ video, onEnded }) {
   const handleStartPlay = async () => {
     if (video) {
       store.addToHistory(video);
+    }
+
+    // Pre-playback verification: confirm AdBlock hasn't been re-enabled before starting
+    if (typeof verifyBeforePlayback === 'function') {
+      const isAllowed = await verifyBeforePlayback();
+      if (!isAllowed) {
+        return;
+      }
     }
 
     // Run pre-roll on every video play
