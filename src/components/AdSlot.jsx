@@ -137,7 +137,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       case 'slot_native_feed':
         return 'w-full h-full flex flex-col justify-center items-center overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover [&_ins]:w-full [&_ins]:h-full [&_img]:w-full [&_img]:h-full [&_img]:object-cover';
       case 'slot_sticky_footer':
-        return 'min-h-[50px] sm:min-h-[90px] w-full flex items-center justify-center';
+        return 'w-auto flex items-center justify-center';
       default:
         return 'min-h-[90px] w-full flex flex-col items-center justify-center';
     }
