@@ -72,7 +72,7 @@ export default function StickyFooter({ currentView }) {
             onTouchStart={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Close advertisement"
-            className="absolute -top-3 -right-2 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/95 hover:bg-black text-white/90 hover:text-white border border-white/20 shadow-xl text-[10px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
+            className="absolute -top-2.5 right-1 sm:-right-2 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/95 hover:bg-black text-white/90 hover:text-white border border-white/20 shadow-xl text-[10px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
             title="Dismiss ad"
           >
             ✕

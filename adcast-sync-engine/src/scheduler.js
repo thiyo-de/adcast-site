@@ -133,15 +133,37 @@ export async function getDueSources(filterSourceId = null) {
   const nowIso = new Date().toISOString();
 
   try {
+    // 1. Direct single source targeting (e.g. Admin "Fetch Now")
+    if (filterSourceId && filterSourceId !== 'all') {
+      const { data: directSource, error: directErr } = await db
+        .from('crawler_sources')
+        .select('*')
+        .eq('id', filterSourceId)
+        .maybeSingle();
+
+      if (directSource) {
+        const { data: schedule } = await db
+          .from('source_schedules')
+          .select('*')
+          .eq('source_id', directSource.id)
+          .maybeSingle();
+
+        return [{
+          ...directSource,
+          schedule_id: directSource.id,
+          source_id: directSource.id,
+          timezone: schedule?.timezone || DEFAULT_TIMEZONE,
+          cron_expression: schedule?.cron_expression || '0 */6 * * *'
+        }];
+      }
+    }
+
+    // 2. Query scheduled sources that are due
     let query = db
       .from('source_schedules')
       .select('*, crawler_sources(*)');
 
-    if (filterSourceId && filterSourceId !== 'all') {
-      // Direct targeting: query specifically by source_id
-      query = query.eq('source_id', filterSourceId);
-    } else {
-      // Scheduled tick: query only sources that are currently due
+    if (filterSourceId !== 'all') {
       query = query.or(`next_run_at.lte.${nowIso},next_run_at.is.null`);
     }
 
@@ -150,20 +172,42 @@ export async function getDueSources(filterSourceId = null) {
       console.warn('[SCHEDULER NOTICE] source_schedules query notice:', error.message);
     }
 
-    if (dueSchedules && dueSchedules.length > 0) {
-      return dueSchedules
-        .filter(s => s.is_active !== false && s.crawler_sources && s.crawler_sources.is_enabled)
-        .map(s => ({
-          ...s.crawler_sources,
-          schedule_id: s.source_id || s.id,
-          timezone: s.timezone || DEFAULT_TIMEZONE,
-          cron_expression: s.cron_expression
-        }));
+    const scheduledSources = (dueSchedules || [])
+      .filter(s => s.is_active !== false && s.crawler_sources && s.crawler_sources.is_enabled)
+      .map(s => ({
+        ...s.crawler_sources,
+        schedule_id: s.source_id,
+        source_id: s.source_id,
+        timezone: s.timezone || DEFAULT_TIMEZONE,
+        cron_expression: s.cron_expression || '0 */6 * * *'
+      }));
+
+    // 3. Self-Healing Discovery: Check if crawler_sources has enabled sources without an active schedule entry
+    const { data: allEnabledSources } = await db
+      .from('crawler_sources')
+      .select('*')
+      .eq('is_enabled', true);
+
+    if (allEnabledSources && allEnabledSources.length > 0) {
+      const existingScheduledIds = new Set(scheduledSources.map(s => s.id));
+      const unmappedSources = allEnabledSources.filter(s => !existingScheduledIds.has(s.id));
+
+      if (filterSourceId === 'all' || dueSchedules?.length === 0) {
+        for (const unscheduled of unmappedSources) {
+          scheduledSources.push({
+            ...unscheduled,
+            schedule_id: unscheduled.id,
+            source_id: unscheduled.id,
+            timezone: DEFAULT_TIMEZONE,
+            cron_expression: '0 */6 * * *'
+          });
+        }
+      }
     }
 
-    return [];
+    return scheduledSources;
   } catch (err) {
-    console.warn('[SCHEDULER NOTICE] source_schedules query notice:', err.message);
+    console.warn('[SCHEDULER NOTICE] source query error:', err.message);
     return [];
   }
 }
@@ -174,18 +218,20 @@ export async function getDueSources(filterSourceId = null) {
 export async function processSource(source) {
   const limit = source.video_limit || config.maxVideosPerRun || 15;
   const db = getDbClient();
+  const scheduleId = source.schedule_id || source.source_id || source.id;
   console.log(`\n--> [SCHEDULER JOB] Processing "${source.name}" (Limit: ${limit}, Timezone: ${source.timezone || DEFAULT_TIMEZONE})`);
 
   // Acquire run lease lock so concurrent scheduler ticks do not overlap execution
-  if (source.schedule_id) {
+  if (scheduleId) {
     try {
       await db
         .from('source_schedules')
-        .update({
+        .upsert({
+          source_id: scheduleId,
+          run_state: 'running',
           next_run_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
           updated_at: new Date().toISOString()
-        })
-        .eq('id', source.schedule_id);
+        }, { onConflict: 'source_id' });
     } catch (lockErr) {
       console.warn('    [LOCK NOTICE] Could not acquire temporary schedule lease:', lockErr.message);
     }
@@ -249,16 +295,17 @@ export async function processSource(source) {
     return { ok: false, error: err.message };
   } finally {
     // Release lease and schedule next run time
-    if (source.schedule_id) {
+    if (scheduleId) {
       try {
         await db
           .from('source_schedules')
-          .update({
+          .upsert({
+            source_id: scheduleId,
+            run_state: 'idle',
             last_run_at: new Date().toISOString(),
             next_run_at: calculateNextCronRun(source.cron_expression, source.timezone),
             updated_at: new Date().toISOString()
-          })
-          .eq('id', source.schedule_id);
+          }, { onConflict: 'source_id' });
       } catch (schedErr) {
         console.warn('    [SCHEDULE NOTICE] Could not release lease and schedule next run:', schedErr.message);
       }

@@ -629,33 +629,36 @@ const DEFAULT_AD_SETTINGS = {
     isEnabled: true,
     vpn: {
       id: 'vpn',
-      title: 'Shield Your Browsing — 70% Off CyberShield VPN',
-      description: 'Stream in 4K with military-grade encryption, zero ISP throttling, and 100% no-logs policy.',
-      cta: 'Claim 70% Discount',
+      title: 'CyberGhost VPN — 83% Off + 3 Months Free',
+      description: 'Stream anonymously with ultra-fast 10Gbps servers, zero ISP throttling, and 100% verified no-logs privacy.',
+      cta: 'Claim 83% Discount',
+      mobileCta: 'Get 83% Off →',
       badge: 'VERIFIED SPONSOR',
-      url: 'https://nordvpn.com',
+      url: 'https://www.cyberghostvpn.com',
       image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80',
-      network: 'CyberShield Privacy'
+      network: 'CyberGhost Privacy'
     },
     dating: {
       id: 'dating',
-      title: 'Private Live HD Video Chat & Streams',
-      description: 'Connect with verified real-time video streamers worldwide with 100% discretion.',
-      cta: 'Join Free Today',
-      badge: '18+ EXCLUSIVE',
-      url: 'https://example.com/dating',
-      image: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80',
-      network: 'LiveStream Hub'
+      title: 'Live HD Cam Streams — Free 1-on-1 Chat',
+      description: 'Connect with verified real-time live streamers worldwide in crystal-clear 1080p 60fps.',
+      cta: 'Chat Free Now',
+      mobileCta: 'Chat Free →',
+      badge: '18+ VERIFIED',
+      url: 'https://stripchat.com',
+      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
+      network: 'LiveStream HD'
     },
     gaming: {
       id: 'gaming',
-      title: 'Play Next-Gen Cyber RPG — Free Instant Play',
-      description: 'Immerse in photorealistic 4K open-world combat directly in your mobile browser.',
-      cta: 'Play Now Free',
-      badge: 'HOT GAME',
-      url: 'https://example.com/gaming',
+      title: 'Nutaku Adults RPG — Instant Free Play',
+      description: 'Play top-rated uncensored browser RPG games directly on your device with no download required.',
+      cta: 'Play Free Now',
+      mobileCta: 'Play Free →',
+      badge: 'TOP RATED',
+      url: 'https://www.nutaku.net',
       image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop&q=80',
-      network: 'Nexus Gaming'
+      network: 'Nutaku Games'
     }
   }
 };
@@ -889,9 +892,13 @@ export const store = {
         const merged = { ...DEFAULT_AD_SETTINGS };
         Object.keys(DEFAULT_AD_SETTINGS).forEach((key) => {
           if (key === 'affiliate_fallbacks') {
+            const rawParsed = parsed.affiliate_fallbacks || {};
             merged.affiliate_fallbacks = {
               ...DEFAULT_AD_SETTINGS.affiliate_fallbacks,
-              ...(parsed.affiliate_fallbacks || {})
+              ...rawParsed,
+              vpn: isValidAffiliateCampaign(rawParsed.vpn) ? rawParsed.vpn : DEFAULT_AD_SETTINGS.affiliate_fallbacks.vpn,
+              dating: isValidAffiliateCampaign(rawParsed.dating) ? rawParsed.dating : DEFAULT_AD_SETTINGS.affiliate_fallbacks.dating,
+              gaming: isValidAffiliateCampaign(rawParsed.gaming) ? rawParsed.gaming : DEFAULT_AD_SETTINGS.affiliate_fallbacks.gaming
             };
           } else if (parsed[key]) {
             let code = parsed[key].code;

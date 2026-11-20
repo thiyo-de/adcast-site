@@ -103,9 +103,11 @@ export default async (req, context) => {
     });
   }
 
+  const githubRepo = process.env.GITHUB_REPOSITORY || 'thiyo-de/adcast-site';
+
   // 4. Dispatch GitHub Actions workflow with correlation ID and source_id inputs
   try {
-    const ghRes = await fetch('https://api.github.com/repos/thiyo-de/adcast-site/actions/workflows/auto-sync.yml/dispatches', {
+    const ghRes = await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/auto-sync.yml/dispatches`, {
       method: 'POST',
       headers: {
         'Accept': 'application/vnd.github.v3+json',

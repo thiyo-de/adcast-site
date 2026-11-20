@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { store, isPlaceholderAdCode } from './store';
+import { store, isPlaceholderAdCode, isValidAffiliateCampaign } from './store';
 import { computeCategoryCounts } from '../constants/categories';
 
 const DEFAULT_SUPABASE_URL = 'https://hrvlgnnetoexdbaaebfo.supabase.co';
@@ -447,10 +447,15 @@ export const api = {
         if (item.slot_id === 'affiliate_fallbacks') {
           try {
             const parsed = typeof item.code === 'string' ? JSON.parse(item.code) : item.code;
-            mapped.affiliate_fallbacks = {
-              ...mapped.affiliate_fallbacks,
-              ...parsed
-            };
+            if (parsed && typeof parsed === 'object') {
+              mapped.affiliate_fallbacks = {
+                ...mapped.affiliate_fallbacks,
+                ...parsed,
+                vpn: isValidAffiliateCampaign(parsed.vpn) ? parsed.vpn : mapped.affiliate_fallbacks?.vpn,
+                dating: isValidAffiliateCampaign(parsed.dating) ? parsed.dating : mapped.affiliate_fallbacks?.dating,
+                gaming: isValidAffiliateCampaign(parsed.gaming) ? parsed.gaming : mapped.affiliate_fallbacks?.gaming
+              };
+            }
           } catch (e) {}
           return;
         }
