@@ -90,12 +90,36 @@ export default function Watch({
   }, [videoId, allVideos]);
 
   useEffect(() => {
-    if (video) {
-      const pool = allVideos && allVideos.length > 0 ? allVideos : store.getVideos();
-      const related = store.getRelatedVideos(video, recommendationMode, 12, pool);
-      setRelatedVideos(related);
-    }
-  }, [video?.id, recommendationMode, allVideos]);
+    let isMounted = true;
+    const fetchRelated = async () => {
+      if (!video) return;
+      try {
+        const related = await api.getRelatedVideos(
+          recommendationMode === 'category' ? video.category : (recommendationMode === 'smart' ? video.category : 'All'),
+          video.id,
+          12
+        );
+        if (isMounted && related && related.length > 0) {
+          setRelatedVideos(related);
+          return;
+        }
+      } catch (err) {
+        console.warn('On-demand related video fetch fallback:', err);
+      }
+
+      // Fallback to local store
+      if (isMounted) {
+        const pool = allVideos && allVideos.length > 0 ? allVideos : store.getVideos();
+        const fallback = store.getRelatedVideos(video, recommendationMode, 12, pool);
+        setRelatedVideos(fallback);
+      }
+    };
+
+    fetchRelated();
+    return () => {
+      isMounted = false;
+    };
+  }, [video?.id, video?.category, recommendationMode]);
 
   const handleLike = () => {
     if (!video) return;

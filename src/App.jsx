@@ -44,12 +44,18 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [videos, setVideos] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(24);
+  const [totalVideos, setTotalVideos] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [sortBy, setSortBy] = useState('newest');
+  const [categoryCounts, setCategoryCounts] = useState({});
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isDevMode, setIsDevMode] = useState(store.isDevMode());
   const lastHomeScrollY = useRef(0);
-
-  const categoryCounts = React.useMemo(() => computeCategoryCounts(videos), [videos]);
 
   const navigate = (view, videoId = null, replace = false) => {
     // Preserve scroll offset when leaving home (UX07)
@@ -164,8 +170,59 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const fetchVideosPage = async (targetPage = 1, append = false) => {
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoadingVideos(true);
+    }
+
+    try {
+      const res = await api.getVideosPage({
+        page: targetPage,
+        pageSize,
+        category: selectedCategory,
+        search: searchQuery,
+        sort: sortBy
+      });
+
+      if (append) {
+        setVideos((prev) => [...prev, ...(res.items || [])]);
+      } else {
+        setVideos(res.items || []);
+      }
+      setTotalVideos(res.total || 0);
+      setHasMore(Boolean(res.hasMore));
+      setPage(targetPage);
+    } catch (err) {
+      console.warn('Failed to fetch paginated videos:', err);
+    } finally {
+      setIsLoadingVideos(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const loadCategoryCounts = async () => {
+    try {
+      const counts = await api.getCategoryCounts();
+      setCategoryCounts(counts);
+    } catch (err) {
+      console.warn('Initial category counts load notice:', err);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      fetchVideosPage(page + 1, true);
+    }
+  };
+
   useEffect(() => {
-    loadVideos();
+    fetchVideosPage(1, false);
+  }, [searchQuery, selectedCategory, sortBy]);
+
+  useEffect(() => {
+    loadCategoryCounts();
     loadAdSettings();
     const unsubscribeAds = api.subscribeToAdSettings((cloudAds) => {
       if (cloudAds) {
@@ -176,11 +233,6 @@ export default function App() {
       if (typeof unsubscribeAds === 'function') unsubscribeAds();
     };
   }, []);
-
-  const loadVideos = async () => {
-    const list = await api.getVideos();
-    setVideos(list);
-  };
 
   const loadAdSettings = async () => {
     try {
@@ -244,6 +296,13 @@ export default function App() {
         {currentView === 'home' && (
           <Home
             videos={videos}
+            totalVideos={totalVideos}
+            hasMore={hasMore}
+            isLoadingVideos={isLoadingVideos}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={handleLoadMore}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
             searchQuery={searchQuery}
             onClearSearch={() => setSearchQuery('')}
             onSelectVideo={handleSelectVideo}
@@ -268,7 +327,8 @@ export default function App() {
 
         {currentView === 'admin' && (
           <Admin onBack={() => {
-            loadVideos();
+            fetchVideosPage(1, false);
+            loadCategoryCounts();
             navigate('home');
           }} />
         )}

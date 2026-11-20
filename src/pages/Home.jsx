@@ -14,6 +14,13 @@ const SORT_OPTIONS = [
 
 export default function Home({
   videos = [],
+  totalVideos = 0,
+  hasMore = false,
+  isLoadingVideos = false,
+  isLoadingMore = false,
+  onLoadMore,
+  sortBy = 'newest',
+  onSortChange,
   onSelectVideo,
   onBookmarkToggle,
   isBookmarked,
@@ -22,7 +29,6 @@ export default function Home({
   selectedCategory = 'All',
   onSelectCategory
 }) {
-  const [sortBy, setSortBy] = useState('newest');
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [history, setHistory] = useState(() => store.getHistory());
 
@@ -43,34 +49,8 @@ export default function Home({
     setHistory(updated);
   };
 
-  // Filter and Sort Videos (Dual-Match on category and tags)
-  const q = (searchQuery || '').trim().toLowerCase();
-  let processedVideos = (videos || []).filter((v) => {
-    let matchesCategory = selectedCategory === 'All';
-    if (!matchesCategory) {
-      if (v.category === selectedCategory) {
-        matchesCategory = true;
-      } else if (selectedCategory !== 'Trending') {
-        const tagKeywords = CATEGORY_TAG_MAP[selectedCategory] || [];
-        matchesCategory = Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && tagKeywords.includes(t.toLowerCase()));
-      }
-    }
-
-    const matchesSearch =
-      !q ||
-      (v.title && v.title.toLowerCase().includes(q)) ||
-      (v.category && v.category.toLowerCase().includes(q)) ||
-      (v.tags && Array.isArray(v.tags) && v.tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(q)));
-
-    return matchesCategory && matchesSearch;
-  });
-
-  processedVideos = [...processedVideos].sort((a, b) => {
-    if (sortBy === 'top_rated') return (b.rating || 0) - (a.rating || 0);
-    if (sortBy === 'views') return (b.views || 0) - (a.views || 0);
-    if (sortBy === 'newest') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-    return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
-  });
+  // Server-paginated slice is rendered directly
+  const processedVideos = videos || [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
@@ -164,8 +144,8 @@ export default function Home({
             <span>{selectedCategory === 'All' ? 'Curated Streams' : `${selectedCategory}`}</span>
           </h2>
           <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-            {processedVideos.length}
-            <span className="hidden sm:inline ml-1 font-semibold">Available</span>
+            {totalVideos > 0 ? `${processedVideos.length} of ${totalVideos}` : processedVideos.length}
+            <span className="hidden sm:inline ml-1 font-semibold">Streams</span>
           </span>
         </div>
 
@@ -202,7 +182,9 @@ export default function Home({
                       key={opt.id}
                       type="button"
                       onClick={() => {
-                        setSortBy(opt.id);
+                        if (typeof onSortChange === 'function') {
+                          onSortChange(opt.id);
+                        }
                         setIsSortOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-bold transition-all text-left ${
@@ -299,6 +281,30 @@ export default function Home({
               </React.Fragment>
             );
           })}
+        </div>
+      )}
+
+      {/* Load More Pagination Controls */}
+      {hasMore && !isLoadingVideos && (
+        <div className="pt-6 pb-4 text-center">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="min-h-[46px] px-8 py-3 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-black uppercase tracking-wider shadow-xl shadow-rose-600/25 hover:shadow-rose-600/40 hover:scale-[1.02] active:scale-95 transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isLoadingMore ? (
+              <>
+                <i className="ri-loader-4-line not-italic text-sm animate-spin"></i>
+                <span>Loading More Streams...</span>
+              </>
+            ) : (
+              <>
+                <i className="ri-arrow-down-circle-line not-italic text-sm"></i>
+                <span>Load More Streams ({totalVideos - processedVideos.length} remaining)</span>
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>

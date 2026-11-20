@@ -34,11 +34,12 @@ export default function InterstitialTrigger({ currentView }) {
     const oldElements = document.querySelectorAll('[data-adcast-interstitial="true"]');
     oldElements.forEach((el) => el.remove());
 
-    // 4. Inject container and provider tag into body
+    // 4. Inject container and provider tag into body with fixed, centered overlay geometry
     const interstitialContainer = document.createElement('div');
     interstitialContainer.id = 'adcast-ad-injection-container';
     interstitialContainer.setAttribute('data-adcast-interstitial', 'true');
-    interstitialContainer.style.display = 'none';
+    interstitialContainer.style.cssText =
+      'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;pointer-events:none;';
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = slot.code;
@@ -46,6 +47,14 @@ export default function InterstitialTrigger({ currentView }) {
     // Non-script elements (e.g. <ins class="eas6a97888e35" data-zoneid="6093518"></ins>)
     const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     interstitialContainer.innerHTML = nonScripts;
+
+    const insEl = interstitialContainer.querySelector('ins');
+    if (insEl) {
+      insEl.style.setProperty('margin', '0 auto', 'important');
+      insEl.style.setProperty('display', 'block', 'important');
+      insEl.style.setProperty('text-align', 'center', 'important');
+      insEl.style.setProperty('pointer-events', 'auto', 'important');
+    }
     document.body.appendChild(interstitialContainer);
 
     // Scripts (ad-provider.js and push serve)

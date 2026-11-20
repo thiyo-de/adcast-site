@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { store, isPlaceholderAdCode } from './store';
+import { computeCategoryCounts } from '../constants/categories';
 
 const DEFAULT_SUPABASE_URL = 'https://hrvlgnnetoexdbaaebfo.supabase.co';
 const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhydmxnbm5ldG9leGRiYWFlYmZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzMyMTMsImV4cCI6MjExMDA0OTIxM30.ZtBow6MB1bE4eusuSAjuHredn3FaL6y4dkoWnkK3zhM';
@@ -109,6 +110,161 @@ export const api = {
     } catch (err) {
       console.warn('Supabase fetch failed, using local store:', err);
       return store.getVideos();
+    }
+  },
+
+  async getVideosPage({ page = 1, pageSize = 24, category = 'All', search = '', sort = 'newest' } = {}) {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return this.getLocalVideosPage({ page, pageSize, category, search, sort });
+    }
+
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase
+        .from('videos')
+        .select('*', { count: 'exact' })
+        .or('is_active.eq.true,is_active.is.null')
+        .or('publication_state.eq.published,publication_state.is.null')
+        .range(from, to);
+
+      if (category && category !== 'All') {
+        query = query.eq('category', category);
+      }
+
+      const q = (search || '').trim();
+      if (q) {
+        query = query.or(`title.ilike.%${q}%,category.ilike.%${q}%`);
+      }
+
+      switch (sort) {
+        case 'views':
+        case 'trending':
+          query = query.order('views', { ascending: false });
+          break;
+        case 'top_rated':
+          query = query.order('rating', { ascending: false });
+          break;
+        case 'newest':
+        default:
+          query = query.order('created_at', { ascending: false });
+          break;
+      }
+
+      const { data, count, error } = await query;
+      if (error) {
+        console.warn('Supabase getVideosPage failed, falling back to local store:', error);
+        return this.getLocalVideosPage({ page, pageSize, category, search, sort });
+      }
+
+      const total = typeof count === 'number' ? count : (data ? data.length : 0);
+      return {
+        items: data || [],
+        total,
+        page,
+        pageSize,
+        hasMore: total > to + 1
+      };
+    } catch (err) {
+      console.warn('Supabase getVideosPage error, falling back to local store:', err);
+      return this.getLocalVideosPage({ page, pageSize, category, search, sort });
+    }
+  },
+
+  getLocalVideosPage({ page = 1, pageSize = 24, category = 'All', search = '', sort = 'newest' } = {}) {
+    let pool = store.getVideos() || [];
+    if (category && category !== 'All') {
+      pool = pool.filter((v) => v.category === category);
+    }
+    const q = (search || '').trim().toLowerCase();
+    if (q) {
+      pool = pool.filter(
+        (v) =>
+          (v.title && v.title.toLowerCase().includes(q)) ||
+          (v.category && v.category.toLowerCase().includes(q))
+      );
+    }
+    switch (sort) {
+      case 'views':
+      case 'trending':
+        pool.sort((a, b) => (b.views || 0) - (a.views || 0));
+        break;
+      case 'top_rated':
+        pool.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        break;
+      case 'newest':
+      default:
+        pool.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        break;
+    }
+    const total = pool.length;
+    const from = (page - 1) * pageSize;
+    const items = pool.slice(from, from + pageSize);
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      hasMore: total > from + pageSize
+    };
+  },
+
+  async getRelatedVideos(category, excludeId = null, limit = 12) {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      const pool = store.getVideos() || [];
+      return pool
+        .filter((v) => (!excludeId || v.id !== excludeId) && (!category || category === 'All' || v.category === category))
+        .slice(0, limit);
+    }
+    try {
+      let query = supabase
+        .from('videos')
+        .select('*')
+        .or('is_active.eq.true,is_active.is.null')
+        .or('publication_state.eq.published,publication_state.is.null')
+        .limit(limit);
+
+      if (category && category !== 'All') {
+        query = query.eq('category', category);
+      }
+      if (excludeId) {
+        query = query.neq('id', excludeId);
+      }
+      query = query.order('views', { ascending: false });
+
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) {
+        const pool = store.getVideos() || [];
+        return pool.filter((v) => !excludeId || v.id !== excludeId).slice(0, limit);
+      }
+      return data;
+    } catch {
+      const pool = store.getVideos() || [];
+      return pool.filter((v) => !excludeId || v.id !== excludeId).slice(0, limit);
+    }
+  },
+
+  async getCategoryCounts() {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return computeCategoryCounts(store.getVideos());
+    }
+    try {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('category')
+        .or('is_active.eq.true,is_active.is.null')
+        .or('publication_state.eq.published,publication_state.is.null');
+
+      if (error || !data) {
+        return computeCategoryCounts(store.getVideos());
+      }
+      return computeCategoryCounts(data);
+    } catch {
+      return computeCategoryCounts(store.getVideos());
     }
   },
 

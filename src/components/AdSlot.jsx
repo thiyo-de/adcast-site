@@ -91,41 +91,69 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = effectiveCode;
 
-    // Helper: force inline styles on injected <ins>, inner tables/divs, and <img> elements
-    // Uses a recursion guard (isApplying) and childList-only observer to prevent infinite loops.
+    // Helper: force inline styles using setProperty without wiping out other inline properties
+    // Uses a recursion guard (isApplying) to safely allow attribute & childList observation without infinite loops.
     let isApplying = false;
     const forceAdStyles = (root) => {
       if (!root || isApplying) return;
       isApplying = true;
       try {
-        const insEl = root.querySelector('ins');
-        if (insEl) {
+        const insElements = root.querySelectorAll('ins');
+        insElements.forEach((insEl) => {
           if (slotId === 'slot_native_feed') {
-            // Native: fill the whole card container, center contents
-            insEl.style.cssText = 'display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:300px!important;justify-content:center!important;align-items:center!important;text-align:center!important;margin:0 auto!important;float:none!important;';
+            insEl.style.setProperty('width', '100%', 'important');
+            insEl.style.setProperty('height', '100%', 'important');
+            insEl.style.setProperty('min-height', '300px', 'important');
+            insEl.style.setProperty('display', 'block', 'important');
+            insEl.style.setProperty('margin', '0 auto', 'important');
+            insEl.style.setProperty('float', 'none', 'important');
           } else if (slotId === 'slot_sticky_footer') {
-            // Sticky: shrink-wrap to content, center in row
-            insEl.style.cssText = 'display:block!important;margin:0 auto!important;text-align:center!important;max-width:100%!important;float:none!important;';
+            insEl.style.setProperty('width', '100%', 'important');
+            insEl.style.setProperty('max-width', '100%', 'important');
+            insEl.style.setProperty('height', 'auto', 'important');
+            insEl.style.setProperty('display', 'block', 'important');
+            insEl.style.setProperty('margin', '0 auto', 'important');
+            insEl.style.setProperty('float', 'none', 'important');
+            insEl.style.setProperty('text-align', 'center', 'important');
           } else {
-            // Banners (top / below-player): center, cancel float
-            insEl.style.cssText = 'display:block!important;margin:0 auto!important;max-width:100%!important;text-align:center!important;float:none!important;';
+            // Top banner and below-player banner
+            insEl.style.setProperty('width', '100%', 'important');
+            insEl.style.setProperty('max-width', '100%', 'important');
+            insEl.style.setProperty('height', 'auto', 'important');
+            insEl.style.setProperty('display', 'block', 'important');
+            insEl.style.setProperty('margin', '0 auto', 'important');
+            insEl.style.setProperty('float', 'none', 'important');
+            insEl.style.setProperty('text-align', 'center', 'important');
           }
-        }
-
-        // 2. Force center and cancel floats on all internal ExoClick containers (tables, divs, iframes, links)
-        root.querySelectorAll('ins > div, ins > table, ins > a, ins iframe').forEach((el) => {
-          el.style.marginLeft = 'auto';
-          el.style.marginRight = 'auto';
-          el.style.float = 'none';
-          el.style.textAlign = 'center';
         });
 
-        // 3. Force images: in native card, expand thumbnail; in banners, center horizontally
+        // 3. Center all children inside <ins> (div, table, iframe, a, img)
+        root.querySelectorAll('ins > *, ins table, ins div, ins iframe, ins a').forEach((el) => {
+          el.style.setProperty('margin-left', 'auto', 'important');
+          el.style.setProperty('margin-right', 'auto', 'important');
+          el.style.setProperty('float', 'none', 'important');
+          el.style.setProperty('text-align', 'center', 'important');
+          el.style.setProperty('max-width', '100%', 'important');
+          if (el.tagName !== 'SPAN' && el.tagName !== 'I') {
+            el.style.setProperty('display', 'block', 'important');
+          }
+        });
+
+        // 4. Force banner images centered; in native feed, make thumbnail fill the frame
         root.querySelectorAll('img').forEach((img) => {
           if (slotId === 'slot_native_feed') {
-            img.style.cssText += 'display:block!important;width:100%!important;max-height:220px!important;object-fit:cover!important;margin:0 auto!important;border-radius:12px!important;float:none!important;';
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('width', '100%', 'important');
+            img.style.setProperty('max-height', '240px', 'important');
+            img.style.setProperty('object-fit', 'cover', 'important');
+            img.style.setProperty('margin', '0 auto', 'important');
+            img.style.setProperty('border-radius', '12px', 'important');
+            img.style.setProperty('float', 'none', 'important');
           } else {
-            img.style.cssText += 'display:block!important;margin:0 auto!important;max-width:100%!important;float:none!important;';
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('margin', '0 auto', 'important');
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('float', 'none', 'important');
           }
         });
       } finally {
@@ -133,8 +161,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       }
     };
 
-    // 4. Attach MutationObserver to catch late-arriving async ExoClick creatives
-    // Strictly observe childList only (new elements added), NEVER attributes (prevents infinite loop)
+    // 5. Attach MutationObserver with recursion guard
     let observer = null;
     try {
       observer = new MutationObserver(() => {
@@ -142,13 +169,42 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       });
       observer.observe(container, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
       });
     } catch (e) {
       // Fallback if MutationObserver is not supported
     }
 
-    let retryTimer = null;
+    // 5. Short poller (every 500ms for 7 seconds = 14 intervals) to catch late ExoClick creative swaps
+    let pollCount = 0;
+    const pollInterval = setInterval(() => {
+      pollCount++;
+      if (isMounted) forceAdStyles(container);
+      if (pollCount >= 14) clearInterval(pollInterval);
+    }, 500);
+
+    // 6. Reapply on resize, orientationchange, and visibilitychange
+    const handleReapply = () => {
+      if (isMounted) forceAdStyles(container);
+    };
+    window.addEventListener('resize', handleReapply);
+    window.addEventListener('orientationchange', handleReapply);
+    document.addEventListener('visibilitychange', handleReapply);
+
+    // 9. No-fill timeout: if after 6.5s no content rendered, fall back cleanly rather than leaving empty black card
+    const noFillTimer = setTimeout(() => {
+      if (!isMounted) return;
+      const insEl = container.querySelector('ins');
+      const hasContent =
+        container.querySelector('iframe, img, video, table') ||
+        (insEl && (insEl.offsetHeight > 30 || insEl.childElementCount > 0));
+      if (!hasContent) {
+        setIsFallback(true);
+      }
+    }, 6500);
+
     const scripts = tempDiv.querySelectorAll('script');
     if (scripts.length > 0) {
       const nonScripts = effectiveCode.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -166,11 +222,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         };
         container.appendChild(newScript);
       });
-
-      // Re-apply after a short delay to override any styles ExoClick injects post-load
-      retryTimer = setTimeout(() => {
-        if (isMounted) forceAdStyles(container);
-      }, 800);
     } else {
       container.innerHTML = effectiveCode;
       forceAdStyles(container);
@@ -179,7 +230,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     return () => {
       isMounted = false;
       if (observer) observer.disconnect();
-      if (retryTimer) clearTimeout(retryTimer);
+      clearInterval(pollInterval);
+      clearTimeout(noFillTimer);
+      window.removeEventListener('resize', handleReapply);
+      window.removeEventListener('orientationchange', handleReapply);
+      document.removeEventListener('visibilitychange', handleReapply);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
