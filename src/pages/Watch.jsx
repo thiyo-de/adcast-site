@@ -180,7 +180,7 @@ export default function Watch({
   const rating = video.rating || null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-32 sm:pb-36 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-4 space-y-6">
       {/* Cinema Mode Dimmer Overlay */}
       {isCinemaMode && (
         <div

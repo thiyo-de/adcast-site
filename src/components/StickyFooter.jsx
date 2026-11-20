@@ -25,7 +25,7 @@ export default function StickyFooter({ currentView }) {
     const checkRenderedCreative = () => {
       if (!wrapperRef.current) return;
       const ad = wrapperRef.current.querySelector('[data-ad-state]');
-      const isCurrentlyVisible = ad?.dataset.adState === 'loaded' || ad?.dataset.adState === 'fallback';
+      const isCurrentlyVisible = ad?.dataset.adState === 'loaded';
 
       setIsLoaded((prev) => (prev !== isCurrentlyVisible ? isCurrentlyVisible : prev));
     };

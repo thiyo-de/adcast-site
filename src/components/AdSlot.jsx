@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { store, useAdSettings, isValidAffiliateCampaign } from '../services/store';
+import { store, useAdSettings } from '../services/store';
 import { hasRenderedAd, getAdFrameLayout } from '../services/adRendering';
 import { useAdBlock } from '../services/adBlockContext';
 import { AD_BLOCK_STATES } from '../services/adBlockDetection';
@@ -11,35 +11,9 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const adSettings = useAdSettings();
   const slot = adSettings[slotId];
-  const affiliateSettings = adSettings.affiliate_fallbacks || {};
   const isDevMode = store.isDevMode();
   const { isNoticeOpen, detectionState } = useAdBlock();
   const isAdBlockSuspected = isNoticeOpen || detectionState === AD_BLOCK_STATES.SUSPECTED_BLOCKING;
-
-  // Pick appropriate campaign with valid fallback cascade
-  const getCampaign = () => {
-    switch (slotId) {
-      case 'slot_native_feed': {
-        if (isValidAffiliateCampaign(affiliateSettings.dating)) return affiliateSettings.dating;
-        if (isValidAffiliateCampaign(affiliateSettings.vpn)) return affiliateSettings.vpn;
-        return affiliateSettings.dating;
-      }
-      case 'slot_below_player': {
-        if (isValidAffiliateCampaign(affiliateSettings.vpn)) return affiliateSettings.vpn;
-        if (isValidAffiliateCampaign(affiliateSettings.gaming)) return affiliateSettings.gaming;
-        return affiliateSettings.vpn;
-      }
-      case 'slot_sticky_footer':
-      case 'slot_top_banner':
-      default: {
-        if (isValidAffiliateCampaign(affiliateSettings.vpn)) return affiliateSettings.vpn;
-        if (isValidAffiliateCampaign(affiliateSettings.gaming)) return affiliateSettings.gaming;
-        return affiliateSettings.vpn;
-      }
-    }
-  };
-
-  const campaign = getCampaign();
 
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window !== 'undefined') return window.innerWidth < 768;
@@ -235,60 +209,21 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
 
   if (!slot || !slot.isActive) return null;
 
-  const handleAffiliateClick = () => {
-    if (campaign?.url) {
-      window.open(campaign.url, '_blank', 'noopener,noreferrer,sponsored');
-    }
-  };
-
-  const hasFallback = Boolean(!isAdBlockSuspected && affiliateSettings.isEnabled && isValidAffiliateCampaign(campaign));
-
-  const showDisclosure = !isFallback && slotId !== 'slot_sticky_footer' && slotId !== 'slot_native_feed';
+  // Clean collapse: if ad fails, unconfigured, or adblock suspected, collapse space completely (0px)
+  if (isFallback || isAdBlockSuspected) return null;
 
   if (isNative) {
-    if (isFallback && !hasFallback) return null;
-
     return (
       <div
         data-ad-slot={slotId}
-        data-ad-state={isFallback ? (hasFallback ? 'fallback' : 'empty') : isLoaded ? 'loaded' : 'loading'}
+        data-ad-state={isLoaded ? 'loaded' : 'loading'}
         className={`group relative h-full min-h-[280px] sm:min-h-[300px] w-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl ${className}`}
       >
         {/* Dev Mode Badge */}
         {isDevMode && devBadge && (
           <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md pointer-events-none">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-            {isFallback ? 'Affiliate Fallback' : `${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
-          </div>
-        )}
-
-        {/* Fallback Creative (Full Card Edge-to-Edge) */}
-        {isFallback && hasFallback && (
-          <div
-            onClick={handleAffiliateClick}
-            className="absolute inset-0 w-full h-full cursor-pointer overflow-hidden flex flex-col justify-end p-3.5 group rounded-2xl"
-          >
-            <img
-              src={campaign.image}
-              alt={campaign.title}
-              loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
-            <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none z-20">
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
-                {campaign.badge || 'SPONSORED'}
-              </span>
-            </div>
-            <div className="relative z-10 space-y-2">
-              <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 drop-shadow-md">
-                {campaign.title}
-              </h4>
-              <button className="min-h-[36px] w-full py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1">
-                <span>{campaign.mobileCta || campaign.cta || 'Learn More'}</span>
-                <i className="ri-arrow-right-line text-xs"></i>
-              </button>
-            </div>
+            {`${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
           </div>
         )}
 
@@ -296,7 +231,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         <div
           ref={outerWrapperRef}
           className="adcast-ad-frame adcast-ad-native-container absolute inset-0 w-full h-full overflow-hidden rounded-2xl flex items-center justify-center"
-          style={{ display: isFallback && hasFallback ? 'none' : undefined }}
         >
           <div
             ref={containerRef}
@@ -311,38 +245,24 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
             SPONSORED
           </span>
         </div>
-        <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm pointer-events-none z-20">
-          AD ↗
-        </div>
       </div>
     );
   }
 
-  // Clean collapse: if fallback triggered but no valid fallback campaign exists, collapse space completely (0px)
-  if (isFallback && !hasFallback) return null;
-
-  const effectiveMaxWidth = slotId === 'slot_sticky_footer' && isFallback
-    ? (isMobileViewport ? 'min(460px, 96vw)' : frameWidth)
-    : frameWidth;
+  const showDisclosure = slotId !== 'slot_sticky_footer' && slotId !== 'slot_native_feed';
 
   return (
     <div
       data-ad-slot={slotId}
-      data-ad-state={isFallback ? (hasFallback ? 'fallback' : 'empty') : isLoaded ? 'loaded' : 'loading'}
+      data-ad-state={isLoaded ? 'loaded' : 'loading'}
       className={`relative min-w-0 w-full mx-auto self-start flex flex-col items-center ${className}`}
-      style={{ maxWidth: effectiveMaxWidth }}
+      style={{ maxWidth: frameWidth }}
     >
       {/* Dev Mode Badge */}
       {isDevMode && devBadge && (
         <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-          {isFallback ? (
-            <span className="flex items-center gap-1">
-              <i className="ri-flashlight-line text-xs"></i> Affiliate Fallback
-            </span>
-          ) : (
-            `${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`
-          )}
+          {`${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
         </div>
       )}
 
@@ -355,93 +275,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         </div>
       )}
 
-      {/* Render Fallback Card if unconfigured or failed */}
-      {isFallback && hasFallback && (
-        <div className="w-full h-full flex items-center justify-center">
-          {/* Top Leaderboard Fallback (Sleek low-profile horizontal banner on mobile & desktop) */}
-          {slotId === 'slot_top_banner' && (
-            <div
-              onClick={handleAffiliateClick}
-              className="w-full py-2 px-3 sm:py-3 sm:px-4 rounded-xl sm:rounded-2xl glass-card border border-rose-500/20 hover:border-rose-500/50 shadow-md cursor-pointer group transition-all flex items-center justify-between gap-2.5"
-            >
-              <div className="flex items-center gap-2.5 text-left min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 group-hover:scale-105 transition-transform">
-                  <i className="ri-shield-keyhole-line not-italic text-base sm:text-xl"></i>
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-rose-400 bg-rose-500/15 px-1.5 py-0.5 rounded">
-                      {campaign.badge || 'VERIFIED DEAL'}
-                    </span>
-                    <span className="text-[10px] sm:text-xs text-slate-400 font-semibold truncate hidden xs:inline">{campaign.network}</span>
-                  </div>
-                  <h4 className="text-xs sm:text-sm font-extrabold text-slate-100 group-hover:text-rose-400 transition-colors truncate">
-                    {campaign.title}
-                  </h4>
-                </div>
-              </div>
-              <button className="min-h-[32px] sm:min-h-[38px] px-3 sm:px-5 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-black text-[11px] sm:text-xs shadow-md group-hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center justify-center gap-1">
-                <span>{campaign.mobileCta || campaign.cta}</span>
-                <i className="ri-arrow-right-line text-xs"></i>
-              </button>
-            </div>
-          )}
-
-          {/* Below-Player Fallback */}
-          {slotId === 'slot_below_player' && (
-            <div
-              onClick={handleAffiliateClick}
-              className="w-full p-5 sm:p-6 rounded-2xl glass-card border border-rose-500/20 hover:border-rose-500/50 shadow-xl cursor-pointer group transition-all text-center max-w-2xl mx-auto flex flex-col items-center justify-center"
-            >
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
-                <i className="ri-shield-check-fill not-italic"></i> {campaign.badge || 'SPONSORED OFFER'}
-              </div>
-              <h3 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white mb-1.5 group-hover:text-rose-500 transition-colors">
-                {campaign.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 max-w-lg mb-4">
-                {campaign.description}
-              </p>
-              <button className="min-h-[42px] px-8 py-2 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-extrabold text-xs shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-1.5">
-                <span>{campaign.cta}</span>
-                <i className="ri-arrow-right-line text-sm"></i>
-              </button>
-            </div>
-          )}
-
-          {/* Sticky Footer Fallback (Guaranteed safe spacing so close button NEVER collides with CTA) */}
-          {slotId === 'slot_sticky_footer' && (
-            <div
-              onClick={handleAffiliateClick}
-              className="w-full h-12 sm:h-14 flex items-center justify-between pl-3 sm:pl-4 pr-11 sm:pr-8 cursor-pointer group bg-slate-900/95 hover:bg-slate-900 text-white transition-colors rounded-2xl sm:rounded-full border border-white/10 shadow-2xl"
-            >
-              <div className="flex items-center gap-2 text-left min-w-0 pr-2">
-                <div className="w-7 h-7 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-400 flex items-center justify-center shrink-0">
-                  <i className="ri-shield-star-fill not-italic text-sm"></i>
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-rose-400 block sm:hidden">
-                    {campaign.badge || 'SPONSORED'}
-                  </span>
-                  <span className="text-xs sm:text-sm font-bold text-white group-hover:text-rose-400 transition-colors truncate block">
-                    {campaign.title}
-                  </span>
-                </div>
-              </div>
-              <button className="min-h-[30px] sm:min-h-[34px] px-3 sm:px-4 py-1 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-black text-[11px] sm:text-xs shrink-0 shadow-md transition-all">
-                {campaign.mobileCta || campaign.cta}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Keep the injection node mounted so changed settings/device zones can recover after no-fill. */}
+      {/* Live Ad Container */}
       <div
         ref={outerWrapperRef}
         className="adcast-ad-frame relative w-full min-w-0 overflow-hidden flex items-center justify-center"
         style={{
-          display: isFallback ? 'none' : undefined,
           minHeight: !isLoaded ? frameHeight : undefined,
         }}
       >

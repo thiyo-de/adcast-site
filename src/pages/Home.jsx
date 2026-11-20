@@ -54,7 +54,7 @@ export default function Home({
   const processedVideos = videos || [];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-32 sm:pb-36 space-y-5">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-4 space-y-5">
       {/* 1. Top Leaderboard Banner (Fully Responsive Container) */}
       <div className="w-full min-w-0 my-2 flex justify-center">
         <div className="w-full min-w-0 flex justify-center">

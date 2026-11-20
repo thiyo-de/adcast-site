@@ -626,7 +626,7 @@ const DEFAULT_AD_SETTINGS = {
     frequencyHours: 1
   },
   affiliate_fallbacks: {
-    isEnabled: true,
+    isEnabled: false,
     vpn: {
       id: 'vpn',
       title: 'CyberGhost VPN — 83% Off + 3 Months Free',

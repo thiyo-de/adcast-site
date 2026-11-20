@@ -1343,7 +1343,7 @@ export default function Admin({ onBack }) {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={adSettings.affiliate_fallbacks?.isEnabled ?? true}
+                    checked={adSettings.affiliate_fallbacks?.isEnabled ?? false}
                     onChange={(e) =>
                       handleAffiliateUpdate({ isEnabled: e.target.checked })
                     }
