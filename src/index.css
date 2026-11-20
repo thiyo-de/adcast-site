@@ -18,8 +18,48 @@
   margin-inline: auto;
   text-decoration: none;
 }
-.adcast-ad-native > ins {
-  width: 100%;
+.adcast-ad-native,
+.adcast-ad-native-container,
+.adcast-ad-native > ins,
+.adcast-ad-native-container > ins,
+.adcast-ad-native table,
+.adcast-ad-native-container table,
+.adcast-ad-native tbody,
+.adcast-ad-native-container tbody,
+.adcast-ad-native tr,
+.adcast-ad-native-container tr,
+.adcast-ad-native td,
+.adcast-ad-native-container td,
+.adcast-ad-native a,
+.adcast-ad-native-container a,
+.adcast-ad-native iframe,
+.adcast-ad-native-container iframe {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+}
+
+.adcast-ad-native img,
+.adcast-ad-native video,
+.adcast-ad-native-container img,
+.adcast-ad-native-container video {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  border: none !important;
+  border-radius: 1rem !important;
 }
 .adcast-ad-content > iframe,
 .adcast-ad-content > ins > iframe,

@@ -73,18 +73,20 @@ async function checkNetworkAdBlock() {
     return false;
   }
 
-  // Probe both ExoClick network script (blocked by Opera/Brave) and Google AdSense
+  // Probe globally distributed major ad network endpoints (Google AdSense & DoubleClick).
+  // CRITICAL: We NEVER probe ExoClick (a.magsrv.com) here to ensure an ExoClick server outage
+  // or auction failure can NEVER falsely trigger an ad-blocker lockout for visitors.
   const canaries = [
-    'https://a.magsrv.com/ad-provider.js',
-    'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
+    'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+    'https://securepubads.g.doubleclick.net/tag/js/gpt.js'
   ];
 
-  let anyCanaryBlocked = false;
+  let blockedCanariesCount = 0;
 
   for (const url of canaries) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2000);
+      const timeout = setTimeout(() => controller.abort(), 2500);
       await fetch(url, {
         method: 'GET',
         mode: 'no-cors',
@@ -95,21 +97,18 @@ async function checkNetworkAdBlock() {
     } catch (err) {
       // If blocked by browser extension/Shields/Opera (net::ERR_BLOCKED_BY_CLIENT)
       if (err && err.name !== 'AbortError') {
-        anyCanaryBlocked = true;
-        break;
+        blockedCanariesCount++;
       }
     }
   }
 
-  // If an ad canary failed, verify whether the user actually has internet connectivity
-  // to avoid falsely locking out users during offline state, captive portal, or packet loss
-  if (anyCanaryBlocked) {
+  // Require BOTH independent global canaries to fail to confirm true network-level ad blocking
+  if (blockedCanariesCount >= 2) {
     const isOnlineAndReachable = await checkNeutralConnectivity();
     if (isOnlineAndReachable) {
-      // Internet is active, but ad domains were specifically blocked -> true adblocker
+      // Internet is active, but major ad networks were specifically blocked -> true ad blocker
       return true;
     }
-    // Neutral network also failed -> general network drop, do not falsely accuse
     return false;
   }
 

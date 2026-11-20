@@ -31,6 +31,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
+  // Development modules are not immutable assets. Never cache Vite's source or runtime.
+  if (url.origin === self.location.origin &&
+      /^\/(src\/|node_modules\/|@vite\/|@id\/|@fs\/|@react-refresh)/.test(url.pathname)) return;
+
   // 1. Strict Exclusion: Never intercept video streams, APIs, or ad providers
   const isExcluded =
     url.pathname.endsWith('.mp4') ||

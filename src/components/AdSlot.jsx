@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { store, useAdSettings } from '../services/store';
-import { hasRenderedAd } from '../services/adRendering';
+import { store, useAdSettings, isValidAffiliateCampaign } from '../services/store';
+import { hasRenderedAd, getAdFrameLayout } from '../services/adRendering';
 
 export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const containerRef = useRef(null);
@@ -42,22 +42,34 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Device-adaptive zone switching:
-  // Top banner: mobile 300x250 banner zone 6093362 (<768px), desktop 728x90 zone 6093488 (>=768px)
+  // Device-adaptive zone switching based on Ads-Prop specifications:
+  // Top banner: mobile 300x250 banner zone 6096160 (<768px), desktop 728x90 zone 6093488 (>=768px)
   // Sticky bottom: mobile zone 6096158 (<768px), desktop zone 6093426 (>=768px)
   const rawCode = slot?.code || '';
   let effectiveCode = rawCode;
   if (slotId === 'slot_top_banner' && rawCode) {
+    const desktopZone = slot.desktopZoneId || '6093488';
+    const mobileZone = slot.mobileZoneId || '6096160';
     if (isMobileViewport) {
-      effectiveCode = rawCode.includes('6093488') ? rawCode.replace('6093488', '6093362') : (rawCode.includes('6096160') ? rawCode.replace('6096160', '6093362') : rawCode);
+      effectiveCode = rawCode.includes(desktopZone)
+        ? rawCode.replaceAll(desktopZone, mobileZone)
+        : (rawCode.includes('6093362') ? rawCode.replaceAll('6093362', mobileZone) : rawCode);
     } else {
-      effectiveCode = rawCode.includes('6093362') ? rawCode.replace('6093362', '6093488') : (rawCode.includes('6096160') ? rawCode.replace('6096160', '6093488') : rawCode);
+      effectiveCode = rawCode.includes(mobileZone)
+        ? rawCode.replaceAll(mobileZone, desktopZone)
+        : (rawCode.includes('6093362') ? rawCode.replaceAll('6093362', desktopZone) : rawCode);
     }
   } else if (slotId === 'slot_sticky_footer' && rawCode) {
+    const desktopZone = slot.desktopZoneId || '6093426';
+    const mobileZone = slot.mobileZoneId || '6096158';
     if (isMobileViewport) {
-      effectiveCode = rawCode.includes('6093426') ? rawCode.replace('6093426', '6096158') : rawCode;
+      effectiveCode = rawCode.includes(desktopZone)
+        ? rawCode.replaceAll(desktopZone, mobileZone)
+        : rawCode;
     } else {
-      effectiveCode = rawCode.includes('6096158') ? rawCode.replace('6096158', '6093426') : rawCode;
+      effectiveCode = rawCode.includes(mobileZone)
+        ? rawCode.replaceAll(mobileZone, desktopZone)
+        : rawCode;
     }
   }
 
@@ -103,14 +115,27 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     // Fit oversized fixed creatives proportionally; never crop or stretch their contents.
     const fitFrame = () => {
       const wrapper = outerWrapperRef.current;
-      if (!wrapper || !wrapper.clientWidth) return;
-      const naturalWidth = Math.max(container.offsetWidth,
-        ...[...container.querySelectorAll('iframe, img, video, ins > *')].map(el => el.offsetWidth || 0));
-      const scale = Math.min(1, wrapper.clientWidth / (naturalWidth || 1));
-      container.style.transform = scale < 1 ? `scale(${scale})` : '';
-      wrapper.style.height = `${Math.ceil(container.scrollHeight * scale)}px`;
+      if (!isMounted || !wrapper || !wrapper.clientWidth) return;
+      if (isNative) {
+        container.style.transform = 'none';
+        wrapper.style.height = '100%';
+        return;
+      }
+      // Measure untransformed bounds, then fit the entire creative within the card.
+      container.style.transform = 'none';
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const scaleX = wrapper.offsetWidth ? wrapperRect.width / wrapper.offsetWidth : 1;
+      const scaleY = wrapper.offsetHeight ? wrapperRect.height / wrapper.offsetHeight : scaleX;
+      if (scaleX <= 0 || scaleY <= 0) return;
+      const layout = getAdFrameLayout(wrapper.clientWidth, container.getBoundingClientRect(),
+        [...container.querySelectorAll('ins, iframe, img, video, table, ins div, ins a')]
+          .map(element => element.getBoundingClientRect()), { x: scaleX, y: scaleY });
+      if (!layout) return;
+      container.style.transform = `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`;
+      wrapper.style.height = `${layout.height}px`;
     };
     const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fitFrame) : null;
+    const observedCreatives = new WeakSet();
     resizeObserver?.observe(outerWrapperRef.current);
     resizeObserver?.observe(container);
     window.addEventListener('resize', fitFrame);
@@ -120,13 +145,20 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     let lastDeliveredAt = Date.now();
     const updateDelivery = () => {
       if (!isMounted) return;
+      // Provider frames can resize without resizing their absolute-positioned wrapper.
+      container.querySelectorAll('ins, iframe, img, video').forEach(element => {
+        if (!observedCreatives.has(element)) {
+          resizeObserver?.observe(element);
+          observedCreatives.add(element);
+        }
+      });
       fitFrame();
       const delivered = hasRenderedAd(container, loadedFrames);
       setIsLoaded(delivered);
       if (delivered) {
         lastDeliveredAt = Date.now();
         setIsFallback(false);
-      } else if (Date.now() - lastDeliveredAt >= 10000) {
+      } else if (!isNative && Date.now() - lastDeliveredAt >= 3500) {
         // Also handle a later provider refresh that leaves the placement empty.
         setIsFallback(true);
       }
@@ -136,12 +168,24 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       updateDelivery();
     };
     container.addEventListener('load', handleLoad, true);
-    const observer = new MutationObserver(updateDelivery);
-    observer.observe(container, { childList: true, subtree: true });
+    const observer = new MutationObserver(records => {
+      // Ignore our own transform writes; react to provider sizing and content changes.
+      if (records.some(record => record.type === 'childList' || record.target !== container)) updateDelivery();
+    });
+    observer.observe(container, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['style', 'class', 'width', 'height'],
+    });
     const refreshInterval = setInterval(updateDelivery, 1000);
     const noFillTimer = setTimeout(() => {
-      if (isMounted && !hasRenderedAd(container, loadedFrames)) setIsFallback(true);
-    }, 10000);
+      if (isMounted && !hasRenderedAd(container, loadedFrames)) {
+        if (!isNative) {
+          setIsFallback(true);
+        } else if (hasFallback) {
+          setIsFallback(true);
+        }
+      }
+    }, 3500);
 
     const scripts = tempDiv.querySelectorAll('script');
     if (scripts.length > 0) {
@@ -185,21 +229,92 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     }
   };
 
-  const hasFallback = Boolean(affiliateSettings.isEnabled && campaign?.url);
+  const hasFallback = Boolean(affiliateSettings.isEnabled && isValidAffiliateCampaign(campaign));
 
   const showDisclosure = slotId !== 'slot_sticky_footer' && slotId !== 'slot_native_feed';
+
+  if (isNative) {
+    return (
+      <div
+        data-ad-slot={slotId}
+        data-ad-state={isFallback ? (hasFallback ? 'fallback' : 'empty') : isLoaded ? 'loaded' : 'loading'}
+        className={`group relative h-full min-h-[280px] sm:min-h-[300px] w-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl ${className}`}
+      >
+        {/* Dev Mode Badge */}
+        {isDevMode && devBadge && (
+          <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md pointer-events-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+            {isFallback ? 'Affiliate Fallback' : `${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
+          </div>
+        )}
+
+        {/* Fallback Creative (Full Card Edge-to-Edge) */}
+        {isFallback && hasFallback && (
+          <div
+            onClick={handleAffiliateClick}
+            className="absolute inset-0 w-full h-full cursor-pointer overflow-hidden flex flex-col justify-end p-3.5 group rounded-2xl"
+          >
+            <img
+              src={campaign.image}
+              alt={campaign.title}
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
+            <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none z-20">
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
+                {campaign.badge || 'SPONSORED'}
+              </span>
+            </div>
+            <div className="relative z-10 space-y-2">
+              <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 drop-shadow-md">
+                {campaign.title}
+              </h4>
+              <button className="min-h-[36px] w-full py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1">
+                <span>{campaign.cta || 'Learn More'}</span>
+                <i className="ri-arrow-right-line text-xs"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Live Ad Container (Full Card Edge-to-Edge - Absolute Inset) */}
+        <div
+          ref={outerWrapperRef}
+          className="adcast-ad-frame adcast-ad-native-container absolute inset-0 w-full h-full overflow-hidden rounded-2xl flex items-center justify-center"
+          style={{ display: isFallback && hasFallback ? 'none' : undefined }}
+        >
+          <div
+            ref={containerRef}
+            className="adcast-ad-content adcast-ad-native w-full h-full"
+            style={{ position: 'relative', width: '100%', height: '100%' }}
+          />
+        </div>
+
+        {/* Floating Badges for Live Ad */}
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none z-20">
+          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
+            SPONSORED
+          </span>
+        </div>
+        <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm pointer-events-none z-20">
+          AD ↗
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       data-ad-slot={slotId}
       data-ad-state={isFallback ? (hasFallback ? 'fallback' : 'empty') : isLoaded ? 'loaded' : 'loading'}
-      className={`relative min-w-0 w-full mx-auto self-start flex flex-col items-center ${isNative ? 'rounded-2xl glass-card p-2 gap-2' : ''} ${className}`}
+      className={`relative min-w-0 w-full mx-auto self-start flex flex-col items-center ${className}`}
       style={{ maxWidth: frameWidth, display: isFallback && !hasFallback ? 'none' : undefined }}
     >
       {/* Dev Mode Badge */}
       {isDevMode && devBadge && (
-        <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-cyan-400 border border-cyan-500/40 shadow-md">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+        <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
           {isFallback ? (
             <span className="flex items-center gap-1">
               <i className="ri-flashlight-line text-xs"></i> Affiliate Fallback
@@ -207,15 +322,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           ) : (
             `${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`
           )}
-        </div>
-      )}
-
-      {/* Keep the disclosure outside the creative, clear of provider controls. */}
-      {isNative && (
-        <div className="w-full flex items-center px-1 pointer-events-none">
-          <span className="text-[9px] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">
-            Advertisement
-          </span>
         </div>
       )}
 
@@ -235,69 +341,28 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           {slotId === 'slot_top_banner' && (
             <div
               onClick={handleAffiliateClick}
-              className="w-full p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-[#0E101B] via-[#161A2B] to-[#0E101B] border border-cyan-500/30 hover:border-cyan-500/70 shadow-xl cursor-pointer group transition-all flex flex-col sm:flex-row items-center justify-between gap-3"
+              className="w-full p-3 sm:p-4 rounded-2xl glass-card border border-rose-500/20 hover:border-rose-500/50 shadow-lg cursor-pointer group transition-all flex flex-col sm:flex-row items-center justify-between gap-3"
             >
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="flex items-center gap-3 text-left w-full sm:w-auto">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 group-hover:scale-105 transition-transform">
                   <i className="ri-shield-keyhole-line not-italic text-xl"></i>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-lg">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-lg">
                       {campaign.badge || 'VERIFIED DEAL'}
                     </span>
                     <span className="text-xs text-slate-400 font-semibold">{campaign.network}</span>
                   </div>
-                  <h4 className="text-xs sm:text-sm font-extrabold text-white group-hover:text-cyan-300 transition-colors line-clamp-1">
+                  <h4 className="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white group-hover:text-rose-500 transition-colors line-clamp-1">
                     {campaign.title}
                   </h4>
                 </div>
               </div>
-              <button className="min-h-[44px] px-5 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-lg group-hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center gap-1">
+              <button className="w-full sm:w-auto min-h-[40px] px-5 py-2 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-extrabold text-xs shadow-md group-hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center justify-center gap-1">
                 <span>{campaign.cta}</span>
                 <i className="ri-arrow-right-line text-sm"></i>
               </button>
-            </div>
-          )}
-
-          {/* Native In-Feed Fallback (matches VideoCard) */}
-          {slotId === 'slot_native_feed' && (
-            <div
-              onClick={handleAffiliateClick}
-              className="group relative flex flex-col w-full rounded-xl overflow-hidden cursor-pointer bg-slate-100 dark:bg-black/20"
-            >
-              <div className="relative aspect-video w-full overflow-hidden bg-black/80">
-                <img
-                  src={campaign.image}
-                  alt={campaign.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30" />
-                <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-md">
-                    {campaign.badge || 'SPONSORED'}
-                  </span>
-                </div>
-                <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/85 backdrop-blur-md border border-white/10 text-[10px] font-sans font-bold tabular-nums text-cyan-400">
-                  Featured Offer
-                </div>
-              </div>
-
-              <div className="p-4 flex flex-col justify-between flex-1 space-y-3">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-rose-400 transition-colors min-h-[2.5rem]">
-                    {campaign.title}
-                  </h3>
-                  <p className="text-xs text-slate-400 line-clamp-2 mt-1">
-                    {campaign.description}
-                  </p>
-                </div>
-                <button className="min-h-[44px] w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-all">
-                  <span>{campaign.cta}</span>
-                  <i className="ri-arrow-right-line text-sm"></i>
-                </button>
-              </div>
             </div>
           )}
 
@@ -305,18 +370,18 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           {slotId === 'slot_below_player' && (
             <div
               onClick={handleAffiliateClick}
-              className="w-full p-6 rounded-2xl bg-gradient-to-br from-[#0F111A] via-[#161A2A] to-[#0A0B12] border border-cyan-500/30 hover:border-cyan-500/60 shadow-2xl cursor-pointer group transition-all text-center max-w-2xl mx-auto flex flex-col items-center justify-center"
+              className="w-full p-5 sm:p-6 rounded-2xl glass-card border border-rose-500/20 hover:border-rose-500/50 shadow-xl cursor-pointer group transition-all text-center max-w-2xl mx-auto flex flex-col items-center justify-center"
             >
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
                 <i className="ri-shield-check-fill not-italic"></i> {campaign.badge || 'SPONSORED OFFER'}
               </div>
-              <h3 className="text-lg sm:text-xl font-extrabold text-white mb-2 group-hover:text-cyan-300 transition-colors">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white mb-1.5 group-hover:text-rose-500 transition-colors">
                 {campaign.title}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-lg mb-4">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 max-w-lg mb-4">
                 {campaign.description}
               </p>
-              <button className="min-h-[44px] px-8 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+              <button className="min-h-[42px] px-8 py-2 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-extrabold text-xs shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-1.5">
                 <span>{campaign.cta}</span>
                 <i className="ri-arrow-right-line text-sm"></i>
               </button>
@@ -327,34 +392,35 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           {slotId === 'slot_sticky_footer' && (
             <div
               onClick={handleAffiliateClick}
-              className="w-full h-full flex items-center justify-between px-4 sm:px-6 cursor-pointer group bg-black/90 hover:bg-black transition-colors"
+              className="w-full h-full flex items-center justify-between px-4 sm:px-6 cursor-pointer group bg-slate-900/95 hover:bg-slate-900 text-white transition-colors"
             >
-              <div className="flex items-center gap-2 text-left">
-                <i className="ri-shield-star-fill not-italic text-cyan-400 text-base"></i>
-                <span className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1">
+              <div className="flex items-center gap-2 text-left min-w-0 pr-3">
+                <i className="ri-shield-star-fill not-italic text-rose-500 text-base shrink-0"></i>
+                <span className="text-xs sm:text-sm font-bold text-white group-hover:text-rose-400 transition-colors line-clamp-1">
                   {campaign.title}
                 </span>
               </div>
-              <button className="min-h-[36px] sm:min-h-[40px] px-4 py-1.5 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs shrink-0 shadow-md">
+              <button className="min-h-[34px] sm:min-h-[38px] px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shrink-0 shadow-md transition-all">
                 {campaign.cta}
               </button>
             </div>
           )}
         </div>
       )}
+
       {/* Keep the injection node mounted so changed settings/device zones can recover after no-fill. */}
       <div
         ref={outerWrapperRef}
-        className={`adcast-ad-frame w-full min-w-0 flex justify-center items-start ${isNative ? 'rounded-xl bg-slate-100 dark:bg-black/20' : ''}`}
+        className="adcast-ad-frame relative w-full min-w-0 overflow-hidden flex items-center justify-center"
         style={{
           display: isFallback ? 'none' : undefined,
-          minHeight: !isLoaded ? (isNative ? 180 : frameHeight) : undefined,
+          minHeight: !isLoaded ? frameHeight : undefined,
         }}
       >
         <div
           ref={containerRef}
-          className={`adcast-ad-content ${isNative ? 'adcast-ad-native' : 'adcast-ad-banner'}`}
-          style={{ width: frameWidth || '100%', flexShrink: 0, transformOrigin: 'top center' }}
+          className="adcast-ad-content adcast-ad-banner"
+          style={{ position: 'absolute', left: 0, top: 0, width: frameWidth || '100%', transformOrigin: 'top left' }}
         />
       </div>
     </div>

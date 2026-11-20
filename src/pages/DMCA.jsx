@@ -35,7 +35,7 @@ export default function DMCA({ initialVideoId, onBack }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-32 sm:pb-36 space-y-6 sm:space-y-8">
       <button
         onClick={onBack}
         className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-full glass-button text-xs font-bold active:scale-95 transition-all"

@@ -135,8 +135,7 @@ export async function getDueSources(filterSourceId = null) {
   try {
     let query = db
       .from('source_schedules')
-      .select('*, crawler_sources(*)')
-      .eq('is_active', true);
+      .select('*, crawler_sources(*)');
 
     if (filterSourceId && filterSourceId !== 'all') {
       // Direct targeting: query specifically by source_id
@@ -147,13 +146,16 @@ export async function getDueSources(filterSourceId = null) {
     }
 
     const { data: dueSchedules, error } = await query;
+    if (error) {
+      console.warn('[SCHEDULER NOTICE] source_schedules query notice:', error.message);
+    }
 
     if (dueSchedules && dueSchedules.length > 0) {
       return dueSchedules
-        .filter(s => s.crawler_sources && s.crawler_sources.is_enabled)
+        .filter(s => s.is_active !== false && s.crawler_sources && s.crawler_sources.is_enabled)
         .map(s => ({
           ...s.crawler_sources,
-          schedule_id: s.id,
+          schedule_id: s.source_id || s.id,
           timezone: s.timezone || DEFAULT_TIMEZONE,
           cron_expression: s.cron_expression
         }));

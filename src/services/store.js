@@ -551,13 +551,15 @@ const SEED_VIDEOS = [
   }
 ];
 
-// 6 Core Ad Slots Setup (100% ExoClick Dedicated)
+// 6 Core Ad Slots Setup (100% ExoClick Dedicated) - Aligned with Ads-Prop
 const DEFAULT_AD_SETTINGS = {
   slot_top_banner: {
     id: 'slot_top_banner',
-    name: 'Top Banner (Desktop 728x90 / Mobile 300x250: 6093362)',
+    name: 'Top Banner (Desktop 728x90: 6093488 / Mobile 300x250: 6096160)',
     network: 'ExoClick / Adaptive Banner',
     dimensions: '728x90 / 300x250',
+    desktopZoneId: '6093488',
+    mobileZoneId: '6096160',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
@@ -565,15 +567,18 @@ const DEFAULT_AD_SETTINGS = {
     id: 'slot_native_feed',
     name: 'Native In-Feed Recommendation Card',
     network: 'ExoClick / Native',
-    dimensions: 'Card size',
+    dimensions: 'Grid (1x1)',
+    zoneId: '6093504',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e20" data-zoneid="6093504"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_sticky_footer: {
     id: 'slot_sticky_footer',
-    name: 'Sticky Bottom Banner (Desktop 728x90 / Mobile 6096158)',
+    name: 'Sticky Bottom Banner (Desktop 728x90: 6093426 / Mobile 300x250: 6096158)',
     network: 'ExoClick Sticky Banner',
     dimensions: '728x90 / 300x250',
+    desktopZoneId: '6093426',
+    mobileZoneId: '6096158',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
@@ -582,6 +587,7 @@ const DEFAULT_AD_SETTINGS = {
     name: 'Below-Video High-CTR Rectangle Banner',
     network: 'ExoClick / 300x250',
     dimensions: '300x250',
+    zoneId: '6093362',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093362"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
@@ -590,6 +596,7 @@ const DEFAULT_AD_SETTINGS = {
     name: 'In-Stream 5-Second Video Pre-Roll Ad',
     network: 'ExoClick VAST / In-Stream',
     dimensions: 'Video Overlay',
+    zoneId: '6093414',
     isActive: true,
     durationSeconds: 5,
     adTitle: 'Featured Sponsor — High Speed Premium Streaming',
@@ -602,6 +609,7 @@ const DEFAULT_AD_SETTINGS = {
     name: 'Background Popunder (1h Capped)',
     network: 'ExoClick / Popunder',
     dimensions: 'Full Tab',
+    zoneId: '6093374',
     isActive: true,
     code: '<script type="application/javascript">var ad_idzone = "6093374", ad_popup_fallback = false, ad_popup_force = false, ad_chrome_enabled = true, ad_new_tab = true, ad_frequency_period = 60, ad_frequency_count = 1, ad_trigger_method = 1, ad_tcf_enabled = true;</script><script async type="application/javascript" id="popmagicldr" data-ad_idzone="6093374" data-ad_frequency_period="60" data-ad_frequency_count="1" data-ad_trigger_method="1" data-ad_tcf_enabled="true" src="https://a.pemsrv.com/popunder1000.js"></script>',
     frequencyHours: 1
@@ -612,6 +620,7 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick / Interstitial',
     dimensions: 'Full Screen',
     format: 'interstitial',
+    zoneId: '6093518',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
     frequencyHours: 1
@@ -650,6 +659,28 @@ const DEFAULT_AD_SETTINGS = {
     }
   }
 };
+
+/**
+ * Real Affiliate Campaign Validator
+ * Ensures only genuine production affiliate campaigns are rendered as fallbacks.
+ * Placeholder domains (example.com, test, placeholder) and unconfigured campaigns are rejected,
+ * cleanly collapsing the ad space instead of showing fake/broken cards.
+ */
+export function isValidAffiliateCampaign(campaign) {
+  if (!campaign || typeof campaign !== 'object') return false;
+  if (!campaign.url || typeof campaign.url !== 'string') return false;
+  const trimmed = campaign.url.trim().toLowerCase();
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return false;
+  if (
+    trimmed.includes('example.com') ||
+    trimmed.includes('placeholder') ||
+    trimmed.includes('your-affiliate-link') ||
+    trimmed.includes('localhost')
+  ) {
+    return false;
+  }
+  return Boolean(campaign.title && campaign.title.trim());
+}
 
 /**
  * Universal Placeholder Detector

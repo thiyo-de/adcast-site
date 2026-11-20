@@ -117,11 +117,13 @@ CREATE TABLE IF NOT EXISTS public.source_schedules (
     cron_expression TEXT DEFAULT '0 */6 * * *',
     timezone TEXT DEFAULT 'Asia/Calcutta',
     interval_minutes INTEGER DEFAULT 360,
+    is_active BOOLEAN DEFAULT true,
     next_run_at TIMESTAMPTZ,
     last_run_at TIMESTAMPTZ,
     run_state TEXT DEFAULT 'idle',
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+ALTER TABLE public.source_schedules ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- 7. Create Source Checkpoints (Incremental Pagination State)
 CREATE TABLE IF NOT EXISTS public.source_checkpoints (
@@ -290,7 +292,7 @@ INSERT INTO public.ad_settings (slot_id, name, network, dimensions, format, is_a
 VALUES
     ('slot_top_banner', 'Top Banner (Desktop 728x90 / Mobile 6096160)', 'ExoClick / Adaptive Banner', '728x90 / 300x250', 'banner', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_native_feed', 'Native In-Feed Recommendation Card', 'ExoClick / Native', '1x1 Card', 'native', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e20" data-zoneid="6093504"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
-    ('slot_sticky_footer', 'Mobile Sticky Bottom', 'ExoClick Sticky Banner', '300x50 / 300x250', 'sticky', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6096158"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
+    ('slot_sticky_footer', 'Sticky Footer Banner (Desktop 728x90 / Mobile 6096158)', 'ExoClick Sticky Banner', '728x90 / 300x250', 'sticky', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_below_player', 'Below-Video High-CTR Rectangle Banner', 'ExoClick / 300x250', '300x250', 'banner', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093362"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_video_preroll', 'In-Stream 5-Second Video Pre-Roll Ad', 'ExoClick VAST / In-Stream', 'Video Overlay', 'vast', true, NULL, 'https://s.magsrv.com/v1/vast.php?idz=6093414', 1),
     ('slot_popunder', 'Background Popunder (1h Capped)', 'ExoClick / Popunder', 'Full Tab', 'popunder', true, '<script type="application/javascript">var ad_idzone = "6093374", ad_popup_fallback = false, ad_popup_force = false, ad_chrome_enabled = true, ad_new_tab = true, ad_frequency_period = 60, ad_frequency_count = 1, ad_trigger_method = 1, ad_tcf_enabled = true;</script><script async type="application/javascript" id="popmagicldr" data-ad_idzone="6093374" data-ad_frequency_period="60" data-ad_frequency_count="1" data-ad_trigger_method="1" data-ad_tcf_enabled="true" src="https://a.pemsrv.com/popunder1000.js"></script>', NULL, 1),

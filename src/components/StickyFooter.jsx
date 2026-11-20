@@ -61,9 +61,9 @@ export default function StickyFooter({ currentView }) {
     >
       <div
         ref={wrapperRef}
-        className="relative pointer-events-auto w-full max-w-[95vw] sm:max-w-4xl flex items-center justify-center mx-auto"
+        className="relative pointer-events-auto w-fit max-w-[98vw] flex items-center justify-center mx-auto"
       >
-        {/* Floating Close Button with Click Propagation Shield */}
+        {/* Floating Close Button tightly anchored to the creative */}
         {isLoaded && (
           <button
             type="button"
@@ -72,7 +72,7 @@ export default function StickyFooter({ currentView }) {
             onTouchStart={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Close advertisement"
-            className="absolute -top-3 right-0 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/90 hover:bg-black text-slate-300 hover:text-white border border-white/20 shadow-lg text-[10px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer"
+            className="absolute -top-3 -right-2 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/95 hover:bg-black text-white/90 hover:text-white border border-white/20 shadow-xl text-[10px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
             title="Dismiss ad"
           >
             ✕

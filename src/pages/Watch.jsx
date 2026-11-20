@@ -180,7 +180,7 @@ export default function Watch({
   const rating = video.rating || null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-32 sm:pb-36 space-y-6">
       {/* Cinema Mode Dimmer Overlay */}
       {isCinemaMode && (
         <div
@@ -419,7 +419,7 @@ export default function Watch({
                 return [
                   { id: 'smart', label: 'All Related', icon: 'ri-magic-line' },
                   { id: 'views', label: 'Most Viewed', icon: 'ri-fire-fill' },
-                  { id: 'category', label: `More in ${video.category || 'Category'}`, icon: categoryIcon },
+                  { id: 'category', label: 'Same Category', description: `More in ${video.category || 'this category'}`, icon: categoryIcon },
                   { id: 'newest', label: 'Newest', icon: 'ri-flashlight-line' }
                 ];
               })().map((tab) => {
@@ -429,6 +429,7 @@ export default function Watch({
                     key={tab.id}
                     type="button"
                     aria-pressed={isActive}
+                    title={tab.description || tab.label}
                     onClick={() => setRecommendationMode(tab.id)}
                     className={`min-w-0 w-full min-h-[44px] h-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] sm:text-xs leading-snug font-bold whitespace-normal text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#08090D] ${
                       isActive
