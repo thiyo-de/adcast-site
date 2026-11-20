@@ -81,7 +81,7 @@ export default function StickyFooter({ currentView }) {
           <i className="ri-close-line not-italic text-xs"></i>
         </button>
 
-        <div ref={wrapperRef} className="w-full max-w-4xl flex items-center justify-center min-h-[50px] overflow-hidden">
+        <div ref={wrapperRef} className="w-full max-w-4xl flex items-center justify-center min-h-[50px] sm:min-h-[90px] overflow-hidden">
           <AdSlot slotId="slot_sticky_footer" devBadge={false} />
         </div>
       </div>

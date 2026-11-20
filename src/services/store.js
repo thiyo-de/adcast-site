@@ -571,11 +571,11 @@ const DEFAULT_AD_SETTINGS = {
   },
   slot_sticky_footer: {
     id: 'slot_sticky_footer',
-    name: 'Mobile Sticky Bottom',
+    name: 'Sticky Bottom Banner (Desktop 728x90 / Mobile 6096158)',
     network: 'ExoClick Sticky Banner',
-    dimensions: '300x50 / 300x250',
+    dimensions: '728x90 / 300x250',
     isActive: true,
-    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6096158"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_below_player: {
     id: 'slot_below_player',
