@@ -27,7 +27,13 @@ export default function StickyFooter({ currentView }) {
       const ad = wrapperRef.current.querySelector('[data-ad-state]');
       const isCurrentlyVisible = ad?.dataset.adState === 'loaded';
 
-      setIsLoaded((prev) => (prev !== isCurrentlyVisible ? isCurrentlyVisible : prev));
+      if (isCurrentlyVisible) {
+        setIsLoaded(true);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
     };
 
     intervalId = setInterval(checkRenderedCreative, 400);

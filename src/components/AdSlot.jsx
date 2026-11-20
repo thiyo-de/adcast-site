@@ -128,7 +128,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
 
     // Style only our frame. Never rewrite the provider's tables, links or thumbnails.
     const loadedFrames = new WeakSet();
-    let lastDeliveredAt = Date.now();
     const updateDelivery = () => {
       if (!isMounted) return;
       // Provider frames can resize without resizing their absolute-positioned wrapper.
@@ -140,13 +139,8 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       });
       fitFrame();
       const delivered = hasRenderedAd(container, loadedFrames);
-      setIsLoaded(delivered);
       if (delivered) {
-        lastDeliveredAt = Date.now();
-        setIsFallback(false);
-      } else if (!isNative && Date.now() - lastDeliveredAt >= 3500) {
-        // Also handle a later provider refresh that leaves the placement empty.
-        setIsFallback(true);
+        setIsLoaded(true);
       }
     };
     const handleLoad = (event) => {
@@ -162,16 +156,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       childList: true, subtree: true, attributes: true,
       attributeFilter: ['style', 'class', 'width', 'height'],
     });
-    const refreshInterval = setInterval(updateDelivery, 1000);
-    const noFillTimer = setTimeout(() => {
-      if (isMounted && !hasRenderedAd(container, loadedFrames)) {
-        if (!isNative) {
-          setIsFallback(true);
-        } else if (hasFallback) {
-          setIsFallback(true);
-        }
-      }
-    }, 3500);
 
     const scripts = tempDiv.querySelectorAll('script');
     if (scripts.length > 0) {
@@ -198,8 +182,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       observer.disconnect();
       resizeObserver?.disconnect();
       window.removeEventListener('resize', fitFrame);
-      clearInterval(refreshInterval);
-      clearTimeout(noFillTimer);
       container.removeEventListener('load', handleLoad, true);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
@@ -240,11 +222,13 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         </div>
 
         {/* Floating Badges for Live Ad */}
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none z-20">
-          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
-            SPONSORED
-          </span>
-        </div>
+        {isLoaded && (
+          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none z-20">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wider uppercase bg-amber-500 text-black shadow-sm">
+              SPONSORED
+            </span>
+          </div>
+        )}
       </div>
     );
   }
@@ -267,7 +251,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       )}
 
       {/* Compliance Micro-Disclosure Label */}
-      {showDisclosure && (
+      {showDisclosure && isLoaded && (
         <div className="w-full flex items-center justify-center py-1 select-none pointer-events-none">
           <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400 dark:text-[#64748B] opacity-80">
             Advertisement
@@ -279,9 +263,6 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       <div
         ref={outerWrapperRef}
         className="adcast-ad-frame relative w-full min-w-0 overflow-hidden flex items-center justify-center"
-        style={{
-          minHeight: !isLoaded ? frameHeight : undefined,
-        }}
       >
         <div
           ref={containerRef}
