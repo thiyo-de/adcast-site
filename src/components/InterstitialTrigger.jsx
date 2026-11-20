@@ -37,7 +37,7 @@ export default function InterstitialTrigger({ currentView }) {
 
     // 4. Inject container and provider tag into body
     const interstitialContainer = document.createElement('div');
-    interstitialContainer.id = 'adcast-interstitial-container';
+    interstitialContainer.id = 'adcast-ad-injection-container';
     interstitialContainer.setAttribute('data-adcast-interstitial', 'true');
     interstitialContainer.style.display = 'none';
 
@@ -69,9 +69,9 @@ export default function InterstitialTrigger({ currentView }) {
     const checkConfirmedDisplay = () => {
       checks++;
       const hasOverlay =
-        document.querySelector('.eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], [id*="interstitial"]') ||
+        document.querySelector('.eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], iframe[id*="eas-"], div[class*="eas-overlay"]') ||
         (interstitialContainer &&
-         Array.from(interstitialContainer.querySelectorAll('*')).some(el => el.offsetHeight > 50 || el.offsetWidth > 50));
+         Array.from(interstitialContainer.querySelectorAll('iframe, ins > *')).some(el => el.offsetHeight > 50 || el.offsetWidth > 50));
 
       if (hasOverlay) {
         try {

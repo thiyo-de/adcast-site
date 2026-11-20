@@ -80,18 +80,20 @@ export async function syncVideosToDb(videos, source = null) {
   const db = getDbClient();
   const toInsert = [];
   const seenUrls = new Set();
-  let skipped = 0;
+  let duplicates = 0;
+  let blockedBySuppression = 0;
+  let invalid = 0;
   const isAutoApprove = source ? source.auto_approve !== false : true;
 
   for (const video of videos) {
     if (!video.embed_url) {
-      skipped++;
+      invalid++;
       continue;
     }
 
     const cleanUrl = video.embed_url.trim();
     if (seenUrls.has(cleanUrl)) {
-      skipped++;
+      duplicates++;
       continue;
     }
     seenUrls.add(cleanUrl);
@@ -99,14 +101,14 @@ export async function syncVideosToDb(videos, source = null) {
     // 1. Anti-Zombie check: Verify URL has not been tombstoned/suppressed
     const suppressed = await isSuppressed(cleanUrl);
     if (suppressed) {
-      skipped++;
+      blockedBySuppression++;
       continue;
     }
 
     // 2. Check if video already exists in master catalog
     const existingVideo = await getVideoByEmbedUrl(cleanUrl);
     if (existingVideo) {
-      skipped++;
+      duplicates++;
       if (existingVideo.id) {
         // Non-destructive update:
         // Refresh transient stats (higher views, rating) or fill in missing fields (duration, thumbnail)
@@ -136,14 +138,24 @@ export async function syncVideosToDb(videos, source = null) {
       toInsert.push({
         ...video,
         embed_url: cleanUrl,
-        health_state: 'healthy',
+        health_state: 'unknown',
         publication_state: isAutoApprove ? 'published' : 'pending'
       });
     }
   }
 
+  const skipped = duplicates + blockedBySuppression + invalid;
+
   if (toInsert.length === 0) {
-    return { inserted: 0, skipped, items: [] };
+    return {
+      totalFetched: videos.length,
+      inserted: 0,
+      duplicates,
+      blockedBySuppression,
+      invalid,
+      skipped,
+      items: []
+    };
   }
 
   const { data, error } = await db
@@ -156,7 +168,11 @@ export async function syncVideosToDb(videos, source = null) {
   }
 
   return {
+    totalFetched: videos.length,
     inserted: data ? data.length : toInsert.length,
+    duplicates,
+    blockedBySuppression,
+    invalid,
     skipped,
     items: data || toInsert
   };

@@ -17,6 +17,45 @@ function setMetaTag(selector, attrName, attrValue, content) {
   element.setAttribute('content', content);
 }
 
+export function formatIsoDuration(duration) {
+  if (!duration) return undefined;
+
+  if (typeof duration === 'string' && duration.startsWith('PT')) {
+    return duration;
+  }
+
+  if (typeof duration === 'number') {
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+    const seconds = Math.floor(duration % 60);
+    let iso = 'PT';
+    if (hours > 0) iso += `${hours}H`;
+    if (minutes > 0 || hours > 0) iso += `${minutes}M`;
+    iso += `${seconds}S`;
+    return iso;
+  }
+
+  if (typeof duration === 'string' && duration.includes(':')) {
+    const parts = duration.split(':').map(p => parseInt(p, 10));
+    if (parts.length === 2 && !parts.some(isNaN)) {
+      return `PT${parts[0]}M${parts[1]}S`;
+    }
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      return `PT${parts[0]}H${parts[1]}M${parts[2]}S`;
+    }
+  }
+
+  if (typeof duration === 'string') {
+    const numMatch = duration.match(/(\d+)/);
+    if (numMatch) {
+      const mins = parseInt(numMatch[1], 10);
+      return `PT${mins}M`;
+    }
+  }
+
+  return undefined;
+}
+
 export function updateVideoSEO(video) {
   if (!video) return;
 
@@ -52,6 +91,8 @@ export function updateVideoSEO(video) {
     document.head.appendChild(scriptTag);
   }
 
+  const isoDuration = formatIsoDuration(video.duration);
+
   const jsonLdData = {
     '@context': 'https://schema.org',
     '@type': 'VideoObject',
@@ -59,15 +100,18 @@ export function updateVideoSEO(video) {
     'description': description,
     'thumbnailUrl': [imageUrl],
     'uploadDate': video.created_at || new Date().toISOString(),
-    'duration': video.durationMinutes ? `PT${video.durationMinutes}M` : 'PT10M',
     'contentUrl': video.embed_url,
     'embedUrl': video.embed_url,
     'interactionStatistic': {
       '@type': 'InteractionCounter',
       'interactionType': { '@type': 'WatchAction' },
-      'userInteractionCount': video.views || 1000
+      'userInteractionCount': typeof video.views === 'number' ? video.views : 0
     }
   };
+
+  if (isoDuration) {
+    jsonLdData.duration = isoDuration;
+  }
 
   scriptTag.textContent = JSON.stringify(jsonLdData);
 }

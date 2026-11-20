@@ -42,6 +42,7 @@ export default function Admin({ onBack }) {
   // Dead Streams (Quarantine) State
   const [deadVideos, setDeadVideos] = useState([]);
   const [isPurging, setIsPurging] = useState(false);
+  const [isPurgePreviewOpen, setIsPurgePreviewOpen] = useState(false);
 
   // Review Queue (Moderation) State
   const [pendingVideos, setPendingVideos] = useState([]);
@@ -296,11 +297,16 @@ export default function Admin({ onBack }) {
   };
 
   const handlePurgeAllDeadVideos = async () => {
-    if (window.confirm(`Are you sure you want to PERMANENTLY delete all ${deadVideos.length} dead streams?`)) {
+    try {
       setIsPurging(true);
-      await api.hardDeleteAllDeadVideos();
+      const purgedCount = await api.hardDeleteAllDeadVideos();
+      setIsPurgePreviewOpen(false);
+      await loadData();
+      alert(`Successfully purged and suppressed ${purgedCount ?? deadVideos.length} dead stream(s).`);
+    } catch (err) {
+      alert(`Failed to purge dead streams: ${err.message || 'Database mutation rejected.'}`);
+    } finally {
       setIsPurging(false);
-      loadData();
     }
   };
 
@@ -309,31 +315,35 @@ export default function Admin({ onBack }) {
     e.preventDefault();
     if (!sourceForm.name || !sourceForm.url) return;
 
-    if (editingSourceId) {
-      await api.updateCrawlerSource(editingSourceId, {
-        name: sourceForm.name,
-        url: sourceForm.url,
-        category: sourceForm.category,
-        video_limit: parseInt(sourceForm.video_limit, 10) || 15,
-        source_type: sourceForm.type || 'json_api',
-        auto_approve: sourceForm.auto_approve !== false
-      });
-      setEditingSourceId(null);
-    } else {
-      await api.addCrawlerSource({
-        name: sourceForm.name,
-        url: sourceForm.url,
-        category: sourceForm.category,
-        video_limit: parseInt(sourceForm.video_limit, 10) || 15,
-        source_type: sourceForm.type || 'json_api',
-        auto_approve: sourceForm.auto_approve !== false,
-        is_enabled: true
-      });
-    }
+    try {
+      if (editingSourceId) {
+        await api.updateCrawlerSource(editingSourceId, {
+          name: sourceForm.name,
+          url: sourceForm.url,
+          category: sourceForm.category,
+          video_limit: parseInt(sourceForm.video_limit, 10) || 15,
+          type: sourceForm.type || 'json_api',
+          auto_approve: sourceForm.auto_approve !== false
+        });
+        setEditingSourceId(null);
+      } else {
+        await api.addCrawlerSource({
+          name: sourceForm.name,
+          url: sourceForm.url,
+          category: sourceForm.category,
+          video_limit: parseInt(sourceForm.video_limit, 10) || 15,
+          type: sourceForm.type || 'json_api',
+          auto_approve: sourceForm.auto_approve !== false,
+          is_enabled: true
+        });
+      }
 
-    setSourceForm({ name: '', url: '', category: 'Trending', video_limit: 15, type: 'json_api', auto_approve: true });
-    setDiscoveryResult(null);
-    loadData();
+      setSourceForm({ name: '', url: '', category: 'Trending', video_limit: 15, type: 'json_api', auto_approve: true });
+      setDiscoveryResult(null);
+      loadData();
+    } catch (err) {
+      alert(`Failed to save crawler source: ${err.message || 'Database mutation rejected.'}`);
+    }
   };
 
   const handleEditSource = (s) => {
@@ -343,20 +353,28 @@ export default function Admin({ onBack }) {
       url: s.url,
       category: s.category || 'Trending',
       video_limit: s.video_limit || 15,
-      type: s.source_type || 'json_api',
+      type: s.type || s.source_type || 'json_api',
       auto_approve: s.auto_approve !== false
     });
   };
 
   const handleToggleSource = async (source) => {
-    await api.updateCrawlerSource(source.id, { is_enabled: !source.is_enabled });
-    loadData();
+    try {
+      await api.updateCrawlerSource(source.id, { is_enabled: !source.is_enabled });
+      loadData();
+    } catch (err) {
+      alert(`Failed to update crawler source: ${err.message || 'Database mutation rejected.'}`);
+    }
   };
 
   const handleDeleteSource = async (id) => {
     if (window.confirm('Remove this video target source?')) {
-      await api.deleteCrawlerSource(id);
-      loadData();
+      try {
+        await api.deleteCrawlerSource(id);
+        loadData();
+      } catch (err) {
+        alert(`Failed to delete crawler source: ${err.message || 'Database mutation rejected.'}`);
+      }
     }
   };
 
@@ -467,9 +485,17 @@ export default function Admin({ onBack }) {
   };
 
   const handleResolveDMCA = async (id) => {
-    await api.resolveDMCARequest(id);
-    const updated = await api.getDMCARequests();
-    setDmcaList(updated);
+    if (window.confirm('Resolve this DMCA notice and permanently suppress the target stream against future ingestion?')) {
+      try {
+        await api.resolveDMCARequest(id);
+        const updated = await api.getDMCARequests();
+        setDmcaList(updated);
+        await loadData();
+        alert('DMCA notice resolved and target stream suppressed.');
+      } catch (err) {
+        alert(`Failed to resolve DMCA notice: ${err.message || 'Database mutation rejected.'}`);
+      }
+    }
   };
 
   // 1. Master Login Gate
@@ -1665,12 +1691,12 @@ export default function Admin({ onBack }) {
 
             {deadVideos.length > 0 && (
               <button
-                onClick={handlePurgeAllDeadVideos}
+                onClick={() => setIsPurgePreviewOpen(true)}
                 disabled={isPurging}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-sm shadow-rose-600/30"
               >
                 <i className="ri-delete-bin-2-line not-italic text-sm"></i>
-                {isPurging ? 'Purging...' : 'Hard Delete All Dead Streams'}
+                Review & Purge All ({deadVideos.length})
               </button>
             )}
           </div>
@@ -1876,6 +1902,73 @@ export default function Admin({ onBack }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Purge All Dead Videos Preview Modal */}
+      {isPurgePreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-xl max-h-[85vh] flex flex-col p-6 rounded-3xl glass-panel shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i className="ri-error-warning-fill text-rose-500 not-italic"></i>
+                Confirm Permanent Purge ({deadVideos.length} Streams)
+              </h3>
+              <button
+                type="button"
+                onClick={() => !isPurging && setIsPurgePreviewOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <i className="ri-close-line text-lg not-italic"></i>
+              </button>
+            </div>
+
+            <div className="py-3 text-xs text-slate-600 dark:text-slate-300">
+              <p>
+                The following streams have been confirmed dead or quarantined. Purging will <strong>permanently delete</strong> their records and insert their embed URLs into <code className="text-rose-400">suppressed_videos</code> so automated scrapers will never re-import them.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-2 max-h-60 border border-slate-200 dark:border-white/[0.08] rounded-xl p-2 bg-slate-50 dark:bg-black/20">
+              {deadVideos.map((v) => (
+                <div key={v.id} className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-white/[0.03] border border-slate-200/50 dark:border-white/[0.04]">
+                  <img
+                    src={v.thumbnail_url}
+                    alt=""
+                    className="w-12 h-8 object-cover rounded bg-slate-800 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                      {v.title}
+                    </div>
+                    <div className="text-[10px] text-rose-400 truncate">
+                      Reason: {v.dead_reason || 'Source 404 / broken'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-white/10">
+              <button
+                type="button"
+                disabled={isPurging}
+                onClick={() => setIsPurgePreviewOpen(false)}
+                className="px-4 py-2 rounded-full glass-button text-xs font-semibold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPurging}
+                onClick={handlePurgeAllDeadVideos}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/30 disabled:opacity-50"
+              >
+                <i className="ri-delete-bin-2-fill not-italic"></i>
+                {isPurging ? 'Purging & Suppressing...' : `Permanently Purge All (${deadVideos.length})`}
+              </button>
+            </div>
           </div>
         </div>
       )}

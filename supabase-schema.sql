@@ -137,7 +137,14 @@ CREATE TABLE IF NOT EXISTS public.source_checkpoints (
 -- ==============================================================
 CREATE OR REPLACE FUNCTION public.is_admin() RETURNS boolean AS $$
 BEGIN
-  RETURN (auth.jwt() ->> 'email' = 'admin@hornyleaks.site' OR (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+  IF auth.jwt() IS NULL THEN
+    RETURN false;
+  END IF;
+  RETURN COALESCE(
+    (auth.jwt() ->> 'email' = 'admin@hornyleaks.site') OR 
+    ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'),
+    false
+  );
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ==============================================================
@@ -158,6 +165,8 @@ DROP POLICY IF EXISTS "Allow viewing takedown requests" ON public.takedown_reque
 DROP POLICY IF EXISTS "Public videos can be read by anyone" ON public.videos;
 DROP POLICY IF EXISTS "Public ad settings can be read by anyone" ON public.ad_settings;
 DROP POLICY IF EXISTS "Anyone can submit a takedown request" ON public.takedown_requests;
+DROP POLICY IF EXISTS "Public can view crawler sources" ON public.crawler_sources;
+DROP POLICY IF EXISTS "Admins can view crawler sources" ON public.crawler_sources;
 
 -- A. Videos Policies
 CREATE POLICY "Public videos can be read by anyone" ON public.videos
@@ -180,9 +189,9 @@ CREATE POLICY "Anyone can submit a takedown request" ON public.takedown_requests
 CREATE POLICY "Admins can view and manage takedowns" ON public.takedown_requests
     FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- D. Crawler Sources Policies
-CREATE POLICY "Public can view crawler sources" ON public.crawler_sources
-    FOR SELECT USING (true);
+-- D. Crawler Sources Policies (Internal: Admins Only)
+CREATE POLICY "Admins can view crawler sources" ON public.crawler_sources
+    FOR SELECT USING (public.is_admin());
 
 CREATE POLICY "Admins can mutate crawler sources" ON public.crawler_sources
     FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
@@ -198,13 +207,15 @@ CREATE POLICY "Admins can manage source_checkpoints" ON public.source_checkpoint
     FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- ==============================================================
--- 10. Atomic Hard-Deletion & Suppression RPCs
+-- 10. Atomic Hard-Deletion & Suppression RPCs (Hardened Authorization)
 -- ==============================================================
 CREATE OR REPLACE FUNCTION public.hard_delete_and_suppress_video(p_video_id uuid, p_reason text DEFAULT 'admin_deleted')
 RETURNS boolean AS $$
 DECLARE v_embed_url text;
 BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF public.is_admin() IS NOT TRUE THEN 
+    RAISE EXCEPTION 'Unauthorized: Administrator access required'; 
+  END IF;
   SELECT embed_url INTO v_embed_url FROM public.videos WHERE id = p_video_id;
   IF v_embed_url IS NULL THEN RETURN false; END IF;
   INSERT INTO public.suppressed_videos (embed_url, reason, suppressed_at, suppressed_by)
@@ -218,12 +229,24 @@ CREATE OR REPLACE FUNCTION public.hard_delete_and_suppress_dead_videos(p_reason 
 RETURNS integer AS $$
 DECLARE v_count integer;
 BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF public.is_admin() IS NOT TRUE THEN 
+    RAISE EXCEPTION 'Unauthorized: Administrator access required'; 
+  END IF;
   INSERT INTO public.suppressed_videos (embed_url, reason, suppressed_at, suppressed_by)
   SELECT TRIM(embed_url), p_reason, now(), auth.jwt() ->> 'email'
-  FROM public.videos WHERE is_active = false
+  FROM public.videos 
+  WHERE is_active = false 
+    AND (publication_state IS NULL OR publication_state != 'rejected')
+    AND (health_state = 'dead' OR health_state = 'quarantined')
   ON CONFLICT (embed_url) DO UPDATE SET reason = EXCLUDED.reason, suppressed_at = now();
-  WITH deleted AS (DELETE FROM public.videos WHERE is_active = false RETURNING id)
+
+  WITH deleted AS (
+    DELETE FROM public.videos 
+    WHERE is_active = false 
+      AND (publication_state IS NULL OR publication_state != 'rejected')
+      AND (health_state = 'dead' OR health_state = 'quarantined')
+    RETURNING id
+  )
   SELECT count(*) INTO v_count FROM deleted;
   RETURN v_count;
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -231,7 +254,9 @@ END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.approve_video(p_video_id uuid)
 RETURNS boolean AS $$
 BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF public.is_admin() IS NOT TRUE THEN 
+    RAISE EXCEPTION 'Unauthorized: Administrator access required'; 
+  END IF;
   UPDATE public.videos SET publication_state = 'published' WHERE id = p_video_id;
   RETURN true;
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -239,10 +264,24 @@ END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.reject_video(p_video_id uuid)
 RETURNS boolean AS $$
 BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF public.is_admin() IS NOT TRUE THEN 
+    RAISE EXCEPTION 'Unauthorized: Administrator access required'; 
+  END IF;
   UPDATE public.videos SET publication_state = 'rejected', is_active = false WHERE id = p_video_id;
   RETURN true;
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Explicitly Revoke Function Permissions from Public / Anon
+REVOKE EXECUTE ON FUNCTION public.hard_delete_and_suppress_video(uuid, text) FROM public, anon;
+REVOKE EXECUTE ON FUNCTION public.hard_delete_and_suppress_dead_videos(text) FROM public, anon;
+REVOKE EXECUTE ON FUNCTION public.approve_video(uuid) FROM public, anon;
+REVOKE EXECUTE ON FUNCTION public.reject_video(uuid) FROM public, anon;
+
+GRANT EXECUTE ON FUNCTION public.hard_delete_and_suppress_video(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.hard_delete_and_suppress_dead_videos(text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.approve_video(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reject_video(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon, service_role;
 
 -- ==============================================================
 -- 11. Seed Verified Live ExoClick Zones (Site ID: 1120332)

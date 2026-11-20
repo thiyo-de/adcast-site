@@ -90,15 +90,27 @@ export async function runHealthCheck() {
 
   const db = getDbClient();
 
-  // Fetch active and suspect videos
-  const { data: videos, error } = await db
-    .from('videos')
-    .select('id, title, embed_url, is_active, health_state, first_failed_at')
-    .or('is_active.eq.true,is_active.is.null');
+  // Paginated fetch of active and suspect videos
+  const PAGE_SIZE = 100;
+  let page = 0;
+  const videos = [];
 
-  if (error) {
-    console.error('[HEALTH CHECK ERROR] Failed to fetch videos:', error.message);
-    return;
+  while (true) {
+    const { data: pageVideos, error } = await db
+      .from('videos')
+      .select('id, title, embed_url, is_active, health_state, first_failed_at')
+      .or('is_active.eq.true,is_active.is.null')
+      .order('id', { ascending: true })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    if (error) {
+      console.error('[HEALTH CHECK ERROR] Failed to fetch videos page:', error.message);
+      break;
+    }
+    if (!pageVideos || pageVideos.length === 0) break;
+    videos.push(...pageVideos);
+    if (pageVideos.length < PAGE_SIZE) break;
+    page++;
   }
 
   console.log(`[AUDIT] Checking ${videos.length} active video stream(s)...`);
@@ -139,8 +151,8 @@ export async function runHealthCheck() {
       healthyCount++;
       process.stdout.write('\x1b[32m[HEALTHY]\x1b[0m\n');
 
-      // If video was previously suspect, recover it back to healthy
-      if (v.health_state === 'suspect') {
+      // If video was previously suspect or unverified unknown, promote it to healthy
+      if (v.health_state === 'suspect' || v.health_state === 'unknown' || !v.health_state) {
         await db
           .from('videos')
           .update({

@@ -8,65 +8,121 @@ import { config } from './config.js';
 
 const DEFAULT_TIMEZONE = 'Asia/Calcutta';
 
+function parseCronPart(part, min, max, isDow = false) {
+  const allowed = new Set();
+  const subparts = part.split(',');
+
+  for (const sp of subparts) {
+    if (sp === '*') {
+      for (let i = min; i <= max; i++) allowed.add(i);
+    } else if (sp.startsWith('*/')) {
+      const step = parseInt(sp.slice(2), 10);
+      if (!isNaN(step) && step > 0) {
+        for (let i = min; i <= max; i++) {
+          if (i % step === 0) allowed.add(i);
+        }
+      }
+    } else if (sp.includes('-')) {
+      const [startStr, endStr] = sp.split('-');
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let i = start; i <= end; i++) {
+          let val = i;
+          if (isDow && val === 7) val = 0;
+          allowed.add(val);
+        }
+      }
+    } else {
+      let num = parseInt(sp, 10);
+      if (!isNaN(num)) {
+        if (isDow && num === 7) num = 0;
+        allowed.add(num);
+      }
+    }
+  }
+
+  return allowed;
+}
+
+function getTimezoneParts(date, tz) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false
+  });
+  const parts = dtf.formatToParts(date).reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+  const localDate = new Date(date.toLocaleString('en-US', { timeZone: tz }));
+  return {
+    year: parseInt(parts.year, 10),
+    month: parseInt(parts.month, 10),
+    day: parseInt(parts.day, 10),
+    hour: parseInt(parts.hour === '24' ? '0' : parts.hour, 10),
+    minute: parseInt(parts.minute, 10),
+    second: parseInt(parts.second, 10),
+    weekday: localDate.getDay() // 0 = Sunday, 1 = Monday, ...
+  };
+}
+
 /**
- * Calculates the exact next run time from a cron expression and timezone.
- * Handles daily time definitions (e.g. "0 14 * * *"), interval steps (e.g. step hours),
- * and respects the source's specified timezone.
+ * Calculates the exact next run time from a standard 5-field cron expression and timezone.
+ * Snaps to exact clock boundaries in the target timezone (e.g. 0 */4 * * * snaps to 00:00, 04:00, etc.).
  */
-export function calculateNextCronRun(cronExpr = '0 */4 * * *', timezone = DEFAULT_TIMEZONE) {
+export function calculateNextCronRun(cronExpr = '0 */4 * * *', timezone = DEFAULT_TIMEZONE, fromDate = new Date()) {
   if (!cronExpr || typeof cronExpr !== 'string') {
-    return new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    return new Date(fromDate.getTime() + 4 * 60 * 60 * 1000).toISOString();
   }
 
   const parts = cronExpr.trim().split(/\s+/);
   if (parts.length !== 5) {
-    return new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    return new Date(fromDate.getTime() + 4 * 60 * 60 * 1000).toISOString();
   }
 
-  const [minPart, hourPart] = parts;
+  const allowedMinutes = parseCronPart(parts[0], 0, 59);
+  const allowedHours = parseCronPart(parts[1], 0, 23);
+  const allowedDom = parseCronPart(parts[2], 1, 31);
+  const allowedMonths = parseCronPart(parts[3], 1, 12);
+  const allowedDow = parseCronPart(parts[4], 0, 6, true);
 
-  // Case 1: Specific daily scheduled time e.g. "0 14 * * *" (daily at 14:00 in timezone)
-  if (!hourPart.includes('*') && !hourPart.includes('/') && !minPart.includes('*') && !minPart.includes('/')) {
-    const targetHour = parseInt(hourPart, 10);
-    const targetMin = parseInt(minPart, 10);
+  // Start from next minute boundary
+  let candidate = new Date(fromDate.getTime() + 60000);
+  candidate.setSeconds(0, 0);
 
-    if (!isNaN(targetHour) && !isNaN(targetMin)) {
-      const now = new Date();
-      const dtf = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hour12: false
-      });
-      const tzParts = dtf.formatToParts(now).reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
-      const tzHour = parseInt(tzParts.hour === '24' ? '0' : tzParts.hour, 10);
-      const tzMin = parseInt(tzParts.minute, 10);
+  // Search forward minute by minute up to 366 days
+  const maxMinutes = 527040;
+  for (let m = 0; m < maxMinutes; m++) {
+    const tz = getTimezoneParts(candidate, timezone);
 
-      let dayOffset = 0;
-      if (tzHour > targetHour || (tzHour === targetHour && tzMin >= targetMin)) {
-        dayOffset = 1; // Due tomorrow at target time
-      }
+    if (
+      allowedMonths.has(tz.month) &&
+      allowedDom.has(tz.day) &&
+      allowedDow.has(tz.weekday) &&
+      allowedHours.has(tz.hour) &&
+      allowedMinutes.has(tz.minute)
+    ) {
+      return candidate.toISOString();
+    }
 
-      const diffHours = targetHour - tzHour;
-      const diffMins = targetMin - tzMin;
-      const nextTime = new Date(now.getTime() + (dayOffset * 24 * 60 * 60 * 1000) + (diffHours * 60 * 60 * 1000) + (diffMins * 60 * 1000));
-      return nextTime.toISOString();
+    if (!allowedMonths.has(tz.month) || !allowedDom.has(tz.day) || !allowedDow.has(tz.weekday)) {
+      // Advance by 60 minutes when day doesn't match
+      candidate = new Date(candidate.getTime() + 60 * 60000);
+      m += 59;
+    } else if (!allowedHours.has(tz.hour)) {
+      // Advance to next hour boundary
+      const minutesToNextHour = 60 - tz.minute;
+      candidate = new Date(candidate.getTime() + minutesToNextHour * 60000);
+      m += (minutesToNextHour - 1);
+    } else {
+      candidate = new Date(candidate.getTime() + 60000);
     }
   }
 
-  // Case 2: Step hours e.g. "0 */6 * * *"
-  const stepMatch = hourPart.match(/\*\/(\d+)/);
-  if (stepMatch && stepMatch[1]) {
-    const stepHours = parseInt(stepMatch[1], 10);
-    return new Date(Date.now() + stepHours * 60 * 60 * 1000).toISOString();
-  }
-
-  // Default fallback: 4 hours
-  return new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+  return new Date(fromDate.getTime() + 4 * 60 * 60 * 1000).toISOString();
 }
 
 /**
@@ -115,7 +171,23 @@ export async function getDueSources(filterSourceId = null) {
  */
 export async function processSource(source) {
   const limit = source.video_limit || config.maxVideosPerRun || 15;
+  const db = getDbClient();
   console.log(`\n--> [SCHEDULER JOB] Processing "${source.name}" (Limit: ${limit}, Timezone: ${source.timezone || DEFAULT_TIMEZONE})`);
+
+  // Acquire run lease lock so concurrent scheduler ticks do not overlap execution
+  if (source.schedule_id) {
+    try {
+      await db
+        .from('source_schedules')
+        .update({
+          next_run_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', source.schedule_id);
+    } catch (lockErr) {
+      console.warn('    [LOCK NOTICE] Could not acquire temporary schedule lease:', lockErr.message);
+    }
+  }
 
   let scrapedVideos = [];
   try {
@@ -133,14 +205,50 @@ export async function processSource(source) {
 
     if (scrapedVideos.isChallenge) {
       console.warn(`    \x1b[33m[CHALLENGE DETECTED]\x1b[0m Source "${source.name}" encountered bot challenge (${scrapedVideos.challengeReason})`);
-      const db = getDbClient();
       if (source.id) {
         await db
           .from('crawler_sources')
           .update({ access_state: 'blocked_challenge' })
           .eq('id', source.id);
       }
-      if (source.schedule_id) {
+      return { ok: false, isChallenge: true, reason: scrapedVideos.challengeReason };
+    }
+
+    console.log(`    Discovered ${scrapedVideos.length} candidate stream(s)`);
+
+    let syncResult = { inserted: 0, skipped: 0, duplicates: 0, blockedBySuppression: 0, invalid: 0 };
+    if (scrapedVideos.length > 0) {
+      syncResult = await syncVideosToDb(scrapedVideos, source);
+      console.log(`    Sync outcome: \x1b[32m+${syncResult.inserted} new\x1b[0m, \x1b[33m${syncResult.skipped} skipped\x1b[0m (${syncResult.duplicates} dup, ${syncResult.blockedBySuppression} suppressed, ${syncResult.invalid} invalid)`);
+    }
+
+    // Only mark last_synced_at and access_state = 'ok' AFTER successful scrape & db sync
+    if (source.id) {
+      await updateSourceLastSynced(source.id);
+      await db
+        .from('crawler_sources')
+        .update({ access_state: 'ok' })
+        .eq('id', source.id);
+    }
+
+    return { ok: true, ...syncResult };
+  } catch (err) {
+    console.error(`    \x1b[31m[JOB ERROR]\x1b[0m Failed processing "${source.name}":`, err.message);
+    if (source.id) {
+      try {
+        await db
+          .from('crawler_sources')
+          .update({ access_state: `error: ${err.message.slice(0, 100)}` })
+          .eq('id', source.id);
+      } catch (dbErr) {
+        // Ignore secondary update error
+      }
+    }
+    return { ok: false, error: err.message };
+  } finally {
+    // Release lease and schedule next run time
+    if (source.schedule_id) {
+      try {
         await db
           .from('source_schedules')
           .update({
@@ -149,48 +257,10 @@ export async function processSource(source) {
             updated_at: new Date().toISOString()
           })
           .eq('id', source.schedule_id);
+      } catch (schedErr) {
+        console.warn('    [SCHEDULE NOTICE] Could not release lease and schedule next run:', schedErr.message);
       }
-      return { ok: false, isChallenge: true, reason: scrapedVideos.challengeReason };
     }
-
-    console.log(`    Discovered ${scrapedVideos.length} candidate stream(s)`);
-
-    if (source.id) {
-      await updateSourceLastSynced(source.id);
-      const db = getDbClient();
-      await db
-        .from('crawler_sources')
-        .update({ access_state: 'ok' })
-        .eq('id', source.id);
-    }
-
-    let inserted = 0;
-    let skipped = 0;
-
-    if (scrapedVideos.length > 0) {
-      const syncResult = await syncVideosToDb(scrapedVideos, source);
-      inserted = syncResult.inserted;
-      skipped = syncResult.skipped;
-      console.log(`    Sync outcome: \x1b[32m+${inserted} new\x1b[0m, \x1b[33m${skipped} skipped (duplicates / tombstones)\x1b[0m`);
-    }
-
-    // Advance next_run_at in source_schedules using source's actual cron and timezone
-    if (source.schedule_id) {
-      const db = getDbClient();
-      await db
-        .from('source_schedules')
-        .update({
-          last_run_at: new Date().toISOString(),
-          next_run_at: calculateNextCronRun(source.cron_expression, source.timezone),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', source.schedule_id);
-    }
-
-    return { ok: true, inserted, skipped };
-  } catch (err) {
-    console.error(`    \x1b[31m[JOB ERROR]\x1b[0m Failed processing "${source.name}":`, err.message);
-    return { ok: false, error: err.message };
   }
 }
 

@@ -184,10 +184,16 @@ export const api = {
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('is_active', false)
+        .in('health_state', ['dead', 'quarantined'])
+        .neq('publication_state', 'rejected')
         .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching dead videos:', error);
+        return [];
+      }
       return data || [];
     } catch (err) {
+      console.error('Exception fetching dead videos:', err);
       return [];
     }
   },
@@ -198,7 +204,7 @@ export const api = {
       try {
         await supabase
           .from('videos')
-          .update({ is_active: false, dead_reason: reason })
+          .update({ is_active: false, health_state: 'quarantined', dead_reason: reason })
           .eq('id', id);
       } catch (err) {
         console.error('Error quarantining video:', err);
@@ -212,7 +218,7 @@ export const api = {
       try {
         await supabase
           .from('videos')
-          .update({ is_active: true, dead_reason: null })
+          .update({ is_active: true, health_state: 'healthy', dead_reason: null })
           .eq('id', id);
       } catch (err) {
         console.error('Error restoring video:', err);
@@ -452,17 +458,74 @@ export const api = {
     }
   },
 
-  async resolveDMCARequest(id) {
+  async resolveDMCARequest(id, action = 'takedown_and_suppress') {
     store.resolveDMCARequest(id);
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        await supabase
+        const { data: req } = await supabase
+          .from('takedown_requests')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (req && req.video_url && action === 'takedown_and_suppress') {
+          const rawUrl = req.video_url.trim();
+
+          let videoToTakedown = null;
+          const { data: exactMatch } = await supabase
+            .from('videos')
+            .select('id, embed_url')
+            .eq('embed_url', rawUrl)
+            .maybeSingle();
+
+          if (exactMatch) {
+            videoToTakedown = exactMatch;
+          } else {
+            const uuidMatch = rawUrl.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+            if (uuidMatch) {
+              const { data: idMatch } = await supabase
+                .from('videos')
+                .select('id, embed_url')
+                .eq('id', uuidMatch[0])
+                .maybeSingle();
+              if (idMatch) videoToTakedown = idMatch;
+            }
+          }
+
+          if (videoToTakedown) {
+            await supabase
+              .from('videos')
+              .update({ publication_state: 'rejected', is_active: false })
+              .eq('id', videoToTakedown.id);
+
+            await supabase
+              .from('suppressed_videos')
+              .upsert({
+                embed_url: videoToTakedown.embed_url,
+                reason: 'dmca_takedown',
+                suppressed_by: 'admin_dmca_resolution'
+              }, { onConflict: 'embed_url' });
+          } else if (rawUrl.startsWith('http')) {
+            await supabase
+              .from('suppressed_videos')
+              .upsert({
+                embed_url: rawUrl,
+                reason: 'dmca_takedown',
+                suppressed_by: 'admin_dmca_resolution'
+              }, { onConflict: 'embed_url' });
+          }
+        }
+
+        const { error } = await supabase
           .from('takedown_requests')
           .update({ status: 'resolved' })
           .eq('id', id);
+
+        if (error) throw error;
       } catch (err) {
         console.error('Error resolving DMCA request:', err);
+        throw err;
       }
     }
   },
@@ -487,17 +550,23 @@ export const api = {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     try {
+      const typeVal = sourceData.type || sourceData.source_type || 'json_api';
       const { data, error } = await supabase
         .from('crawler_sources')
         .insert([{
           name: sourceData.name,
           url: sourceData.url,
-          type: sourceData.type || 'hornyleak',
+          type: typeVal,
           category: sourceData.category || 'Trending',
           video_limit: parseInt(sourceData.video_limit, 10) || 15,
-          is_enabled: sourceData.is_enabled !== false
+          is_enabled: sourceData.is_enabled !== false,
+          auto_approve: sourceData.auto_approve !== false
         }])
         .select();
+      if (error) {
+        console.error('Failed to add crawler source:', error);
+        throw error;
+      }
       const created = data ? data[0] : null;
       if (created && created.id) {
         try {
@@ -516,7 +585,7 @@ export const api = {
       return created;
     } catch (err) {
       console.error('Failed to add crawler source:', err);
-      return null;
+      throw err;
     }
   },
 
@@ -524,15 +593,24 @@ export const api = {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     try {
+      const updateData = { ...fields };
+      if (updateData.source_type && !updateData.type) {
+        updateData.type = updateData.source_type;
+        delete updateData.source_type;
+      }
       const { data, error } = await supabase
         .from('crawler_sources')
-        .update(fields)
+        .update(updateData)
         .eq('id', id)
         .select();
+      if (error) {
+        console.error('Failed to update crawler source:', error);
+        throw error;
+      }
       return data ? data[0] : null;
     } catch (err) {
       console.error('Failed to update crawler source:', err);
-      return null;
+      throw err;
     }
   },
 
@@ -540,11 +618,15 @@ export const api = {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
     try {
-      await supabase.from('crawler_sources').delete().eq('id', id);
+      const { error } = await supabase.from('crawler_sources').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete crawler source:', error);
+        throw error;
+      }
       return true;
     } catch (err) {
       console.error('Failed to delete crawler source:', err);
-      return false;
+      throw err;
     }
   },
 

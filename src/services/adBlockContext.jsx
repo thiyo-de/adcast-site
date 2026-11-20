@@ -95,11 +95,9 @@ export function AdBlockProvider({ children, currentView = 'home', videoId = null
       }
       return AD_BLOCK_STATES.INCONCLUSIVE;
     } finally {
-      if (activeCheckIdRef.current === checkId) {
-        isCheckingRef.current = false;
-        if (isManual) {
-          setIsRechecking(false);
-        }
+      isCheckingRef.current = false;
+      if (isManual) {
+        setIsRechecking(false);
       }
     }
   }, [currentView]);
