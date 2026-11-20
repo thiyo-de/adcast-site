@@ -71,7 +71,7 @@ function getTimezoneParts(date, tz) {
 
 /**
  * Calculates the exact next run time from a standard 5-field cron expression and timezone.
- * Snaps to exact clock boundaries in the target timezone (e.g. 0 */4 * * * snaps to 00:00, 04:00, etc.).
+ * Snaps to exact clock boundaries in the target timezone (e.g. every 4 hours snaps to 00:00, 04:00, etc.).
  */
 export function calculateNextCronRun(cronExpr = '0 */4 * * *', timezone = DEFAULT_TIMEZONE, fromDate = new Date()) {
   if (!cronExpr || typeof cronExpr !== 'string') {
