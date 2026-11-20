@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import VideoCard from '../components/VideoCard';
 import AdSlot from '../components/AdSlot';
+import Pagination from '../components/Pagination';
 import { store } from '../services/store';
 import { resetDefaultSEO } from '../utils/seo';
 import { CATEGORY_TAG_MAP } from '../constants/categories';
@@ -15,10 +16,10 @@ const SORT_OPTIONS = [
 export default function Home({
   videos = [],
   totalVideos = 0,
-  hasMore = false,
+  page = 1,
+  pageSize = 20,
   isLoadingVideos = false,
-  isLoadingMore = false,
-  onLoadMore,
+  onPageChange,
   sortBy = 'newest',
   onSortChange,
   onSelectVideo,
@@ -144,7 +145,7 @@ export default function Home({
             <span>{selectedCategory === 'All' ? 'Curated Streams' : `${selectedCategory}`}</span>
           </h2>
           <span className="text-[10px] font-sans font-bold tabular-nums text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-            {totalVideos > 0 ? `${processedVideos.length} of ${totalVideos}` : processedVideos.length}
+            {totalVideos > 0 ? totalVideos : processedVideos.length}
             <span className="hidden sm:inline ml-1 font-semibold">Streams</span>
           </span>
         </div>
@@ -284,29 +285,14 @@ export default function Home({
         </div>
       )}
 
-      {/* Load More Pagination Controls */}
-      {hasMore && !isLoadingVideos && (
-        <div className="pt-6 pb-4 text-center">
-          <button
-            type="button"
-            onClick={onLoadMore}
-            disabled={isLoadingMore}
-            className="min-h-[46px] px-8 py-3 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-black uppercase tracking-wider shadow-xl shadow-rose-600/25 hover:shadow-rose-600/40 hover:scale-[1.02] active:scale-95 transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isLoadingMore ? (
-              <>
-                <i className="ri-loader-4-line not-italic text-sm animate-spin"></i>
-                <span>Loading More Streams...</span>
-              </>
-            ) : (
-              <>
-                <i className="ri-arrow-down-circle-line not-italic text-sm"></i>
-                <span>Load More Streams ({totalVideos - processedVideos.length} remaining)</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
+      {/* Numbered Pagination Controls */}
+      <Pagination
+        currentPage={page}
+        totalItems={totalVideos}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+        isLoading={isLoadingVideos}
+      />
     </div>
   );
 }

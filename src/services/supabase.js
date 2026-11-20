@@ -113,7 +113,7 @@ export const api = {
     }
   },
 
-  async getVideosPage({ page = 1, pageSize = 24, category = 'All', search = '', sort = 'newest' } = {}) {
+  async getVideosPage({ page = 1, pageSize = 20, category = 'All', search = '', sort = 'newest' } = {}) {
     const supabase = getSupabaseClient();
     if (!supabase) {
       return this.getLocalVideosPage({ page, pageSize, category, search, sort });
@@ -173,7 +173,7 @@ export const api = {
     }
   },
 
-  getLocalVideosPage({ page = 1, pageSize = 24, category = 'All', search = '', sort = 'newest' } = {}) {
+  getLocalVideosPage({ page = 1, pageSize = 20, category = 'All', search = '', sort = 'newest' } = {}) {
     let pool = store.getVideos() || [];
     if (category && category !== 'All') {
       pool = pool.filter((v) => v.category === category);

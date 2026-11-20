@@ -45,7 +45,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [videos, setVideos] = useState([]);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(24);
+  const [pageSize] = useState(20);
   const [totalVideos, setTotalVideos] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
@@ -211,9 +211,11 @@ export default function App() {
     }
   };
 
-  const handleLoadMore = () => {
-    if (!isLoadingMore && hasMore) {
-      fetchVideosPage(page + 1, true);
+  const handlePageChange = (targetPage) => {
+    const totalPages = Math.max(1, Math.ceil(totalVideos / pageSize));
+    if (targetPage >= 1 && targetPage <= totalPages && targetPage !== page) {
+      fetchVideosPage(targetPage, false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -297,10 +299,10 @@ export default function App() {
           <Home
             videos={videos}
             totalVideos={totalVideos}
-            hasMore={hasMore}
+            page={page}
+            pageSize={pageSize}
             isLoadingVideos={isLoadingVideos}
-            isLoadingMore={isLoadingMore}
-            onLoadMore={handleLoadMore}
+            onPageChange={handlePageChange}
             sortBy={sortBy}
             onSortChange={setSortBy}
             searchQuery={searchQuery}
