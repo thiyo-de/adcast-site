@@ -131,15 +131,15 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const getSlotContainerClasses = () => {
     switch (slotId) {
       case 'slot_top_banner':
-        return 'min-h-[50px] sm:min-h-[90px] w-full max-w-full sm:max-w-4xl mx-auto flex flex-col items-center justify-center overflow-hidden [&_iframe]:max-w-full [&_ins]:max-w-full';
+        return 'min-h-[50px] sm:min-h-[90px] w-full max-w-full sm:max-w-4xl mx-auto flex flex-col items-center justify-center text-center overflow-hidden';
       case 'slot_below_player':
-        return 'min-h-[250px] w-full flex flex-col items-center justify-center';
+        return 'min-h-[250px] w-full flex flex-col items-center justify-center text-center mx-auto overflow-hidden';
       case 'slot_native_feed':
-        return 'w-full h-full flex flex-col justify-center items-center overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover [&_ins]:w-full [&_ins]:h-full [&_img]:w-full [&_img]:h-full [&_img]:object-cover';
+        return 'w-full h-full min-h-[320px] sm:min-h-0 flex flex-col justify-center items-center overflow-hidden text-center';
       case 'slot_sticky_footer':
-        return 'w-auto flex items-center justify-center';
+        return 'w-auto flex items-center justify-center text-center mx-auto';
       default:
-        return 'min-h-[90px] w-full flex flex-col items-center justify-center';
+        return 'min-h-[90px] w-full flex flex-col items-center justify-center text-center mx-auto';
     }
   };
 
@@ -296,11 +296,17 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         /* Regular Ad Injection Container */
         <div
           ref={outerWrapperRef}
-          className="w-full h-full flex items-center justify-center overflow-hidden"
+          className={`${slotId === 'slot_sticky_footer' ? 'w-auto' : 'w-full'} h-full flex items-center justify-center text-center overflow-hidden`}
         >
           <div
             ref={containerRef}
-            className={`w-full h-full flex items-center justify-center overflow-hidden [&_iframe]:max-w-full [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:object-cover [&_ins]:max-w-full [&_ins]:w-full [&_ins]:h-full [&_img]:w-full [&_img]:h-full [&_img]:object-cover ${
+            className={`${
+              slotId === 'slot_sticky_footer' ? 'w-auto' : 'w-full'
+            } flex items-center justify-center text-center overflow-hidden ${
+              slotId === 'slot_native_feed'
+                ? 'h-full min-h-[320px] sm:min-h-0 [&_iframe]:mx-auto [&_iframe]:max-w-full [&_ins]:w-full [&_ins]:h-full [&_ins]:flex [&_ins]:flex-col [&_ins]:items-center [&_ins]:justify-center [&_ins]:mx-auto [&_img]:mx-auto [&_img]:max-w-full [&_img]:max-h-full [&_img]:object-contain'
+                : 'h-auto [&_iframe]:mx-auto [&_iframe]:block [&_iframe]:max-w-full [&_ins]:mx-auto [&_ins]:block [&_ins]:text-center [&_ins]:max-w-full [&_img]:mx-auto [&_img]:block [&_img]:max-w-full [&_a]:inline-block [&_a]:mx-auto'
+            } ${
               isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
             }`}
           />

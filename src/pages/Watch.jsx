@@ -339,7 +339,7 @@ export default function Watch({
           )}
 
           {/* Ad Slot 4: Below-Player High CTR Banner (24px Safe-Spacing Buffer) */}
-          <div className="w-full my-6 sm:my-8">
+          <div className="w-full my-6 sm:my-8 flex justify-center items-center text-center">
             <AdSlot slotId="slot_below_player" className="w-full rounded-2xl overflow-hidden" />
           </div>
 

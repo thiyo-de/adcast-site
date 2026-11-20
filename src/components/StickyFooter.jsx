@@ -64,7 +64,7 @@ export default function StickyFooter({ currentView }) {
     >
       <div
         ref={wrapperRef}
-        className="relative pointer-events-auto inline-flex items-center justify-center max-w-[95vw] sm:max-w-4xl"
+        className="relative pointer-events-auto inline-flex items-center justify-center max-w-[95vw] sm:max-w-4xl mx-auto"
       >
         {/* Floating Close Button */}
         {isLoaded && (

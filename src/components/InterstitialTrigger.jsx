@@ -9,13 +9,12 @@ export default function InterstitialTrigger({ currentView }) {
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    // 1. Guard check: Only on desktop (>= 1024px), slot active, not placeholder, not admin/legal routes, and adblock notice not open
+    // 1. Guard check: Active slot, valid code, not admin/legal routes, and adblock notice not open (universal device support)
     if (typeof window === 'undefined') return;
 
-    const isDesktop = window.innerWidth >= 1024;
     const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
 
-    if (!isDesktop || !slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code) || isExcludedRoute || isNoticeOpen) {
+    if (!slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code) || isExcludedRoute || isNoticeOpen) {
       return;
     }
 
