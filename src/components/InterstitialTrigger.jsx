@@ -55,6 +55,23 @@ export default function InterstitialTrigger({ currentView }) {
       insEl.style.setProperty('text-align', 'center', 'important');
       insEl.style.setProperty('pointer-events', 'auto', 'important');
     }
+
+    // Dismiss listener: when user clicks close/skip on the interstitial overlay, cleanly remove container
+    interstitialContainer.addEventListener('click', (ev) => {
+      const target = ev.target;
+      if (
+        target &&
+        (target.closest('[class*="close"], [id*="close"], button, .eas-close, [aria-label*="close" i]') ||
+          target.textContent?.includes('✕') ||
+          target.textContent?.toLowerCase().includes('close') ||
+          target.textContent?.toLowerCase().includes('skip'))
+      ) {
+        setTimeout(() => {
+          interstitialContainer.remove();
+        }, 150);
+      }
+    });
+
     document.body.appendChild(interstitialContainer);
 
     // Scripts (ad-provider.js and push serve)
@@ -69,7 +86,7 @@ export default function InterstitialTrigger({ currentView }) {
       document.body.appendChild(newScript);
     });
 
-    // 5. Monitor for confirmed display: stamp cooldown ONLY once the full-page interstitial is actually visible
+    // 5. Monitor for confirmed display: stamp cooldown and enable pointer events for close button
     let checkInterval = null;
     let checks = 0;
     const maxChecks = 25; // Check for up to 12.5 seconds (500ms * 25)
@@ -85,6 +102,15 @@ export default function InterstitialTrigger({ currentView }) {
         try {
           localStorage.setItem('adcast_last_interstitial', Date.now().toString());
         } catch {}
+
+        // Enable pointer events on the container and all children so close/skip buttons can be clicked
+        if (interstitialContainer) {
+          interstitialContainer.style.pointerEvents = 'auto';
+          interstitialContainer.querySelectorAll('*').forEach((child) => {
+            child.style.setProperty('pointer-events', 'auto', 'important');
+          });
+        }
+
         if (checkInterval) clearInterval(checkInterval);
         return;
       }

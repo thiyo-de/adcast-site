@@ -45,7 +45,11 @@ export default function StickyFooter({ currentView }) {
     };
   }, [slot, isDismissed, isNoticeOpen, currentView]);
 
-  const handleDismiss = () => {
+  const handleDismiss = (e) => {
+    if (e) {
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+    }
     setIsDismissed(true);
     setIsLoaded(false);
   };
@@ -66,13 +70,16 @@ export default function StickyFooter({ currentView }) {
         ref={wrapperRef}
         className="relative pointer-events-auto w-full max-w-[95vw] sm:max-w-4xl flex items-center justify-center mx-auto"
       >
-        {/* Floating Close Button */}
+        {/* Floating Close Button with Click Propagation Shield */}
         {isLoaded && (
           <button
             type="button"
             onClick={handleDismiss}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Close advertisement"
-            className="absolute -top-3 right-0 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/90 hover:bg-black text-slate-300 hover:text-white border border-white/20 shadow-lg text-[10px] font-bold transition-all hover:scale-110 active:scale-95"
+            className="absolute -top-3 right-0 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/90 hover:bg-black text-slate-300 hover:text-white border border-white/20 shadow-lg text-[10px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer"
             title="Dismiss ad"
           >
             ✕
