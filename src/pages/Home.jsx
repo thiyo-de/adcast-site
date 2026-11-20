@@ -229,26 +229,48 @@ export default function Home({
 
       {/* 4. Responsive Video Grid with Native Ads */}
       {processedVideos.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl glass-card space-y-3">
-          <i className="ri-movie-line not-italic text-4xl text-slate-400 mb-2 block"></i>
-          <p className="text-base font-bold text-slate-700 dark:text-slate-300">
-            {videos.length === 0 ? 'No video streams in catalog' : 'No streams match your filter'}
-          </p>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            {videos.length === 0
-              ? 'The catalog is currently empty. Use the admin panel to sync streams from your crawler sources.'
-              : 'Try selecting another category or reset your search query.'}
-          </p>
-          {(selectedCategory !== 'All' || searchQuery) && (
-            <div className="pt-2">
+        <div className="relative overflow-hidden p-8 sm:p-14 text-center rounded-3xl glass-card border border-slate-200/60 dark:border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-4 max-w-2xl mx-auto my-6">
+          {/* Subtle Ambient Radial Backlight */}
+          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-48 bg-gradient-to-b from-rose-500/15 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+          {/* Modernized Curved Icon Badge */}
+          <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-rose-500/15 via-purple-500/10 to-cyan-500/15 border border-rose-500/20 dark:border-white/10 flex items-center justify-center shadow-lg">
+            <div className="absolute inset-0 rounded-2xl bg-rose-500/5 blur-sm" />
+            <i className="ri-clapperboard-line not-italic text-3xl sm:text-4xl text-rose-500 dark:text-rose-400 relative z-10"></i>
+          </div>
+
+          <div className="space-y-1.5 relative z-10">
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight">
+              {videos.length === 0 ? 'No video streams in catalog' : 'No streams match your filter'}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+              {videos.length === 0
+                ? 'The catalog is currently empty. Use the admin panel to sync streams from your crawler sources.'
+                : 'Try selecting another category or reset your search query.'}
+            </p>
+          </div>
+
+          {(selectedCategory !== 'All' || searchQuery) ? (
+            <div className="pt-2 relative z-10">
               <button
                 onClick={() => {
                   if (typeof onSelectCategory === 'function') onSelectCategory('All');
                   if (typeof onClearSearch === 'function') onClearSearch();
                 }}
-                className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all active:scale-95"
+                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-bold shadow-lg shadow-rose-600/25 transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
               >
-                Clear all filters
+                <i className="ri-refresh-line not-italic text-xs"></i>
+                <span>Clear all filters</span>
+              </button>
+            </div>
+          ) : videos.length === 0 && (
+            <div className="pt-2 relative z-10">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-5 py-2.5 rounded-full bg-slate-100 dark:bg-white/[0.08] hover:bg-slate-200 dark:hover:bg-white/[0.14] text-slate-800 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-white/10 shadow-sm transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
+              >
+                <i className="ri-refresh-line not-italic text-xs text-rose-500"></i>
+                <span>Refresh Catalog</span>
               </button>
             </div>
           )}
@@ -261,8 +283,10 @@ export default function Home({
             return (
               <React.Fragment key={video.id}>
                 {showNativeAd && (
-                  <div className="col-span-1 flex flex-col h-full max-h-[380px] rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl">
-                    <AdSlot slotId="slot_native_feed" className="w-full h-full max-h-[380px] flex flex-col justify-start" devBadge={false} />
+                  <div className="col-span-1 relative flex flex-col h-full rounded-2xl glass-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl">
+                    <div className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden">
+                      <AdSlot slotId="slot_native_feed" className="w-full h-full" devBadge={false} />
+                    </div>
                   </div>
                 )}
 

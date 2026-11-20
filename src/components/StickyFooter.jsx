@@ -70,17 +70,7 @@ export default function StickyFooter({ currentView }) {
       }`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="w-full bg-slate-900/95 dark:bg-black/95 backdrop-blur-xl border-t border-slate-200/20 dark:border-white/10 shadow-2xl py-2 px-3 flex items-center justify-center relative">
-        <button
-          onClick={handleDismiss}
-          className="absolute -top-6 right-3 sm:right-6 px-2 py-0.5 rounded-t-md bg-slate-900/95 dark:bg-black/95 hover:bg-black text-[10px] font-bold text-slate-300 hover:text-white border-t border-x border-slate-700 dark:border-white/20 flex items-center gap-1 shadow-lg cursor-pointer transition-colors"
-          title="Dismiss sticky ad"
-          aria-label="Dismiss sticky ad"
-        >
-          <span>Ad</span>
-          <i className="ri-close-line not-italic text-xs"></i>
-        </button>
-
+      <div className="w-full bg-slate-900/95 dark:bg-black/95 backdrop-blur-xl border-t border-slate-200/20 dark:border-white/10 shadow-2xl py-1 px-2 sm:py-1.5 sm:px-3 flex items-center justify-center relative">
         <div ref={wrapperRef} className="w-full max-w-4xl flex items-center justify-center min-h-[50px] sm:min-h-[90px] overflow-hidden">
           <AdSlot slotId="slot_sticky_footer" devBadge={false} />
         </div>

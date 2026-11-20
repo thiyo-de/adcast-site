@@ -90,3 +90,11 @@
     scrollbar-width: none !important;
   }
 }
+
+/* Prevent Netlify badge collision with bottom sticky ad */
+div[data-netlify-badge],
+.netlify-badge,
+a[href*="netlify.com"].netlify-badge {
+  bottom: 84px !important;
+  transition: bottom 0.3s ease;
+}
