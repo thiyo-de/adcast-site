@@ -102,8 +102,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         insElements.forEach((insEl) => {
           if (slotId === 'slot_native_feed') {
             insEl.style.setProperty('width', '100%', 'important');
-            insEl.style.setProperty('height', '100%', 'important');
-            insEl.style.setProperty('min-height', '300px', 'important');
+            insEl.style.setProperty('min-height', '360px', 'important');
             insEl.style.setProperty('display', 'block', 'important');
             insEl.style.setProperty('margin', '0 auto', 'important');
             insEl.style.setProperty('float', 'none', 'important');
@@ -258,11 +257,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   const getSlotContainerClasses = () => {
     switch (slotId) {
       case 'slot_top_banner':
-        return 'min-h-[50px] sm:min-h-[90px] w-full max-w-full sm:max-w-4xl mx-auto flex flex-col items-center justify-center text-center overflow-hidden';
+        return 'min-h-[50px] sm:min-h-[90px] w-full max-w-[320px] sm:max-w-[728px] mx-auto flex flex-col items-center justify-center text-center overflow-hidden';
       case 'slot_below_player':
-        return 'min-h-[250px] w-full flex flex-col items-center justify-center text-center mx-auto overflow-hidden';
+        return 'min-h-[250px] w-full max-w-[300px] sm:max-w-[320px] flex flex-col items-center justify-center text-center mx-auto overflow-hidden';
       case 'slot_native_feed':
-        return 'w-full h-full min-h-[320px] sm:min-h-0 flex flex-col justify-center items-center overflow-hidden text-center';
+        return 'w-full h-full min-h-[360px] flex flex-col justify-start items-center text-center';
       case 'slot_sticky_footer':
         return 'w-auto flex items-center justify-center text-center mx-auto';
       default:
@@ -423,14 +422,14 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         /* Regular Ad Injection Container */
         <div
           ref={outerWrapperRef}
-          className={`w-full flex items-center justify-center overflow-hidden ${
-            slotId === 'slot_native_feed' ? 'h-full min-h-[320px] sm:min-h-0' : 'h-auto'
+          className={`w-full flex items-center justify-center ${
+            slotId === 'slot_native_feed' ? 'h-full min-h-[360px]' : 'h-auto overflow-hidden'
           }`}
         >
           <div
             ref={containerRef}
-            className={`w-full flex items-center justify-center overflow-hidden ${
-              slotId === 'slot_native_feed' ? 'h-full min-h-[320px] sm:min-h-0' : 'h-auto'
+            className={`w-full ${
+              slotId === 'slot_native_feed' ? 'h-full min-h-[360px] block' : 'flex items-center justify-center overflow-hidden'
             } ${
               isDevMode ? 'ring-1 ring-cyan-500/30 ring-dashed rounded-xl p-1' : ''
             }`}

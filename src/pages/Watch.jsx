@@ -362,8 +362,8 @@ export default function Watch({
             </div>
           )}
 
-          {/* Ad Slot 4: Below-Player High CTR Banner (24px Safe-Spacing Buffer) */}
-          <div className="w-full my-6 sm:my-8 flex justify-center items-center text-center">
+          {/* Ad Slot 4: Below-Player High CTR Banner (Centered with explicit max-width) */}
+          <div className="w-full max-w-[300px] sm:max-w-[320px] my-6 sm:my-8 mx-auto flex flex-col justify-center items-center text-center">
             <AdSlot slotId="slot_below_player" className="w-full rounded-2xl overflow-hidden" />
           </div>
 
@@ -404,7 +404,7 @@ export default function Watch({
             </div>
 
             {/* Recommendation Order Tabs (YouTube/Twitch-Style) */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
               {(() => {
                 const categoryIcon =
                   video.category === 'Hardcore'
@@ -455,15 +455,28 @@ export default function Watch({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {relatedVideos.map((item) => (
-                <VideoCard
-                  key={item.id}
-                  video={item}
-                  onSelect={onSelectVideo}
-                  onBookmarkToggle={onBookmarkToggle}
-                  isBookmarked={typeof isBookmarked === 'function' ? isBookmarked(item.id) : false}
-                />
-              ))}
+              {relatedVideos.map((item, index) => {
+                const showNativeAd = index === 3 || (index > 0 && index % 6 === 0);
+
+                return (
+                  <React.Fragment key={item.id}>
+                    {showNativeAd && (
+                      <div className="col-span-1 sm:col-span-2 relative flex flex-col min-h-[380px] h-full rounded-2xl glass-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl p-3 sm:p-4">
+                        <div className="w-full h-full flex items-center justify-center">
+                          <AdSlot slotId="slot_native_feed" className="w-full h-full min-h-[350px]" devBadge={false} />
+                        </div>
+                      </div>
+                    )}
+
+                    <VideoCard
+                      video={item}
+                      onSelect={onSelectVideo}
+                      onBookmarkToggle={onBookmarkToggle}
+                      isBookmarked={typeof isBookmarked === 'function' ? isBookmarked(item.id) : false}
+                    />
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
         </div>
