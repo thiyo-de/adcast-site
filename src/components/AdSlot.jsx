@@ -92,43 +92,49 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     tempDiv.innerHTML = effectiveCode;
 
     // Helper: force inline styles on injected <ins>, inner tables/divs, and <img> elements
-    // This is required because ExoClick injects its own stylesheet and DOM elements
-    // asynchronously — inline styles + MutationObserver guarantee centering and sizing.
+    // Uses a recursion guard (isApplying) and childList-only observer to prevent infinite loops.
+    let isApplying = false;
     const forceAdStyles = (root) => {
-      if (!root) return;
-      const insEl = root.querySelector('ins');
-      if (insEl) {
-        if (slotId === 'slot_native_feed') {
-          // Native: fill the whole card container, center contents
-          insEl.style.cssText = 'display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:300px!important;justify-content:center!important;align-items:center!important;text-align:center!important;margin:0 auto!important;float:none!important;';
-        } else if (slotId === 'slot_sticky_footer') {
-          // Sticky: shrink-wrap to content, center in row
-          insEl.style.cssText = 'display:block!important;margin:0 auto!important;text-align:center!important;max-width:100%!important;float:none!important;';
-        } else {
-          // Banners (top / below-player): center, cancel float
-          insEl.style.cssText = 'display:block!important;margin:0 auto!important;max-width:100%!important;text-align:center!important;float:none!important;';
+      if (!root || isApplying) return;
+      isApplying = true;
+      try {
+        const insEl = root.querySelector('ins');
+        if (insEl) {
+          if (slotId === 'slot_native_feed') {
+            // Native: fill the whole card container, center contents
+            insEl.style.cssText = 'display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:300px!important;justify-content:center!important;align-items:center!important;text-align:center!important;margin:0 auto!important;float:none!important;';
+          } else if (slotId === 'slot_sticky_footer') {
+            // Sticky: shrink-wrap to content, center in row
+            insEl.style.cssText = 'display:block!important;margin:0 auto!important;text-align:center!important;max-width:100%!important;float:none!important;';
+          } else {
+            // Banners (top / below-player): center, cancel float
+            insEl.style.cssText = 'display:block!important;margin:0 auto!important;max-width:100%!important;text-align:center!important;float:none!important;';
+          }
         }
+
+        // 2. Force center and cancel floats on all internal ExoClick containers (tables, divs, iframes, links)
+        root.querySelectorAll('ins > div, ins > table, ins > a, ins iframe').forEach((el) => {
+          el.style.marginLeft = 'auto';
+          el.style.marginRight = 'auto';
+          el.style.float = 'none';
+          el.style.textAlign = 'center';
+        });
+
+        // 3. Force images: in native card, expand thumbnail; in banners, center horizontally
+        root.querySelectorAll('img').forEach((img) => {
+          if (slotId === 'slot_native_feed') {
+            img.style.cssText += 'display:block!important;width:100%!important;max-height:220px!important;object-fit:cover!important;margin:0 auto!important;border-radius:12px!important;float:none!important;';
+          } else {
+            img.style.cssText += 'display:block!important;margin:0 auto!important;max-width:100%!important;float:none!important;';
+          }
+        });
+      } finally {
+        isApplying = false;
       }
-
-      // 2. Force center and cancel floats on all internal ExoClick containers (tables, divs, iframes, links)
-      root.querySelectorAll('ins > div, ins > table, ins > a, ins iframe').forEach((el) => {
-        el.style.marginLeft = 'auto';
-        el.style.marginRight = 'auto';
-        el.style.float = 'none';
-        el.style.textAlign = 'center';
-      });
-
-      // 3. Force images: in native card, expand thumbnail; in banners, center horizontally
-      root.querySelectorAll('img').forEach((img) => {
-        if (slotId === 'slot_native_feed') {
-          img.style.cssText += 'display:block!important;width:100%!important;max-height:220px!important;object-fit:cover!important;margin:0 auto!important;border-radius:12px!important;float:none!important;';
-        } else {
-          img.style.cssText += 'display:block!important;margin:0 auto!important;max-width:100%!important;float:none!important;';
-        }
-      });
     };
 
-    // 4. Attach MutationObserver to catch late-arriving async ExoClick creatives immediately
+    // 4. Attach MutationObserver to catch late-arriving async ExoClick creatives
+    // Strictly observe childList only (new elements added), NEVER attributes (prevents infinite loop)
     let observer = null;
     try {
       observer = new MutationObserver(() => {
@@ -136,9 +142,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       });
       observer.observe(container, {
         childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class']
+        subtree: true
       });
     } catch (e) {
       // Fallback if MutationObserver is not supported
