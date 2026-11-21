@@ -224,22 +224,18 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           </div>
 
           {/* Top Left Badge: SPONSORED pill matching VideoCard badges */}
-          {isLoaded && (
-            <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-20">
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-amber-500 text-black shadow-sm">
-                SPONSORED
-              </span>
-            </div>
-          )}
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-20">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-amber-500 text-black shadow-sm">
+              SPONSORED
+            </span>
+          </div>
 
           {/* Top Right: AD Indicator Pill */}
-          {isLoaded && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 pointer-events-none z-20">
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-300 border border-white/10 shadow-sm backdrop-blur-md">
-                AD ↗
-              </span>
-            </div>
-          )}
+          <div className="absolute top-2 right-2 flex items-center gap-1 pointer-events-none z-20">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-300 border border-white/10 shadow-sm backdrop-blur-md">
+              AD ↗
+            </span>
+          </div>
         </div>
 
         {/* 2. Video Info Section matching VideoCard */}
