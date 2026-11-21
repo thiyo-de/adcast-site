@@ -99,7 +99,7 @@ export default function AdBlockNotice() {
 
         {/* Modal Body */}
         <p id="adblock-dialog-desc" className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-          Our video streams and high-speed servers are <strong>100% free</strong> and supported entirely by advertisements. To access this catalog and watch videos, you must turn off your ad blocker or protective shield.
+          Please disable your ad blocker or whitelist this site to continue watching.
         </p>
 
         {/* Step-by-Step Whitelist Instructions */}
@@ -109,9 +109,9 @@ export default function AdBlockNotice() {
               <i className="ri-shield-star-line"></i>
             </div>
             <div>
-              <strong className="text-slate-100 block font-bold">Brave Browser Users:</strong>
+              <strong className="text-slate-100 block font-bold">Brave Browser:</strong>
               <span className="text-slate-400 leading-relaxed">
-                Click the <strong>orange lion icon</strong> in your address bar and toggle <strong>Shields to OFF</strong> for this website. If Brave continues blocking, please switch to <strong>Google Chrome, Edge, Safari, or Firefox</strong>.
+                Click the shield icon in the address bar and toggle <strong>Shields to OFF</strong> for this site.
               </span>
             </div>
           </div>
@@ -121,15 +121,15 @@ export default function AdBlockNotice() {
               <i className="ri-plug-line"></i>
             </div>
             <div>
-              <strong className="text-slate-100 block font-bold">uBlock Origin, AdBlock, AdGuard, Opera:</strong>
+              <strong className="text-slate-100 block font-bold">AdBlock, uBlock, AdGuard:</strong>
               <span className="text-slate-400 leading-relaxed">
-                Click your ad blocker extension icon in the toolbar and click <strong>Pause on this site</strong> or toggle protection <strong>OFF</strong>.
+                Click your extension icon and select <strong>Pause on this site</strong> or turn protection <strong>OFF</strong>.
               </span>
             </div>
           </div>
         </div>
 
-        {/* Primary Action Button (The ONLY way to unlock the site) */}
+        {/* Primary Action Button */}
         <div>
           <button
             ref={buttonRef}
@@ -142,11 +142,8 @@ export default function AdBlockNotice() {
             className="w-full py-3.5 px-6 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer"
           >
             <i className="ri-refresh-line text-base"></i>
-            <span>I Have Disabled AdBlock — Refresh &amp; Unlock</span>
+            <span>Refresh Page</span>
           </button>
-          <p className="text-[10px] text-center text-slate-500 font-semibold mt-2.5">
-            Reloads the page to initialize video ads and grant full access
-          </p>
         </div>
       </div>
     </div>
