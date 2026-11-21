@@ -164,17 +164,62 @@ export default function Watch({
 
   if (!video) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto animate-pulse">
-          <i className="ri-play-fill not-italic text-3xl ml-1"></i>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 space-y-6">
+        {/* Breadcrumb Skeleton */}
+        <div className="flex items-center gap-2 select-none">
+          <div className="w-16 h-3.5 rounded-md bg-slate-300/60 dark:bg-slate-800/80 animate-pulse" />
+          <span className="text-slate-600">/</span>
+          <div className="w-28 h-3.5 rounded-md bg-slate-300/40 dark:bg-slate-800/60 animate-pulse" />
         </div>
-        <p className="text-xs font-bold text-slate-400">Loading stream...</p>
-        <button
-          onClick={onBack}
-          className="mt-2 min-h-[44px] px-6 py-2 rounded-full glass-button text-xs font-bold"
-        >
-          Return to Browse
-        </button>
+
+        {/* 16:9 Video Player Shimmer Skeleton Frame */}
+        <div className="relative aspect-video w-full rounded-2xl md:rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/60 dark:border-white/[0.08] shadow-2xl flex items-center justify-center">
+          <div className="shimmer-wave" />
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500 shadow-xl shadow-rose-600/10 z-10">
+            <i className="ri-play-fill not-italic text-3xl sm:text-4xl ml-1 text-rose-500"></i>
+          </div>
+
+          {/* Skeleton Player Control Bar */}
+          <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-black/80 to-transparent flex items-center px-4 gap-3 z-10">
+            <div className="w-6 h-6 rounded bg-slate-700/60" />
+            <div className="w-16 h-3 rounded bg-slate-700/60" />
+            <div className="flex-1 h-1.5 rounded-full bg-slate-700/40" />
+            <div className="w-6 h-6 rounded bg-slate-700/60" />
+          </div>
+        </div>
+
+        {/* Video Title & Actions Skeleton Row */}
+        <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3 border border-slate-200/60 dark:border-white/[0.08]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-2 flex-1">
+              <div className="w-3/4 h-5 rounded-md bg-slate-300/70 dark:bg-slate-800/80 animate-pulse" />
+              <div className="w-1/2 h-3.5 rounded-md bg-slate-300/50 dark:bg-slate-800/60 animate-pulse" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-slate-300/60 dark:bg-slate-800/70 animate-pulse" />
+              <div className="w-10 h-10 rounded-xl bg-slate-300/60 dark:bg-slate-800/70 animate-pulse" />
+              <div className="w-10 h-10 rounded-xl bg-slate-300/60 dark:bg-slate-800/70 animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        {/* Recommended Streams Grid Skeleton */}
+        <div className="space-y-4 pt-4 border-t border-slate-200/60 dark:border-white/[0.08]">
+          <div className="w-44 h-5 rounded-md bg-slate-300/70 dark:bg-slate-800/80 animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={`watch-rec-skel-${i}`} className="relative flex flex-col rounded-2xl glass-card overflow-hidden border border-slate-200/60 dark:border-white/[0.08]">
+                <div className="relative aspect-video w-full bg-slate-200/80 dark:bg-slate-900/80">
+                  <div className="shimmer-wave" />
+                </div>
+                <div className="p-3 space-y-2">
+                  <div className="w-16 h-2.5 rounded bg-slate-300/70 dark:bg-slate-800/80" />
+                  <div className="w-full h-3 rounded bg-slate-300/80 dark:bg-slate-800/90" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

@@ -18,6 +18,7 @@ export default function Home({
   page = 1,
   pageSize = 20,
   isLoadingVideos = false,
+  hasInitiallyLoaded = false,
   onPageChange,
   sortBy = 'newest',
   onSortChange,
@@ -221,7 +222,7 @@ export default function Home({
       </div>
 
       {/* 4. Responsive Video Grid with Native Ads */}
-      {isLoadingVideos ? (
+      {(isLoadingVideos || !hasInitiallyLoaded) ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <div

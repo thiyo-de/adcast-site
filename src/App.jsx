@@ -17,10 +17,24 @@ import { AdBlockProvider } from './services/adBlockContext';
 import AdBlockNotice from './components/AdBlockNotice';
 import { computeCategoryCounts } from './constants/categories';
 
-function parseRoute(pathname = window.location.pathname) {
+function parseRoute(
+  pathname = (typeof window !== 'undefined' ? window.location.pathname : '/'),
+  search = (typeof window !== 'undefined' ? window.location.search : '')
+) {
+  // 1. Direct path /watch/:id
   if (pathname.startsWith('/watch/')) {
     const id = pathname.replace('/watch/', '').split('/')[0].trim();
-    return { view: 'watch', videoId: id || null };
+    if (id) return { view: 'watch', videoId: id };
+  }
+  // 2. Query param /watch?id=... or /?video=... or /?v=...
+  if (search) {
+    try {
+      const params = new URLSearchParams(search);
+      const qId = params.get('id') || params.get('v') || params.get('video');
+      if (qId && (pathname === '/watch' || pathname === '/' || pathname.startsWith('/watch'))) {
+        return { view: 'watch', videoId: qId.trim() };
+      }
+    } catch {}
   }
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     return { view: 'admin', videoId: null };
@@ -83,6 +97,7 @@ export default function App() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [categoryCounts, setCategoryCounts] = useState({});
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
@@ -218,6 +233,7 @@ export default function App() {
     } finally {
       setIsLoadingVideos(false);
       setIsLoadingMore(false);
+      setHasInitiallyLoaded(true);
     }
   };
 
@@ -349,6 +365,7 @@ export default function App() {
             page={page}
             pageSize={pageSize}
             isLoadingVideos={isLoadingVideos}
+            hasInitiallyLoaded={hasInitiallyLoaded}
             onPageChange={handlePageChange}
             sortBy={sortBy}
             onSortChange={setSortBy}
