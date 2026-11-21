@@ -747,8 +747,7 @@ export default function Admin({ onBack }) {
                   <tr key={vid.id} className="hover:bg-slate-100/50 dark:hover:bg-white/[0.02] transition-colors">
                     <td className="p-3.5 w-24">
                       <div className="relative w-20 aspect-video rounded-xl overflow-hidden bg-slate-950">
-                        <img src={vid.thumbnail_url} alt="" className="w-full h-full object-cover filter blur-[10px] scale-110 opacity-25" />
-                        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm pointer-events-none" />
+                        <img src={vid.thumbnail_url} alt="" className="w-full h-full object-cover" />
                       </div>
                     </td>
                     <td className="p-3.5">

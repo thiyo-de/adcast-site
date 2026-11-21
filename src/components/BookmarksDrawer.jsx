@@ -67,8 +67,8 @@ export default function BookmarksDrawer({ isOpen, onClose, onSelectVideo, onRemo
                   className="flex items-center gap-3 p-2.5 rounded-2xl glass-card cursor-pointer group"
                 >
                   <div className="relative w-24 aspect-video rounded-xl overflow-hidden bg-slate-950 shrink-0">
-                    <img src={vid.thumbnail_url} alt={vid.title} className="w-full h-full object-cover filter blur-[10px] scale-110 opacity-25" />
-                    <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center">
+                    <img src={vid.thumbnail_url} alt={vid.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                       <i className="ri-play-fill not-italic text-white text-lg opacity-0 group-hover:opacity-100 transition-opacity"></i>
                     </div>
                   </div>

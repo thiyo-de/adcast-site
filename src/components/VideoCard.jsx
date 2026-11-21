@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { formatDuration, FALLBACK_THUMB } from '../services/store';
 
 export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmarked }) {
-  const [isRevealed, setIsRevealed] = useState(false);
 
   const formatViews = (num) => {
     if (!num) return '0';
@@ -59,15 +58,8 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
             e.currentTarget.onerror = null;
             e.currentTarget.src = FALLBACK_THUMB;
           }}
-          className={`w-full h-full object-cover transition-all duration-500 ease-out ${
-            isRevealed ? 'opacity-100 group-hover:scale-105' : 'filter blur-[5px] scale-105 opacity-65'
-          }`}
+          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
-
-        {/* Soft Privacy Veil Overlay (Clean blur without pitch-black veil) */}
-        {!isRevealed && (
-          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] pointer-events-none" />
-        )}
 
         {/* Subtle Gradient Shadow */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20 opacity-80 pointer-events-none" />
@@ -88,7 +80,6 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
 
         {/* Top Right: Bookmark Pill */}
         <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
-
           <button
             type="button"
             onClick={(e) => {
@@ -107,21 +98,6 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
             <i className={`ri-bookmark-${isBookmarked ? 'fill' : 'line'} not-italic text-xs`}></i>
           </button>
         </div>
-
-        {/* Thumbnail Preview Toggle (Bottom Left) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsRevealed(!isRevealed);
-          }}
-          className="absolute bottom-2 left-2 w-7 h-7 flex items-center justify-center rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white backdrop-blur-md transition-all z-10"
-          title={isRevealed ? 'Hide thumbnail' : 'Preview thumbnail'}
-          aria-label={isRevealed ? 'Hide thumbnail' : 'Preview thumbnail'}
-        >
-          <i className={`${isRevealed ? 'ri-eye-line text-rose-400' : 'ri-eye-off-line'} not-italic text-xs`}></i>
-        </button>
 
         {/* Duration Pill (Bottom Right - Plus Jakarta Sans tabular) */}
         <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm">
