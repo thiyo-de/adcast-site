@@ -116,8 +116,20 @@ export function updateVideoSEO(video) {
   scriptTag.textContent = JSON.stringify(jsonLdData);
 }
 
+export function set404SEO() {
+  document.title = 'Stream Not Found | HornyLeaks';
+  setMetaTag('meta[name="robots"]', 'name', 'robots', 'noindex, nofollow');
+  setMetaTag('meta[name="description"]', 'name', 'description', 'The requested video stream was not found or was removed.');
+
+  const scriptTag = document.getElementById('adcast-jsonld-video');
+  if (scriptTag && scriptTag.parentNode) {
+    scriptTag.parentNode.removeChild(scriptTag);
+  }
+}
+
 export function resetDefaultSEO() {
   document.title = DEFAULT_TITLE;
+  setMetaTag('meta[name="robots"]', 'name', 'robots', 'index, follow');
   setMetaTag('meta[name="description"]', 'name', 'description', DEFAULT_DESCRIPTION);
   setMetaTag('meta[property="og:title"]', 'property', 'og:title', DEFAULT_TITLE);
   setMetaTag('meta[property="og:description"]', 'property', 'og:description', DEFAULT_DESCRIPTION);

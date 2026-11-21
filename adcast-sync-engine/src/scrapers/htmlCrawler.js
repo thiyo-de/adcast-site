@@ -87,6 +87,7 @@ export async function scrapeHtml(source, limit = 15) {
         seenUrls.add(rawLink);
         items.push(
           normalizeVideo({
+            source_id: source.id,
             title,
             embed_url: rawLink,
             thumbnail_url: rawThumb,

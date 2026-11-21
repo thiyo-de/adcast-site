@@ -62,6 +62,7 @@ export async function scrapeJsonApi(source, limit = 15) {
     if (!embed || !title) continue;
 
     const norm = normalizeVideo({
+      source_id: source.id,
       title,
       embed_url: embed,
       thumbnail_url: thumb,

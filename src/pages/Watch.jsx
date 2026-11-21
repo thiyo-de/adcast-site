@@ -5,7 +5,7 @@ import AdSlot from '../components/AdSlot';
 import { showRecommendationAdAfter } from '../services/adRendering';
 import { store, FALLBACK_THUMB } from '../services/store';
 import { api } from '../services/supabase';
-import { updateVideoSEO, resetDefaultSEO } from '../utils/seo';
+import { updateVideoSEO, resetDefaultSEO, set404SEO } from '../utils/seo';
 
 export default function Watch({
   videoId,
@@ -77,6 +77,7 @@ export default function Watch({
         } else {
           setVideo(null);
           setNotFound(true);
+          set404SEO();
         }
       }
     };

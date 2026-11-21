@@ -106,6 +106,7 @@ export async function scrapeHornyLeak(source, limit = 15) {
 
       items.push(
         normalizeVideo({
+          source_id: source.id,
           title,
           embed_url: embedUrl,
           thumbnail_url: thumb,

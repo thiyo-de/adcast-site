@@ -59,6 +59,20 @@ export default function App() {
 
   const [initialCatalog] = useState(() => parseCatalogParams());
   const [searchQuery, setSearchQuery] = useState(initialCatalog.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialCatalog.search);
+
+  // Debounce search queries by 300ms (instant when empty) to prevent query thrashing
+  useEffect(() => {
+    if (!searchQuery) {
+      setDebouncedSearch('');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const [selectedCategory, setSelectedCategory] = useState(initialCatalog.category);
   const [sortBy, setSortBy] = useState(initialCatalog.sort);
   const [page, setPage] = useState(initialCatalog.page);
@@ -141,6 +155,7 @@ export default function App() {
       setSelectedCategory(p.category);
       setSortBy(p.sort);
       setSearchQuery(p.search);
+      setDebouncedSearch(p.search);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -204,7 +219,7 @@ export default function App() {
         page: targetPage,
         pageSize,
         category: selectedCategory,
-        search: searchQuery,
+        search: debouncedSearch,
         sort: sortBy
       });
 
@@ -256,7 +271,7 @@ export default function App() {
     }
     setPage(1);
     fetchVideosPage(1, false);
-  }, [searchQuery, selectedCategory, sortBy]);
+  }, [debouncedSearch, selectedCategory, sortBy]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || currentView !== 'home') return;
@@ -264,16 +279,16 @@ export default function App() {
     if (page > 1) params.set('page', page.toString());
     if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory);
     if (sortBy && sortBy !== 'newest') params.set('sort', sortBy);
-    if (searchQuery) params.set('search', searchQuery);
+    if (debouncedSearch) params.set('search', debouncedSearch);
 
     const queryString = params.toString();
     const targetUrl = queryString ? `/?${queryString}` : '/';
     const currentUrl = `${window.location.pathname}${window.location.search}`;
 
     if (currentUrl !== targetUrl) {
-      window.history.replaceState({ ...window.history.state, page, selectedCategory, sortBy, searchQuery }, '', targetUrl);
+      window.history.replaceState({ ...window.history.state, page, selectedCategory, sortBy, searchQuery: debouncedSearch }, '', targetUrl);
     }
-  }, [page, selectedCategory, sortBy, searchQuery, currentView]);
+  }, [page, selectedCategory, sortBy, debouncedSearch, currentView]);
 
   useEffect(() => {
     loadCategoryCounts();

@@ -49,6 +49,7 @@ export async function scrapeFeed(source, limit = 15) {
     if (title && embedUrl) {
       items.push(
         normalizeVideo({
+          source_id: source.id,
           title,
           embed_url: embedUrl,
           thumbnail_url: mediaThumb,

@@ -34,6 +34,7 @@ ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS health_state TEXT DEFAULT 'he
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS first_failed_at TIMESTAMPTZ;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS last_health_check_at TIMESTAMPTZ;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS publication_state TEXT DEFAULT 'published';
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS source_id UUID REFERENCES public.crawler_sources(id) ON DELETE SET NULL;
 
 -- Indexes for fast catalog browsing & health checks
 CREATE UNIQUE INDEX IF NOT EXISTS idx_videos_embed_url ON public.videos (embed_url);
@@ -41,6 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_videos_category ON public.videos (category);
 CREATE INDEX IF NOT EXISTS idx_videos_is_active ON public.videos (is_active);
 CREATE INDEX IF NOT EXISTS idx_videos_health_state ON public.videos (health_state);
 CREATE INDEX IF NOT EXISTS idx_videos_publication_state ON public.videos (publication_state);
+CREATE INDEX IF NOT EXISTS idx_videos_source_id ON public.videos (source_id);
 CREATE INDEX IF NOT EXISTS idx_videos_created_at ON public.videos (created_at DESC);
 
 -- 2. Create Ad Settings Table
@@ -148,7 +150,7 @@ BEGIN
     ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'),
     false
   );
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+END; $$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public;
 
 -- ==============================================================
 -- 9. Row Level Security (RLS) Configuration (Strict Admin Lock)
@@ -226,7 +228,7 @@ BEGIN
   ON CONFLICT (embed_url) DO UPDATE SET reason = EXCLUDED.reason, suppressed_at = now();
   DELETE FROM public.videos WHERE id = p_video_id;
   RETURN true;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.hard_delete_and_suppress_dead_videos(p_reason text DEFAULT 'bulk_purged_quarantine')
 RETURNS integer AS $$
@@ -252,7 +254,7 @@ BEGIN
   )
   SELECT count(*) INTO v_count FROM deleted;
   RETURN v_count;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.approve_video(p_video_id uuid)
 RETURNS boolean AS $$
@@ -262,7 +264,7 @@ BEGIN
   END IF;
   UPDATE public.videos SET publication_state = 'published' WHERE id = p_video_id;
   RETURN true;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.reject_video(p_video_id uuid)
 RETURNS boolean AS $$
@@ -272,7 +274,7 @@ BEGIN
   END IF;
   UPDATE public.videos SET publication_state = 'rejected', is_active = false WHERE id = p_video_id;
   RETURN true;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Explicitly Revoke Function Permissions from Public / Anon
 REVOKE EXECUTE ON FUNCTION public.hard_delete_and_suppress_video(uuid, text) FROM public, anon;
@@ -285,6 +287,17 @@ GRANT EXECUTE ON FUNCTION public.hard_delete_and_suppress_dead_videos(text) TO a
 GRANT EXECUTE ON FUNCTION public.approve_video(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.reject_video(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon, service_role;
+
+-- Explicitly lock internal sync tables from anon access
+REVOKE ALL ON TABLE public.crawler_sources FROM anon;
+REVOKE ALL ON TABLE public.source_schedules FROM anon;
+REVOKE ALL ON TABLE public.source_checkpoints FROM anon;
+REVOKE ALL ON TABLE public.suppressed_videos FROM anon;
+
+GRANT ALL ON TABLE public.crawler_sources TO authenticated, service_role;
+GRANT ALL ON TABLE public.source_schedules TO authenticated, service_role;
+GRANT ALL ON TABLE public.source_checkpoints TO authenticated, service_role;
+GRANT ALL ON TABLE public.suppressed_videos TO authenticated, service_role;
 
 -- ==============================================================
 -- 11. Seed Verified Live ExoClick Zones (Site ID: 1120332)

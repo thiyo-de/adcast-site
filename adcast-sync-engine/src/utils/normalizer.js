@@ -55,6 +55,25 @@ export function normalizeDuration(rawDuration) {
 }
 
 /**
+ * Parse duration string or number into total seconds (e.g. "12:34" -> 754)
+ */
+export function parseDurationSeconds(val, fallback = 600) {
+  if (val === undefined || val === null || val === '') return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : Math.round(val);
+  const str = String(val).trim();
+  if (!isNaN(str) && !str.includes(':')) {
+    const parsed = parseInt(str, 10);
+    return isNaN(parsed) ? fallback : parsed;
+  }
+  const parts = str.split(':').map(p => parseInt(p, 10));
+  if (parts.some(isNaN)) return fallback;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return fallback;
+}
+
+/**
  * Sanitize strings (remove HTML tags & decode common entities)
  */
 export function sanitizeText(text) {
@@ -111,6 +130,7 @@ export function classifyAdultCategory(title = '', tags = [], fallback = 'Creator
 export function normalizeVideo(raw) {
   const cleanTitle = sanitizeText(raw.title || 'Untitled Stream');
   const duration = normalizeDuration(raw.duration || raw.length_sec);
+  const duration_seconds = parseDurationSeconds(raw.duration_seconds || raw.length_sec || duration);
 
   // Tags normalization
   let tags = [];
@@ -134,17 +154,27 @@ export function normalizeVideo(raw) {
 
   const views = parseCount(raw.views, 0);
   const likes = parseCount(raw.likes, 0);
+  const rating = typeof raw.rating === 'number'
+    ? Math.round(raw.rating)
+    : (raw.rating ? parseInt(raw.rating, 10) : 95);
 
   return {
     id: crypto.randomUUID(),
+    source_id: raw.source_id || raw.sourceId || null,
     title: cleanTitle,
     embed_url: raw.embed_url || raw.embed,
     thumbnail_url,
     duration,
+    duration_seconds,
     category,
     tags,
     views,
     likes,
+    rating,
+    quality: raw.quality || '1080p',
+    publication_state: raw.publication_state || 'published',
+    health_state: raw.health_state || 'healthy',
+    is_active: raw.is_active !== undefined ? Boolean(raw.is_active) : true,
     is_featured: Boolean(raw.is_featured),
     created_at: raw.created_at || new Date().toISOString()
   };

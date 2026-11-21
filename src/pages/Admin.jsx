@@ -449,17 +449,6 @@ export default function Admin({ onBack }) {
     }
   };
 
-  const handleAffiliateUpdate = async (fields) => {
-    try {
-      const updated = await api.updateAffiliateFallbacks(fields);
-      setAdSettings(updated);
-      setSavedSlotId('affiliate_fallbacks');
-      setTimeout(() => setSavedSlotId(null), 2500);
-    } catch (err) {
-      alert(`Failed to save affiliate fallbacks to cloud database: ${err.message}`);
-    }
-  };
-
   // Supabase Test Connection
   const handleSaveSupabaseKey = async () => {
     saveSupabaseConfig(supabaseConfig.url, supabaseAnonKeyInput);
@@ -674,7 +663,7 @@ export default function Admin({ onBack }) {
           }`}
         >
           <i className="ri-megaphone-line not-italic text-sm"></i>
-          Ad Network Manager (6 Slots)
+          Ad Network Manager ({Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 7} Slots)
         </button>
 
         <button
@@ -1314,130 +1303,6 @@ export default function Admin({ onBack }) {
             <span className="font-bold uppercase text-[10px] tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-500/20">
               Live Synced
             </span>
-          </div>
-
-          {/* Anti-AdBlock & Self-Hosted Affiliate Fallbacks Control Panel */}
-          <div className="p-6 rounded-3xl glass-panel border border-cyan-500/30 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-                  <i className="ri-shield-flash-line not-italic text-xl"></i>
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                    Anti-AdBlock & Affiliate Fallback Engine
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                      Revenue Defense
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Automatically recovers 35%–45% of traffic using Brave or ad-blockers with high-converting native offers.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {adSettings.affiliate_fallbacks?.isEnabled ? 'Enabled' : 'Disabled'}
-                </span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={adSettings.affiliate_fallbacks?.isEnabled ?? false}
-                    onChange={(e) =>
-                      handleAffiliateUpdate({ isEnabled: e.target.checked })
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
-                </label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                  🛡️ VPN & Privacy Offer URL
-                </label>
-                <input
-                  type="text"
-                  value={adSettings.affiliate_fallbacks?.vpn?.url || ''}
-                  onChange={(e) =>
-                    setAdSettings((prev) => ({
-                      ...prev,
-                      affiliate_fallbacks: {
-                        ...prev.affiliate_fallbacks,
-                        vpn: { ...prev.affiliate_fallbacks?.vpn, url: e.target.value }
-                      }
-                    }))
-                  }
-                  placeholder="https://nordvpn.com?aff=yourId"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-                <span className="text-[10px] text-slate-400">Used in Top Leaderboard & Sticky Footer</span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                  💬 18+ Live Stream / Dating URL
-                </label>
-                <input
-                  type="text"
-                  value={adSettings.affiliate_fallbacks?.dating?.url || ''}
-                  onChange={(e) =>
-                    setAdSettings((prev) => ({
-                      ...prev,
-                      affiliate_fallbacks: {
-                        ...prev.affiliate_fallbacks,
-                        dating: { ...prev.affiliate_fallbacks?.dating, url: e.target.value }
-                      }
-                    }))
-                  }
-                  placeholder="https://example.com/dating?aff=yourId"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-                <span className="text-[10px] text-slate-400">Used in Native In-Feed Recommendation Cards</span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">
-                  🎮 Cyber Gaming Offer URL
-                </label>
-                <input
-                  type="text"
-                  value={adSettings.affiliate_fallbacks?.gaming?.url || ''}
-                  onChange={(e) =>
-                    setAdSettings((prev) => ({
-                      ...prev,
-                      affiliate_fallbacks: {
-                        ...prev.affiliate_fallbacks,
-                        gaming: { ...prev.affiliate_fallbacks?.gaming, url: e.target.value }
-                      }
-                    }))
-                  }
-                  placeholder="https://example.com/gaming?aff=yourId"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-                <span className="text-[10px] text-slate-400">Used in Below-Player High-CTR Banner</span>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => handleAffiliateUpdate(adSettings.affiliate_fallbacks)}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-              >
-                {savedSlotId === 'affiliate_fallbacks' ? (
-                  <span className="text-white flex items-center gap-1">
-                    <i className="ri-check-line not-italic text-sm"></i> Fallback URLs Saved!
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <i className="ri-save-line not-italic text-sm"></i> Save Affiliate Fallback URLs
-                  </span>
-                )}
-              </button>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

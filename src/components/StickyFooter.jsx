@@ -7,6 +7,7 @@ export default function StickyFooter({ currentView }) {
   const { isNoticeOpen } = useAdBlock();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasProviderClose, setHasProviderClose] = useState(false);
   const wrapperRef = useRef(null);
   const adSettings = useAdSettings();
   const slot = adSettings['slot_sticky_footer'];
@@ -15,6 +16,7 @@ export default function StickyFooter({ currentView }) {
   useEffect(() => {
     setIsDismissed(false);
     setIsLoaded(false);
+    setHasProviderClose(false);
   }, [currentView]);
 
   useEffect(() => {
@@ -29,6 +31,12 @@ export default function StickyFooter({ currentView }) {
 
       if (isCurrentlyVisible) {
         setIsLoaded(true);
+        const providerClose = wrapperRef.current.querySelector(
+          '.exo-close, .ad-close, [class*="close-btn"], [class*="close_btn"], [class*="close_button"], [aria-label*="close" i]:not([aria-label="Close advertisement"])'
+        );
+        if (providerClose) {
+          setHasProviderClose(true);
+        }
         if (intervalId) {
           clearInterval(intervalId);
           intervalId = null;
@@ -70,7 +78,7 @@ export default function StickyFooter({ currentView }) {
         className="relative pointer-events-auto w-fit max-w-[98vw] flex items-center justify-center mx-auto"
       >
         {/* Floating Close Button tightly anchored to the creative */}
-        {isLoaded && (
+        {isLoaded && !hasProviderClose && (
           <button
             type="button"
             onClick={handleDismiss}

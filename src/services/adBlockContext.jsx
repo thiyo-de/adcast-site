@@ -164,7 +164,7 @@ export function AdBlockProvider({ children, currentView = 'home', videoId = null
     };
   }, [isExempt, runDetection]);
 
-  // Periodic Heartbeat: Recheck every 20 seconds while the tab is active/visible
+  // Periodic Heartbeat: Recheck every 60 seconds while the tab is active/visible
   useEffect(() => {
     if (isExempt) return;
 
@@ -172,7 +172,7 @@ export function AdBlockProvider({ children, currentView = 'home', videoId = null
       if (document.visibilityState === 'visible' && !isCheckingRef.current) {
         runDetection(false);
       }
-    }, 20000);
+    }, 60000);
 
     return () => clearInterval(heartbeat);
   }, [isExempt, runDetection]);
