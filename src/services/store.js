@@ -551,7 +551,7 @@ const SEED_VIDEOS = [
   }
 ];
 
-// 9 Core Ad Slots Setup (100% ExoClick Dedicated) - Aligned 1-to-1 with ExoClick Zones
+// 12 Core Ad Slots Setup (100% ExoClick Dedicated) - Aligned 1-to-1 with ExoClick Zones
 const DEFAULT_AD_SETTINGS = {
   slot_top_banner: {
     id: 'slot_top_banner',
