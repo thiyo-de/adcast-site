@@ -59,8 +59,8 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
             e.currentTarget.onerror = null;
             e.currentTarget.src = FALLBACK_THUMB;
           }}
-          className={`w-full h-full object-cover transition-all duration-300 ${
-            isRevealed ? 'opacity-100' : 'filter blur-[5px] scale-105 opacity-65'
+          className={`w-full h-full object-cover transition-all duration-500 ease-out ${
+            isRevealed ? 'opacity-100 group-hover:scale-105' : 'filter blur-[5px] scale-105 opacity-65'
           }`}
         />
 
@@ -73,14 +73,14 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20 opacity-80 pointer-events-none" />
 
         {/* Top Badges (Standardized rounded-lg Pills) */}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
           {video.quality && (
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-200 border border-white/20 backdrop-blur-md shadow-sm">
               {video.quality}
             </span>
           )}
           {video.is_featured && (
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm shadow-rose-600/40 flex items-center gap-0.5">
               <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
             </span>
           )}
@@ -146,7 +146,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         {/* Meta Stats Bar */}
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
           <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-            <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
+            <i className="ri-eye-line not-italic text-rose-500/80 dark:text-rose-400/80 text-sm"></i>
             <span>{formatViews(video.views)}</span>
           </div>
 

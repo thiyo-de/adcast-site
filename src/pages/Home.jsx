@@ -4,7 +4,7 @@ import AdSlot from '../components/AdSlot';
 import Pagination from '../components/Pagination';
 import { store } from '../services/store';
 import { resetDefaultSEO } from '../utils/seo';
-import { CATEGORY_TAG_MAP } from '../constants/categories';
+import { CORE_CATEGORIES, CATEGORY_TAG_MAP } from '../constants/categories';
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest Uploads', icon: 'ri-flashlight-line' },
@@ -127,7 +127,7 @@ export default function Home({
                     {item.title}
                   </h4>
                   <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-medium">
-                    <span className="text-cyan-400 font-semibold">{item.category || 'Stream'}</span>
+                    <span className="text-rose-500 dark:text-rose-400 font-bold uppercase tracking-wider">{item.category || 'Stream'}</span>
                     <span className="font-sans font-semibold tabular-nums">{item.duration || 'Resume'}</span>
                   </div>
                 </div>
@@ -136,6 +136,32 @@ export default function Home({
           </div>
         </section>
       )}
+
+      {/* 2.8 Horizontal Category Mood / Niche Discovery Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+        {CORE_CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => {
+                if (typeof onSelectCategory === 'function') {
+                  onSelectCategory(cat.id);
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                isSelected
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/35 border border-rose-500'
+                  : 'bg-white/80 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10'
+              }`}
+            >
+              <i className={`${cat.icon} not-italic text-xs ${isSelected ? 'text-white' : 'text-rose-500'}`}></i>
+              <span>{cat.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* 3. Stream Feed Header & Sorting Bar */}
       <div id="catalog-feed" className="relative z-30 p-3 sm:p-3.5 rounded-2xl glass-panel flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-xs">

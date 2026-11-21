@@ -224,7 +224,7 @@ export default function Watch({
             onClick={() => setIsTheaterMode(!isTheaterMode)}
             className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
               isTheaterMode
-                ? 'bg-cyan-500 text-black border-cyan-400 font-bold'
+                ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30 font-bold'
                 : 'glass-button'
             }`}
             title="Toggle Theater Mode"
@@ -245,7 +245,7 @@ export default function Watch({
           {/* Video Title & Badges */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {video.quality && (
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-cyan-500 text-black shadow-sm">
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-black/60 text-slate-200 border border-white/20 backdrop-blur-md shadow-sm">
                 {video.quality}
               </span>
             )}
@@ -261,7 +261,7 @@ export default function Watch({
           <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-y border-slate-200/80 dark:border-white/[0.08]">
             <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1.5 text-slate-800 dark:text-white font-bold">
-                <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
+                <i className="ri-eye-line not-italic text-rose-500/80 dark:text-rose-400/80 text-sm"></i>
                 {(video.views || 0).toLocaleString()} views
               </span>
               <span>•</span>
@@ -322,7 +322,7 @@ export default function Watch({
                   }
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full glass-button text-xs font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/60 active:scale-95 transition-all"
+                  className="flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full glass-button text-xs font-bold text-rose-400 hover:text-rose-300 border border-rose-500/30 hover:border-rose-500/60 active:scale-95 transition-all"
                   title="Watch original on platform"
                 >
                   <i className={

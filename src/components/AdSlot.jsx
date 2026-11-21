@@ -245,10 +245,10 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
 
           {/* Top Left Badges: HD & Hot pills matching VideoCard */}
           <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-20">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-200 border border-white/20 backdrop-blur-md shadow-sm">
               HD
             </span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm shadow-rose-600/40 flex items-center gap-0.5">
               <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
             </span>
           </div>
@@ -283,7 +283,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
           {/* Meta Stats Bar matching VideoCard */}
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
             <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-              <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
+              <i className="ri-eye-line not-italic text-rose-500/80 dark:text-rose-400/80 text-sm"></i>
               <span>Trending</span>
             </div>
 
