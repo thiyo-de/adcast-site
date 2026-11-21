@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useAdBlock } from '../services/adBlockContext';
 
 export default function AdBlockNotice() {
-  const { isNoticeOpen, isRechecking, recheck } = useAdBlock();
+  const { isNoticeOpen } = useAdBlock();
   const dialogRef = useRef(null);
   const buttonRef = useRef(null);
   const prevActiveElementRef = useRef(null);
@@ -134,15 +134,18 @@ export default function AdBlockNotice() {
           <button
             ref={buttonRef}
             type="button"
-            onClick={recheck}
-            disabled={isRechecking}
-            className="w-full py-3.5 px-6 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 disabled:opacity-50 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.reload();
+              }
+            }}
+            className="w-full py-3.5 px-6 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer"
           >
-            <i className={`ri-refresh-line text-base ${isRechecking ? 'animate-spin' : ''}`}></i>
-            <span>{isRechecking ? 'Verifying Ad Connection...' : 'I Have Disabled AdBlock — Unlock Site'}</span>
+            <i className="ri-refresh-line text-base"></i>
+            <span>I Have Disabled AdBlock — Refresh &amp; Unlock</span>
           </button>
           <p className="text-[10px] text-center text-slate-500 font-semibold mt-2.5">
-            Site unlocks automatically once ads are allowed to load
+            Reloads the page to initialize video ads and grant full access
           </p>
         </div>
       </div>
