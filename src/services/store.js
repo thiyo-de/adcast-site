@@ -955,12 +955,18 @@ export const store = {
             };
           } else if (parsed[key]) {
             let code = parsed[key].code;
-            if (isPlaceholderAdCode(code) && DEFAULT_AD_SETTINGS[key]?.code && !isPlaceholderAdCode(DEFAULT_AD_SETTINGS[key].code)) {
+            if (
+              (!code || code.includes('data-zoneid=""') || isPlaceholderAdCode(code)) &&
+              DEFAULT_AD_SETTINGS[key]?.code &&
+              !isPlaceholderAdCode(DEFAULT_AD_SETTINGS[key].code)
+            ) {
               code = DEFAULT_AD_SETTINGS[key].code;
             }
+            const zoneId = parsed[key].zoneId || DEFAULT_AD_SETTINGS[key]?.zoneId || '';
             merged[key] = {
               ...DEFAULT_AD_SETTINGS[key],
               ...parsed[key],
+              zoneId,
               code,
               // Explicitly preserve deliberate disabled states
               isActive: parsed[key].isActive !== false

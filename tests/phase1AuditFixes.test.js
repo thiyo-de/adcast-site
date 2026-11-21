@@ -204,6 +204,30 @@ test('CustomSelect.jsx enforces dark luxury aesthetic and App.jsx defaults to da
   assert.ok(adminContent.includes('bg-[#0E121E]'), 'Mobile nav drawer must have dark background');
 });
 
+test('Admin.jsx and store synchronize all 12 ExoClick slots and self-heal stale storage', () => {
+  // Simulate stale localStorage with missing zoneId or placeholder
+  const staleData = {
+    slot_top_banner: { isActive: true, zoneId: '6093488', code: 'test' },
+    slot_desktop_skyscraper_left: { isActive: true, zoneId: '', code: '<ins data-zoneid=""></ins>' }
+  };
+  localStorage.setItem('adcast_ad_settings', JSON.stringify(staleData));
+
+  const hydrated = store.getAdSettings();
+  const slotKeys = Object.keys(hydrated).filter((k) => k.startsWith('slot_'));
+
+  assert.equal(slotKeys.length, 12, 'Admin and store must have all 12 slots');
+  assert.equal(hydrated.slot_desktop_skyscraper_left.zoneId, '6100280', 'Stale left skyscraper must self-heal to 6100280');
+  assert.equal(hydrated.slot_desktop_skyscraper_right.zoneId, '6100290', 'Right skyscraper must be populated with 6100290');
+  assert.equal(hydrated.slot_mobile_interstitial.zoneId, '6100242', 'Mobile interstitial must be populated with 6100242');
+
+  // Verify Admin.jsx preferredOrder contains all 12 slots
+  const adminPath = path.join(rootDir, 'src', 'pages', 'Admin.jsx');
+  const adminContent = fs.readFileSync(adminPath, 'utf8');
+  slotKeys.forEach((key) => {
+    assert.ok(adminContent.includes(`'${key}'`), `Admin.jsx preferredOrder must include ${key}`);
+  });
+});
+
 
 
 
