@@ -230,3 +230,27 @@ a[href*="netlify.com"].netlify-badge {
   bottom: 84px !important;
   transition: bottom 0.3s ease;
 }
+
+/* Luxury Shimmer Wave Animation */
+@keyframes shimmerWave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-wave {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: shimmerWave 1.8s infinite ease-in-out;
+  pointer-events: none;
+}
+

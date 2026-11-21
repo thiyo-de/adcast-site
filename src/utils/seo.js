@@ -17,6 +17,17 @@ function setMetaTag(selector, attrName, attrValue, content) {
   element.setAttribute('content', content);
 }
 
+function setLinkTag(rel, href) {
+  let element = document.querySelector(`link[rel="${rel}"]`);
+  if (!element) {
+    element = document.createElement('link');
+    element.setAttribute('rel', rel);
+    document.head.appendChild(element);
+  }
+  element.setAttribute('href', href);
+}
+
+
 export function formatIsoDuration(duration) {
   if (!duration) return undefined;
 
@@ -63,16 +74,36 @@ export function updateVideoSEO(video) {
   const description = `${video.title} - Watch high-definition ${video.quality || '4K UHD'} ${video.category || 'streaming'} video on HornyLeaks. Rated ${video.rating || 98}% with ${(video.views || 0).toLocaleString()} views.`;
   const imageUrl = video.thumbnail_url || DEFAULT_IMAGE;
   const currentUrl = window.location.href;
+  const canonicalUrl = `${window.location.origin}/watch/${encodeURIComponent(video.id)}`;
 
-  // 1. Title & Meta Description
+  // Construct keyword list
+  const tagList = Array.isArray(video.tags) ? video.tags : [];
+  const baseKeywords = [
+    video.title,
+    video.category,
+    'indian leaks',
+    'viral leaks',
+    'desi porn',
+    'mms leaks',
+    'free adult videos',
+    'hd video stream',
+    'watch online'
+  ];
+  const combinedKeywords = Array.from(new Set([...tagList, ...baseKeywords]))
+    .filter(Boolean)
+    .join(', ');
+
+  // 1. Title, Meta Description & Keywords
   document.title = pageTitle;
   setMetaTag('meta[name="description"]', 'name', 'description', description);
+  setMetaTag('meta[name="keywords"]', 'name', 'keywords', combinedKeywords);
+  setLinkTag('canonical', canonicalUrl);
 
   // 2. OpenGraph Meta Tags (WhatsApp, Telegram, Facebook, Discord)
   setMetaTag('meta[property="og:title"]', 'property', 'og:title', pageTitle);
   setMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
   setMetaTag('meta[property="og:image"]', 'property', 'og:image', imageUrl);
-  setMetaTag('meta[property="og:url"]', 'property', 'og:url', currentUrl);
+  setMetaTag('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
   setMetaTag('meta[property="og:type"]', 'property', 'og:type', 'video.other');
   setMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', 'HornyLeaks');
 
@@ -100,8 +131,11 @@ export function updateVideoSEO(video) {
     'description': description,
     'thumbnailUrl': [imageUrl],
     'uploadDate': video.created_at || new Date().toISOString(),
-    'contentUrl': video.embed_url,
-    'embedUrl': video.embed_url,
+    'contentUrl': video.stream_url || video.embed_url,
+    'embedUrl': video.embed_url || video.stream_url,
+    'keywords': combinedKeywords,
+    'genre': video.category || 'Adult Entertainment',
+    'isFamilyFriendly': false,
     'interactionStatistic': {
       '@type': 'InteractionCounter',
       'interactionType': { '@type': 'WatchAction' },
@@ -131,6 +165,10 @@ export function resetDefaultSEO() {
   document.title = DEFAULT_TITLE;
   setMetaTag('meta[name="robots"]', 'name', 'robots', 'index, follow');
   setMetaTag('meta[name="description"]', 'name', 'description', DEFAULT_DESCRIPTION);
+  setMetaTag('meta[name="keywords"]', 'name', 'keywords', 'indian leaks, viral leaks, adult videos, video streaming, watch online, hd stream');
+  if (typeof window !== 'undefined') {
+    setLinkTag('canonical', window.location.origin);
+  }
   setMetaTag('meta[property="og:title"]', 'property', 'og:title', DEFAULT_TITLE);
   setMetaTag('meta[property="og:description"]', 'property', 'og:description', DEFAULT_DESCRIPTION);
   setMetaTag('meta[property="og:image"]', 'property', 'og:image', DEFAULT_IMAGE);

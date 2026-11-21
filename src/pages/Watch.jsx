@@ -14,7 +14,8 @@ export default function Watch({
   onSelectVideo,
   isBookmarked,
   onBookmarkToggle,
-  onOpenDMCA
+  onOpenDMCA,
+  onTagClick
 }) {
   const [video, setVideo] = useState(() => {
     // 1. Instant synchronous resolution from allVideos or local store
@@ -369,26 +370,85 @@ export default function Watch({
             <AdSlot key={video.id} slotId="slot_below_player" className="rounded-2xl" />
           </div>
 
-          {/* Video Tags & Description */}
-          <div className="p-4 sm:p-5 rounded-2xl glass-panel space-y-3">
-            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-              Stream Information & Tags
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Indexed from public external media networks. HornyLeaks does not host video files on its servers.
-            </p>
-            {video.tags && video.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {video.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-white/[0.05] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08]"
-                  >
-                    #{tag}
+          {/* Video SEO Synopsis, Tags & Compliance */}
+          <div className="p-5 sm:p-6 rounded-2xl glass-panel space-y-4 border border-slate-200/80 dark:border-white/[0.08]">
+            {/* Header with Title and Category Pill */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 dark:border-white/[0.06] pb-3">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <i className="ri-information-fill not-italic text-rose-500 text-base"></i>
+                About This Stream
+              </h3>
+              <div className="flex items-center gap-1.5">
+                {video.quality && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                    {video.quality}
                   </span>
-                ))}
+                )}
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10">
+                  {video.category || 'Trending'}
+                </span>
+              </div>
+            </div>
+
+            {/* Dynamic Rich SEO Synopsis */}
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-2">
+              <p>
+                Watch <strong className="text-slate-900 dark:text-white font-semibold">{video.title}</strong> in crisp{' '}
+                <span className="text-rose-500 font-semibold">{video.quality || '1080p Full HD'}</span>. Streaming directly from the{' '}
+                <span className="font-semibold text-slate-900 dark:text-white">{video.category || 'Exclusive'}</span> collection on HornyLeaks.
+                {video.duration ? ` Duration: ${video.duration}.` : ''} High-speed, buffer-free playback optimized for both mobile and desktop screens.
+              </p>
+              {video.description && video.description.length > 20 && !video.description.includes('Indexed from') && (
+                <p className="text-slate-600 dark:text-slate-400 italic">
+                  {video.description}
+                </p>
+              )}
+            </div>
+
+            {/* Clickable SEO Keyword Tags */}
+            {video.tags && video.tags.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                  Related Topics & Search Tags
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {video.tags.map((tag) => (
+                    <a
+                      key={tag}
+                      href={`/?search=${encodeURIComponent(tag)}`}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                        e.preventDefault();
+                        if (typeof onTagClick === 'function') {
+                          onTagClick(tag);
+                        } else if (typeof onBack === 'function') {
+                          window.location.href = `/?search=${encodeURIComponent(tag)}`;
+                        }
+                      }}
+                      className="px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-white/[0.05] hover:bg-rose-500/10 hover:border-rose-500/30 text-slate-700 dark:text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 border border-slate-200/80 dark:border-white/[0.08] transition-all cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs"
+                      title={`Explore all streams tagged with #${tag}`}
+                    >
+                      <span className="text-rose-500 font-bold">#</span>
+                      <span>{tag}</span>
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* Safe Harbor Legal Disclaimer */}
+            <div className="pt-2 border-t border-slate-200/60 dark:border-white/[0.06] text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-between gap-2">
+              <p>
+                Indexed from public external networks. HornyLeaks does not host or store media files on its servers.
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpenDMCA && onOpenDMCA(video.id)}
+                className="shrink-0 text-slate-400 hover:text-rose-500 underline transition-colors"
+              >
+                DMCA / Notice
+              </button>
+            </div>
           </div>
         </div>
 

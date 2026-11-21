@@ -222,17 +222,48 @@ export default function Home({
 
       {/* 4. Responsive Video Grid with Native Ads */}
       {isLoadingVideos ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={`skeleton-${i}`} className="flex flex-col h-full rounded-2xl glass-card overflow-hidden">
-              <div className="aspect-video w-full bg-slate-800/40" />
-              <div className="p-3.5 space-y-2.5 flex-1">
-                <div className="w-16 h-2.5 bg-slate-800/60 rounded" />
-                <div className="w-full h-3.5 bg-slate-800/60 rounded" />
-                <div className="w-2/3 h-3.5 bg-slate-800/60 rounded" />
-                <div className="pt-2 border-t border-slate-800/40 flex justify-between">
-                  <div className="w-12 h-2.5 bg-slate-800/50 rounded" />
-                  <div className="w-10 h-2.5 bg-slate-800/50 rounded" />
+            <div
+              key={`skeleton-${i}`}
+              className="relative flex flex-col h-full rounded-2xl glass-card overflow-hidden border border-slate-200/60 dark:border-white/[0.08] shadow-sm"
+            >
+              {/* Thumbnail Container (16:9) with Shimmer Wave */}
+              <div className="relative aspect-video w-full overflow-hidden bg-slate-200/80 dark:bg-slate-900/80">
+                <div className="shimmer-wave" />
+
+                {/* Top Badges Skeleton */}
+                <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
+                  <div className="w-10 h-4 rounded-lg bg-slate-300/60 dark:bg-slate-800/80" />
+                </div>
+
+                {/* Top Right: Bookmark Skeleton */}
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="w-7 h-7 rounded-full bg-slate-300/60 dark:bg-slate-800/80" />
+                </div>
+
+                {/* Duration Pill Skeleton (Bottom Right) */}
+                <div className="absolute bottom-2 right-2 w-12 h-4 rounded-lg bg-slate-300/70 dark:bg-slate-800/90" />
+              </div>
+
+              {/* Video Info Section */}
+              <div className="p-3.5 flex flex-col flex-1 justify-between gap-3 relative overflow-hidden bg-slate-100/50 dark:bg-slate-950/40">
+                <div className="shimmer-wave" />
+                <div className="space-y-2">
+                  {/* Category Pill Skeleton */}
+                  <div className="w-16 h-3 rounded bg-slate-300/70 dark:bg-slate-800/80" />
+                  {/* 2-line Title Skeleton */}
+                  <div className="w-full h-3.5 rounded bg-slate-300/80 dark:bg-slate-800/90" />
+                  <div className="w-3/4 h-3.5 rounded bg-slate-300/60 dark:bg-slate-800/70" />
+                </div>
+
+                {/* Metadata Row Skeleton */}
+                <div className="pt-2 border-t border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-slate-300/70 dark:bg-slate-800/80" />
+                    <div className="w-14 h-2.5 rounded bg-slate-300/60 dark:bg-slate-800/70" />
+                  </div>
+                  <div className="w-12 h-2.5 rounded bg-slate-300/60 dark:bg-slate-800/70" />
                 </div>
               </div>
             </div>

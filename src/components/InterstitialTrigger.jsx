@@ -10,9 +10,26 @@ export default function InterstitialTrigger({ currentView }) {
   const slot = adSettings[slotKey] || adSettings['slot_interstitial'];
   const mountedRef = useRef(false);
 
+  const [isAgeConfirmed, setIsAgeConfirmed] = React.useState(() => {
+    try {
+      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('age_verified=true');
+      const verified = typeof localStorage !== 'undefined' && localStorage.getItem('adcast_age_verified');
+      return Boolean(hasCookie || verified);
+    } catch (e) {
+      return false;
+    }
+  });
+
   useEffect(() => {
-    // 1. Guard check: Browser environment, valid route, and adblock notice not open
     if (typeof window === 'undefined') return;
+    const handleAgeVerified = () => setIsAgeConfirmed(true);
+    window.addEventListener('adcast_age_verified', handleAgeVerified);
+    return () => window.removeEventListener('adcast_age_verified', handleAgeVerified);
+  }, []);
+
+  useEffect(() => {
+    // 1. Guard check: Browser environment, valid route, age verified, and adblock notice not open
+    if (typeof window === 'undefined' || !isAgeConfirmed) return;
 
     const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
 
@@ -193,19 +210,21 @@ export default function InterstitialTrigger({ currentView }) {
       insEl.style.setProperty('pointer-events', 'auto', 'important');
     }
 
-    // Dedicated high-contrast Close Button to guarantee user can always exit
+    // Dedicated circular ✕ Close Button for instant exit without text clutter
     const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.id = 'adcast-interstitial-close-btn';
     closeBtn.setAttribute('data-adcast-interstitial', 'true');
     closeBtn.setAttribute('aria-label', 'Close advertisement');
-    closeBtn.innerHTML = isMobileViewport
-      ? '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span><span style="font-size:12px;font-weight:700;margin-left:6px;letter-spacing:0.5px;text-transform:uppercase;pointer-events:none;">Close</span>'
-      : '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span>';
+    closeBtn.innerHTML = `
+      <svg style="width:20px;height:20px;display:block;pointer-events:none;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    `;
     closeBtn.style.cssText = isMobileViewport
-      ? 'position:fixed;top:12px;right:12px;z-index:2147483647;min-width:52px;height:48px;padding:0 14px;border-radius:9999px;background:rgba(15,23,42,0.92);border:2px solid rgba(255,255,255,0.6);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,0.85);backdrop-filter:blur(8px);font-family:sans-serif;'
-      : 'position:fixed;top:18px;right:18px;z-index:2147483647;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
+      ? 'position:fixed;top:14px;right:14px;z-index:2147483647;width:42px;height:42px;border-radius:9999px;background:rgba(15,23,42,0.92);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,0.85);backdrop-filter:blur(8px);transition:transform 0.15s ease;'
+      : 'position:fixed;top:18px;right:18px;z-index:2147483647;width:44px;height:44px;border-radius:9999px;background:rgba(15,23,42,0.88);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease;';
 
     const handleClose = (ev) => {
       ev.preventDefault();
@@ -234,15 +253,20 @@ export default function InterstitialTrigger({ currentView }) {
       document.body.appendChild(newScript);
     });
 
-    // 5. Continuous observer for overlay launch (triggers whenever user clicks on page)
+    // 5. Continuous observer for overlay launch (triggers only when genuine ad content has rendered)
     const checkConfirmedDisplay = () => {
+      // Check for ExoClick fullpage overlay or populated media containers (ignore empty placeholder <ins>)
       const hasOverlay =
         document.querySelector(
-          '.ex-over-top, [id^="ad_"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], iframe[id*="eas-"], div[class*="eas-overlay"], [class*="eas6a97888e"]'
+          '.ex-over-top, [id^="ad_"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], div[class*="eas-overlay"], [id*="eas-overlay"], [id*="eas-interstitial"]'
         ) ||
         (interstitialContainer &&
-          Array.from(interstitialContainer.querySelectorAll('iframe, ins > *, div, img')).some(
-            (el) => el.offsetHeight > 30 || el.offsetWidth > 30
+          Array.from(interstitialContainer.querySelectorAll('iframe, video, img')).some(
+            (el) => el.offsetHeight > 40 || el.offsetWidth > 40
+          )) ||
+        (interstitialContainer &&
+          Array.from(interstitialContainer.querySelectorAll('ins > *')).some(
+            (el) => el.offsetHeight > 40 || el.offsetWidth > 40
           ));
 
       if (hasOverlay) {
@@ -282,14 +306,22 @@ export default function InterstitialTrigger({ currentView }) {
       }
     }, 1000);
 
+    // 6. Safety timer: if provider returns no fill within 6s, cleanly dismiss to prevent empty overlay
+    const safetyTimer = setTimeout(() => {
+      if (!checkConfirmedDisplay()) {
+        dismissInterstitial();
+      }
+    }, 6000);
+
     return () => {
+      clearTimeout(safetyTimer);
       clearInterval(pollInterval);
       observer.disconnect();
       document.removeEventListener('click', handleCaptureClick, true);
       document.removeEventListener('touchend', handleCaptureClick, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [slot, currentView, isNoticeOpen]);
+  }, [slot, currentView, isNoticeOpen, isAgeConfirmed]);
 
   return null;
 }

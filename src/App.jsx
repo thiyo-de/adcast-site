@@ -371,6 +371,10 @@ export default function App() {
             isBookmarked={(id) => bookmarks.includes(id)}
             onBookmarkToggle={handleBookmarkToggle}
             onOpenDMCA={(vidId) => navigate('dmca', vidId)}
+            onTagClick={(tag) => {
+              setSearchQuery(tag);
+              navigate('home');
+            }}
           />
         )}
 

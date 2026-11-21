@@ -25,7 +25,22 @@ export default function Pagination({
     return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
   };
 
+  // Compact sliding window for mobile (< 640px) allowing direct 1-tap jumps
+  const getMobilePages = () => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 3) {
+      return [1, 2, 3, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 2) {
+      return [1, '...', totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage, '...', totalPages];
+  };
+
   const desktopPages = getDesktopPages();
+  const mobilePages = getMobilePages();
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
@@ -35,34 +50,70 @@ export default function Pagination({
       aria-label="Pagination Navigation"
       className={`flex flex-col items-center gap-3 pt-6 pb-4 select-none ${isLoading ? 'opacity-60 pointer-events-none' : ''}`}
     >
-      {/* 1. Mobile Controls (< 640px): Simple [Previous] Page X of Y [Next] */}
-      <div className="flex sm:hidden items-center justify-between w-full max-w-sm px-2 gap-3">
-        <button
-          type="button"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage <= 1 || isLoading}
-          aria-label="Previous page"
-          className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
-        >
-          <i className="ri-arrow-left-s-line text-base"></i>
-          <span>Previous</span>
-        </button>
+      {/* 1. Mobile Numeric Controls (< 640px): [‹] [1] [2] [3] ... [10] [›] */}
+      <div className="flex sm:hidden flex-col items-center gap-2 w-full px-2">
+        <div className="flex items-center justify-center gap-1.5 w-full flex-wrap">
+          {/* Previous Page Button */}
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1 || isLoading}
+            aria-label="Previous page"
+            className="w-10 h-10 rounded-xl text-xs font-bold transition-all flex items-center justify-center border bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
+          >
+            <i className="ri-arrow-left-s-line text-lg"></i>
+          </button>
 
-        <span className="text-xs font-semibold text-slate-400 tabular-nums select-none">
-          Page <span className="font-bold text-slate-100">{currentPage}</span> of{' '}
-          <span className="font-bold text-slate-100">{totalPages}</span>
+          {/* Numbered Page Buttons */}
+          {mobilePages.map((p, idx) => {
+            if (p === '...') {
+              return (
+                <span
+                  key={`m-ellipsis-${idx}`}
+                  className="w-6 text-center text-slate-500 font-bold text-xs select-none"
+                >
+                  &hellip;
+                </span>
+              );
+            }
+
+            const isCurrent = p === currentPage;
+            return (
+              <button
+                key={`m-page-${p}`}
+                type="button"
+                onClick={() => onPageChange(p)}
+                disabled={isLoading}
+                aria-current={isCurrent ? 'page' : undefined}
+                aria-label={`Page ${p}`}
+                className={`min-w-[40px] h-10 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center border ${
+                  isCurrent
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white font-extrabold border-rose-400/40 shadow-md shadow-rose-500/25'
+                    : 'bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 shadow-sm'
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+
+          {/* Next Page Button */}
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages || isLoading}
+            aria-label="Next page"
+            className="w-10 h-10 rounded-xl text-xs font-bold transition-all flex items-center justify-center border bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
+          >
+            <i className="ri-arrow-right-s-line text-lg"></i>
+          </button>
+        </div>
+
+        {/* Mobile Page Indicator */}
+        <span className="text-[11px] font-medium text-slate-400 tabular-nums select-none pt-0.5">
+          Page <span className="font-bold text-slate-200">{currentPage}</span> of{' '}
+          <span className="font-bold text-slate-200">{totalPages}</span>
         </span>
-
-        <button
-          type="button"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= totalPages || isLoading}
-          aria-label="Next page"
-          className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
-        >
-          <span>Next</span>
-          <i className="ri-arrow-right-s-line text-base"></i>
-        </button>
       </div>
 
       {/* 2. Desktop Controls (>= 640px): [Previous] 1 … 2 [3] 4 … 18 [Next] */}

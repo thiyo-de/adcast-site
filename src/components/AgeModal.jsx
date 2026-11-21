@@ -75,6 +75,9 @@ export default function AgeModal() {
       localStorage.setItem('adcast_age_verified', Date.now().toString());
       // Set 30-day HTTP cookie (2,592,000 seconds)
       document.cookie = 'age_verified=true; max-age=2592000; path=/; SameSite=Lax';
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('adcast_age_verified'));
+      }
     } catch (e) {}
     setIsOpen(false);
   };
