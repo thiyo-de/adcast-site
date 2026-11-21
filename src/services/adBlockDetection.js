@@ -43,14 +43,14 @@ function isElementHidden(el) {
  */
 async function checkNeutralConnectivity() {
   const neutralUrls = [
-    '/favicon.ico',
-    'https://cdn.jsdelivr.net/npm/remixicon@4.2.0/package.json'
+    '/icon.png',
+    'https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css'
   ];
 
   for (const url of neutralUrls) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2500);
+      const timeout = setTimeout(() => controller.abort(), 1000);
       await fetch(url, {
         method: 'HEAD',
         cache: 'no-store',
@@ -73,20 +73,18 @@ async function checkNetworkAdBlock() {
     return false;
   }
 
-  // Probe globally distributed major ad network endpoints (Google AdSense & DoubleClick).
-  // CRITICAL: We NEVER probe ExoClick (a.magsrv.com) here to ensure an ExoClick server outage
-  // or auction failure can NEVER falsely trigger an ad-blocker lockout for visitors.
+  // Probe ExoClick primary ad CDN (blocked by Brave Shields and Opera) and Google AdSense
   const canaries = [
-    'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
-    'https://securepubads.g.doubleclick.net/tag/js/gpt.js'
+    'https://a.magsrv.com/ad-provider.js',
+    'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
   ];
 
-  let blockedCanariesCount = 0;
+  let anyBlocked = false;
 
   for (const url of canaries) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2500);
+      const timeout = setTimeout(() => controller.abort(), 1000);
       await fetch(url, {
         method: 'GET',
         mode: 'no-cors',
@@ -97,16 +95,16 @@ async function checkNetworkAdBlock() {
     } catch (err) {
       // If blocked by browser extension/Shields/Opera (net::ERR_BLOCKED_BY_CLIENT)
       if (err && err.name !== 'AbortError') {
-        blockedCanariesCount++;
+        anyBlocked = true;
+        break;
       }
     }
   }
 
-  // Require BOTH independent global canaries to fail to confirm true network-level ad blocking
-  if (blockedCanariesCount >= 2) {
+  if (anyBlocked) {
     const isOnlineAndReachable = await checkNeutralConnectivity();
     if (isOnlineAndReachable) {
-      // Internet is active, but major ad networks were specifically blocked -> true ad blocker
+      // Internet is active, but ad domains were specifically blocked -> true ad blocker
       return true;
     }
     return false;
@@ -122,7 +120,7 @@ async function checkNetworkAdBlock() {
  * @returns {Promise<string>} One of AD_BLOCK_STATES
  */
 export function detectAdBlock(options = {}) {
-  const { timeoutMs = 5000 } = options;
+  const { timeoutMs = 3000 } = options;
 
   // Cancel any existing probe in flight
   if (activeProbe && typeof activeProbe.cancel === 'function') {
@@ -185,7 +183,7 @@ export function detectAdBlock(options = {}) {
     // Run parallel network probe and DOM probe
     const networkProbePromise = checkNetworkAdBlock();
 
-    // Initial check after 800ms to allow DOM and CSS rules to compute
+    // Initial check after 250ms to allow DOM and CSS rules to compute without perceptible latency
     setTimeout(async () => {
       if (isCancelled) return;
 
@@ -218,7 +216,7 @@ export function detectAdBlock(options = {}) {
         return;
       }
 
-      // Bait is hidden while control is visible: perform ONE automatic confirmation check after 700ms
+      // Bait is hidden while control is visible: perform ONE quick confirmation check after 250ms
       confirmationTimerId = setTimeout(() => {
         if (isCancelled) return;
 
@@ -234,8 +232,8 @@ export function detectAdBlock(options = {}) {
         } else {
           resolve(AD_BLOCK_STATES.INCONCLUSIVE);
         }
-      }, 700);
-    }, 800);
+      }, 250);
+    }, 250);
   });
 
   activeProbe = {

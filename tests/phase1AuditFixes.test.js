@@ -276,7 +276,26 @@ test('api.getLocalVideosPage performs round-robin category interleaving on All S
   }
 });
 
+test('AdBlock detection uses Brave-sensitive canaries, fast 250ms timers, and Interstitial renders as centered popup on mobile', () => {
+  const detectionFile = path.join(rootDir, 'src', 'services', 'adBlockDetection.js');
+  const detectionContent = fs.readFileSync(detectionFile, 'utf8');
 
+  // Brave Shields canary verification
+  assert.ok(detectionContent.includes('a.magsrv.com/ad-provider.js'), 'Must probe a.magsrv.com for Brave Shields and Opera');
+  assert.ok(detectionContent.includes('anyBlocked = true'), 'Must trigger when any canary ad CDN is blocked');
+  assert.ok(detectionContent.includes('setTimeout(async () => {'), 'Must schedule initial probe');
+  assert.ok(detectionContent.includes('}, 250);'), 'Probe and confirmation timers must be 250ms for sub-second detection');
 
+  // AdBlockContext fast mount verification
+  const contextFile = path.join(rootDir, 'src', 'services', 'adBlockContext.jsx');
+  const contextContent = fs.readFileSync(contextFile, 'utf8');
+  assert.ok(contextContent.includes('}, 250);'), 'Mount settle delay in AdBlockContext must be 250ms');
 
-
+  // InterstitialTrigger mobile popup verification
+  const interstitialFile = path.join(rootDir, 'src', 'components', 'InterstitialTrigger.jsx');
+  const interstitialContent = fs.readFileSync(interstitialFile, 'utf8');
+  assert.ok(
+    interstitialContent.includes("slot_interstitial") && !interstitialContent.includes("const slotKey = isMobile ? 'slot_mobile_interstitial' : 'slot_interstitial'"),
+    'Must use responsive centered popup slot across all viewports instead of mobile drawer'
+  );
+});

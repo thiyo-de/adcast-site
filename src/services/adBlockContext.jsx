@@ -57,7 +57,7 @@ export function AdBlockProvider({ children, currentView = 'home', videoId = null
     }
 
     try {
-      const state = await detectAdBlock({ timeoutMs: 4000 });
+      const state = await detectAdBlock({ timeoutMs: 3000 });
 
       // If user navigated away or another check superseded this one, discard the result
       if (activeCheckIdRef.current !== checkId) {
@@ -131,10 +131,10 @@ export function AdBlockProvider({ children, currentView = 'home', videoId = null
       return;
     }
 
-    // On initial mount or route switch, wait 1.2s for layout/ads to settle
+    // On initial mount or route switch, wait 250ms for layout/ads to settle
     const timer = setTimeout(() => {
       runDetection(false);
-    }, 1200);
+    }, 250);
 
     return () => {
       clearTimeout(timer);

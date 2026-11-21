@@ -5,9 +5,9 @@ import { useAdBlock } from '../services/adBlockContext';
 export default function InterstitialTrigger({ currentView }) {
   const adSettings = useAdSettings();
   const { isNoticeOpen } = useAdBlock();
-  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
-  const slotKey = isMobile ? 'slot_mobile_interstitial' : 'slot_interstitial';
-  const slot = adSettings[slotKey] || adSettings['slot_interstitial'];
+  // Use the responsive centered popup modal format (slot_interstitial / eas6a97888e35) across both mobile and desktop.
+  // This eliminates the mobile footer drawer / drop arrow teaser, displaying an immediate centered popup on all viewports.
+  const slot = (adSettings['slot_interstitial']?.isActive ? adSettings['slot_interstitial'] : adSettings['slot_mobile_interstitial']) || adSettings['slot_interstitial'];
   const mountedRef = useRef(false);
 
   const [isAgeConfirmed, setIsAgeConfirmed] = React.useState(() => {
