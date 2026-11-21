@@ -9,6 +9,7 @@ export default function StickyFooter({ currentView }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasProviderClose, setHasProviderClose] = useState(false);
   const wrapperRef = useRef(null);
+  const adSettings = useAdSettings();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const activeSlotId = (isMobile && adSettings['slot_sticky_footer_mobile']?.isActive)
     ? 'slot_sticky_footer_mobile'
