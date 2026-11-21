@@ -110,3 +110,21 @@ test('CORE_CATEGORIES contains strictly 5 canonical categories and Home.jsx remo
   assert.ok(!homeContent.includes('CORE_CATEGORIES.map'), 'Home.jsx must not render duplicate category pills');
 });
 
+test('Navbar.jsx hides Categories, Saved bookmarks, and Search bar when in Admin view', () => {
+  const navbarFilePath = path.join(rootDir, 'src', 'components', 'Navbar.jsx');
+  const content = fs.readFileSync(navbarFilePath, 'utf8');
+
+  // Must detect admin mode via currentView
+  assert.ok(content.includes("currentView === 'admin'"), 'Must compute isAdmin from currentView');
+
+  // Must isolate consumer controls behind !isAdmin
+  assert.ok(content.includes('!isAdmin && ('), 'Must conditionally hide consumer elements when in admin');
+  assert.ok(content.includes('Exit to Site'), 'Must show Exit to Site button in admin view');
+
+  // App.jsx must pass currentView to Navbar
+  const appFilePath = path.join(rootDir, 'src', 'App.jsx');
+  const appContent = fs.readFileSync(appFilePath, 'utf8');
+  assert.ok(appContent.includes('currentView={currentView}'), 'App.jsx must pass currentView to Navbar');
+});
+
+

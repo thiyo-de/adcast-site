@@ -355,6 +355,7 @@ export default function App() {
           if (currentView !== 'home') navigate('home');
         }}
         categoryCounts={categoryCounts}
+        currentView={currentView}
       />
 
       {/* Main Dynamic View */}
