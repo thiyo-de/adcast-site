@@ -4,6 +4,7 @@ import AgeModal from './components/AgeModal';
 import StickyFooter from './components/StickyFooter';
 import PopunderTrigger from './components/PopunderTrigger';
 import InterstitialTrigger from './components/InterstitialTrigger';
+import DesktopGutterAds from './components/DesktopGutterAds';
 import BookmarksDrawer from './components/BookmarksDrawer';
 import Home from './pages/Home';
 import Watch from './pages/Watch';
@@ -397,6 +398,7 @@ export default function App() {
       {/* Sticky Bottom Mobile Ad Banner, Popunder, and Desktop Interstitial Triggers */}
       {currentView !== 'admin' && (
         <>
+          <DesktopGutterAds currentView={currentView} />
           <StickyFooter currentView={currentView} />
           <PopunderTrigger />
           <InterstitialTrigger currentView={currentView} />

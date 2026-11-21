@@ -46,11 +46,11 @@ test('store.updateAdSlot correctly updates vastUrl for pre-roll slot', () => {
   assert.equal(updated.slot_video_preroll.targetUrl, testUrl, 'targetUrl must match the provided URL');
 });
 
-test('store provides all 9 dedicated ExoClick slots matching dashboard 1-to-1', () => {
+test('store provides all 12 dedicated ExoClick slots matching dashboard 1-to-1', () => {
   const settings = store.getAdSettings();
   const slotKeys = Object.keys(settings).filter((k) => k.startsWith('slot_'));
   
-  assert.equal(slotKeys.length, 9, 'Must have exactly 9 dedicated ad slots');
+  assert.equal(slotKeys.length, 12, 'Must have exactly 12 dedicated ad slots');
   assert.ok(settings.slot_top_banner, 'slot_top_banner must exist');
   assert.ok(settings.slot_top_banner_mobile, 'slot_top_banner_mobile must exist');
   assert.ok(settings.slot_native_feed, 'slot_native_feed must exist');
@@ -60,10 +60,27 @@ test('store provides all 9 dedicated ExoClick slots matching dashboard 1-to-1', 
   assert.ok(settings.slot_video_preroll, 'slot_video_preroll must exist');
   assert.ok(settings.slot_popunder, 'slot_popunder must exist');
   assert.ok(settings.slot_interstitial, 'slot_interstitial must exist');
+  assert.ok(settings.slot_mobile_interstitial, 'slot_mobile_interstitial must exist');
+  assert.ok(settings.slot_desktop_skyscraper_left, 'slot_desktop_skyscraper_left must exist');
+  assert.ok(settings.slot_desktop_skyscraper_right, 'slot_desktop_skyscraper_right must exist');
 
   assert.equal(settings.slot_top_banner_mobile.zoneId, '6096160');
   assert.equal(settings.slot_sticky_footer_mobile.zoneId, '6096158');
   assert.equal(settings.slot_interstitial.zoneId, '6093518');
+  assert.equal(settings.slot_mobile_interstitial.zoneId, '6100242');
+});
+
+test('DesktopGutterAds.jsx isolates 160x600 skyscraper towers to widescreen displays (2xl) with user dismiss controls', () => {
+  const gutterPath = path.join(rootDir, 'src', 'components', 'DesktopGutterAds.jsx');
+  assert.ok(fs.existsSync(gutterPath), 'DesktopGutterAds.jsx must exist');
+  const gutterContent = fs.readFileSync(gutterPath, 'utf8');
+
+  assert.ok(gutterContent.includes('hidden 2xl:flex'), 'Must only be visible on 2xl screens (hidden 2xl:flex)');
+  assert.ok(gutterContent.includes('slot_desktop_skyscraper_left'), 'Must reference left skyscraper slot');
+  assert.ok(gutterContent.includes('slot_desktop_skyscraper_right'), 'Must reference right skyscraper slot');
+  assert.ok(gutterContent.includes('<AdSlot'), 'Must render AdSlot for safe ad injection');
+  assert.ok(gutterContent.includes('setLeftDismissed'), 'Must provide left dismiss control');
+  assert.ok(gutterContent.includes('setRightDismissed'), 'Must provide right dismiss control');
 });
 
 test('InterstitialTrigger.jsx contains ExoClick close button selectors, backdrop detection, and non-blocking safety', () => {

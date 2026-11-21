@@ -5,12 +5,14 @@ import { useAdBlock } from '../services/adBlockContext';
 export default function InterstitialTrigger({ currentView }) {
   const adSettings = useAdSettings();
   const { isNoticeOpen } = useAdBlock();
-  const slot = adSettings['slot_interstitial'];
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  const slotKey = isMobile ? 'slot_mobile_interstitial' : 'slot_interstitial';
+  const slot = adSettings[slotKey] || adSettings['slot_interstitial'];
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    // 1. Guard check: Active slot, valid code, desktop-only viewport (1600x900), not admin/legal routes, and adblock notice not open
-    if (typeof window === 'undefined' || window.innerWidth < 768) return;
+    // 1. Guard check: Browser environment, valid route, and adblock notice not open
+    if (typeof window === 'undefined') return;
 
     const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
 
@@ -114,9 +116,11 @@ export default function InterstitialTrigger({ currentView }) {
     const existingContainer = document.getElementById('adcast-ad-injection-container');
     if (existingContainer) {
       document.addEventListener('click', handleCaptureClick, true);
+      document.addEventListener('touchend', handleCaptureClick, true);
       document.addEventListener('keydown', handleKeyDown, true);
       return () => {
         document.removeEventListener('click', handleCaptureClick, true);
+        document.removeEventListener('touchend', handleCaptureClick, true);
         document.removeEventListener('keydown', handleKeyDown, true);
       };
     }
@@ -190,22 +194,30 @@ export default function InterstitialTrigger({ currentView }) {
     }
 
     // Dedicated high-contrast Close Button to guarantee user can always exit
+    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.id = 'adcast-interstitial-close-btn';
     closeBtn.setAttribute('data-adcast-interstitial', 'true');
     closeBtn.setAttribute('aria-label', 'Close advertisement');
-    closeBtn.innerHTML = '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span>';
-    closeBtn.style.cssText =
-      'position:fixed;top:18px;right:18px;z-index:2147483647;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
-    closeBtn.addEventListener('click', (ev) => {
+    closeBtn.innerHTML = isMobileViewport
+      ? '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span><span style="font-size:12px;font-weight:700;margin-left:6px;letter-spacing:0.5px;text-transform:uppercase;pointer-events:none;">Close</span>'
+      : '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span>';
+    closeBtn.style.cssText = isMobileViewport
+      ? 'position:fixed;top:12px;right:12px;z-index:2147483647;min-width:52px;height:48px;padding:0 14px;border-radius:9999px;background:rgba(15,23,42,0.92);border:2px solid rgba(255,255,255,0.6);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,0.85);backdrop-filter:blur(8px);font-family:sans-serif;'
+      : 'position:fixed;top:18px;right:18px;z-index:2147483647;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
+
+    const handleClose = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       dismissInterstitial();
-    });
+    };
+    closeBtn.addEventListener('click', handleClose);
+    closeBtn.addEventListener('touchstart', handleClose, { passive: false });
     document.body.appendChild(closeBtn);
 
     document.addEventListener('click', handleCaptureClick, true);
+    document.addEventListener('touchend', handleCaptureClick, true);
     document.addEventListener('keydown', handleKeyDown, true);
 
     document.body.appendChild(interstitialContainer);
@@ -225,9 +237,13 @@ export default function InterstitialTrigger({ currentView }) {
     // 5. Continuous observer for overlay launch (triggers whenever user clicks on page)
     const checkConfirmedDisplay = () => {
       const hasOverlay =
-        document.querySelector('.ex-over-top, [id^="ad_"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], iframe[id*="eas-"], div[class*="eas-overlay"]') ||
+        document.querySelector(
+          '.ex-over-top, [id^="ad_"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], iframe[id*="eas-"], div[class*="eas-overlay"], [class*="eas6a97888e"]'
+        ) ||
         (interstitialContainer &&
-         Array.from(interstitialContainer.querySelectorAll('iframe, ins > *')).some(el => el.offsetHeight > 50 || el.offsetWidth > 50));
+          Array.from(interstitialContainer.querySelectorAll('iframe, ins > *, div, img')).some(
+            (el) => el.offsetHeight > 30 || el.offsetWidth > 30
+          ));
 
       if (hasOverlay) {
         try {
@@ -250,7 +266,7 @@ export default function InterstitialTrigger({ currentView }) {
       return false;
     };
 
-    // Watch for DOM mutations (when ExoClick injects .ex-over-top upon user click)
+    // Watch for DOM mutations (when ExoClick injects overlay)
     const observer = new MutationObserver(() => {
       if (checkConfirmedDisplay()) {
         observer.disconnect();
@@ -270,6 +286,7 @@ export default function InterstitialTrigger({ currentView }) {
       clearInterval(pollInterval);
       observer.disconnect();
       document.removeEventListener('click', handleCaptureClick, true);
+      document.removeEventListener('touchend', handleCaptureClick, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [slot, currentView, isNoticeOpen]);

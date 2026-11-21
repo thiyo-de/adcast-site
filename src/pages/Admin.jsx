@@ -1559,7 +1559,10 @@ export default function Admin({ onBack }) {
                 'slot_sticky_footer_mobile',
                 'slot_video_preroll',
                 'slot_popunder',
-                'slot_interstitial'
+                'slot_interstitial',
+                'slot_mobile_interstitial',
+                'slot_desktop_skyscraper_left',
+                'slot_desktop_skyscraper_right'
               ];
               const slotKeys = Object.keys(adSettings).filter((k) => k.startsWith('slot_'));
               slotKeys.sort((a, b) => {

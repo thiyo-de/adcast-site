@@ -647,6 +647,37 @@ const DEFAULT_AD_SETTINGS = {
     code: '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
     frequencyHours: 1
   },
+  slot_mobile_interstitial: {
+    id: 'slot_mobile_interstitial',
+    name: 'Mobile Fullpage Interstitial',
+    network: 'ExoClick / Mobile Interstitial',
+    dimensions: 'Mobile Fullscreen',
+    format: 'interstitial_mobile',
+    zoneId: '6100242',
+    isActive: true,
+    code: '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e33" data-zoneid="6100242"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
+    frequencyHours: 1
+  },
+  slot_desktop_skyscraper_left: {
+    id: 'slot_desktop_skyscraper_left',
+    name: 'Desktop Skyscraper (Left 160x600)',
+    network: 'ExoClick / 160x600',
+    dimensions: '160x600',
+    format: 'skyscraper_left',
+    zoneId: '',
+    isActive: true,
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid=""></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+  },
+  slot_desktop_skyscraper_right: {
+    id: 'slot_desktop_skyscraper_right',
+    name: 'Desktop Skyscraper (Right 160x600)',
+    network: 'ExoClick / 160x600',
+    dimensions: '160x600',
+    format: 'skyscraper_right',
+    zoneId: '',
+    isActive: true,
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid=""></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+  },
   affiliate_fallbacks: {
     isEnabled: false,
     vpn: {
