@@ -10,7 +10,7 @@ import { sleep } from '../utils/userAgents.js';
 export async function scrapeMyDesi(source = {}, limit = 20) {
   const targetLimit = limit || 20;
   const baseUrl = (source.url || 'https://mydesi.fun/').replace(/\/+$/, '') + '/';
-  const category = source.category || 'Creator Leaks';
+  const category = source.category || 'Indian Leaks';
   const sourceId = source.id || 'mydesi-top';
 
   console.log(`  [MYDESI] Crawling catalog: ${baseUrl} (target: ${targetLimit} videos)`);
@@ -91,6 +91,10 @@ export async function scrapeMyDesi(source = {}, limit = 20) {
       // Duration badge if present
       const durationRaw = $el.find('.duration, .time, .badge-duration').first().text().trim();
 
+      // Featured badge / ribbon detection
+      const isFeatured = $el.hasClass('featured') ||
+                        $el.find('.featured, .badge-featured, .ribbon-featured, .is-featured').length > 0;
+
       catalogCards.push({
         postId,
         postUrl,
@@ -98,7 +102,8 @@ export async function scrapeMyDesi(source = {}, limit = 20) {
         thumbnailUrl: thumb,
         views: viewsRaw ? parseCount(viewsRaw) : undefined,
         rating: ratingRaw ? parseInt(ratingRaw, 10) : 95,
-        duration: durationRaw || '10:00'
+        duration: durationRaw || '10:00',
+        isFeatured
       });
     });
 
@@ -215,7 +220,8 @@ export async function scrapeMyDesi(source = {}, limit = 20) {
       category: category,
       tags: tags.slice(0, 8),
       views: card.views || Math.floor(Math.random() * 20000 + 5000),
-      rating: card.rating || 96
+      rating: card.rating || 96,
+      is_featured: Boolean(card.isFeatured || i < 5)
     });
 
     // Attach stream_url if resolved

@@ -99,8 +99,16 @@ function randomBetween(min, max) {
 /**
  * Automated 4-Category Classifier for Incoming Video Streams
  */
-export function classifyAdultCategory(title = '', tags = [], fallback = 'Creator Leaks') {
+export function classifyAdultCategory(title = '', tags = [], fallback = 'Indian Leaks') {
+  if (fallback === 'Indian Leaks') {
+    return 'Indian Leaks';
+  }
   const text = `${title} ${(tags || []).join(' ')}`.toLowerCase();
+
+  // Indian Leaks detection
+  if (/desi|indian|mms|bhabhi|pakistani|mallu|tamil|hindi|bengali|punjabi/i.test(text)) {
+    return 'Indian Leaks';
+  }
 
   // 1. Hardcore
   if (/threesome|creampie|bbc|bdsm|facial|asshole|pounded|smashed|banged|anal|gangbang|deepthroat|rough|orgy|cum/i.test(text)) {
@@ -118,7 +126,7 @@ export function classifyAdultCategory(title = '', tags = [], fallback = 'Creator
   }
 
   // 4. Default / Creator Leaks
-  return fallback && ['Trending', 'Creator Leaks', 'Amateur', 'Hardcore'].includes(fallback)
+  return fallback && ['Trending', 'Indian Leaks', 'Creator Leaks', 'Amateur', 'Hardcore'].includes(fallback)
     ? fallback
     : 'Creator Leaks';
 }

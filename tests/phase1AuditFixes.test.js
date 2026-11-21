@@ -107,12 +107,12 @@ test('InterstitialTrigger.jsx contains ExoClick close button selectors, backdrop
   assert.ok(content.includes('isInsideAdContent'), 'Must check isInsideAdContent so sponsor clicks work');
 });
 
-test('CORE_CATEGORIES contains strictly 5 canonical categories and Home.jsx removes duplicate pills row', () => {
+test('CORE_CATEGORIES contains canonical categories including Indian Leaks and Home.jsx removes duplicate pills row', () => {
   const catFilePath = path.join(rootDir, 'src', 'constants', 'categories.js');
   const catContent = fs.readFileSync(catFilePath, 'utf8');
 
-  // Must have strictly 5 categories
-  const expectedCategoryIds = ['All', 'Trending', 'Creator Leaks', 'Amateur', 'Hardcore'];
+  // Must include canonical categories
+  const expectedCategoryIds = ['All', 'Trending', 'Indian Leaks', 'Creator Leaks', 'Amateur', 'Hardcore'];
   expectedCategoryIds.forEach((id) => {
     assert.ok(catContent.includes(`id: '${id}'`), `Must include category ${id}`);
   });

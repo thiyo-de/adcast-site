@@ -411,6 +411,8 @@ export default function Watch({
                 const categoryIcon =
                   video.category === 'Hardcore'
                     ? 'ri-flashlight-fill'
+                    : video.category === 'Indian Leaks'
+                    ? 'ri-flag-fill'
                     : video.category === 'Creator Leaks'
                     ? 'ri-shield-star-fill'
                     : video.category === 'Amateur'
