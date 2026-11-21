@@ -30,5 +30,32 @@ export function computeCategoryCounts(videos = []) {
       }).length;
     }
   });
+
+  // Dynamically count any newly added categories present in videos
+  (videos || []).forEach((v) => {
+    const cat = v.category;
+    if (cat && cat !== 'All' && !Object.prototype.hasOwnProperty.call(counts, cat)) {
+      counts[cat] = videos.filter((item) => item.category === cat).length;
+    }
+  });
+
   return counts;
+}
+
+export function getAvailableCategories(categoryCounts = {}) {
+  const list = [...CORE_CATEGORIES];
+  const existingIds = new Set(CORE_CATEGORIES.map((c) => c.id));
+
+  Object.keys(categoryCounts || {}).forEach((catId) => {
+    if (!existingIds.has(catId) && catId !== 'All' && (categoryCounts[catId] || 0) > 0) {
+      list.push({
+        id: catId,
+        label: catId,
+        icon: 'ri-folder-video-line',
+        color: 'text-rose-400'
+      });
+    }
+  });
+
+  return list;
 }

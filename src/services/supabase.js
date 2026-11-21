@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { store, isPlaceholderAdCode, isValidAffiliateCampaign } from './store';
-import { computeCategoryCounts } from '../constants/categories';
+import { store, isPlaceholderAdCode, isValidAffiliateCampaign } from './store.js';
+import { computeCategoryCounts } from '../constants/categories.js';
 
 const DEFAULT_SUPABASE_URL = 'https://hrvlgnnetoexdbaaebfo.supabase.co';
 const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhydmxnbm5ldG9leGRiYWFlYmZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzMyMTMsImV4cCI6MjExMDA0OTIxM30.ZtBow6MB1bE4eusuSAjuHredn3FaL6y4dkoWnkK3zhM';
@@ -8,8 +8,9 @@ const STORAGE_KEY_ANON = 'adcast_supabase_anon_key';
 const STORAGE_KEY_URL = 'adcast_supabase_url';
 
 export const getSupabaseConfig = () => {
-  const url = localStorage.getItem(STORAGE_KEY_URL) || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const anonKey = localStorage.getItem(STORAGE_KEY_ANON) || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
+  const env = (typeof import.meta !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
+  const url = localStorage.getItem(STORAGE_KEY_URL) || env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const anonKey = localStorage.getItem(STORAGE_KEY_ANON) || env.VITE_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
   return { url, anonKey, isConfigured: Boolean(anonKey && anonKey.length > 20) };
 };
 
@@ -122,9 +123,12 @@ export const api = {
     try {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
+      const q = (search || '').trim();
+      const isDefaultAllFeed = (!category || category === 'All') && !q && (!sort || sort === 'newest');
+      const targetTable = isDefaultAllFeed ? 'view_interleaved_videos' : 'videos';
 
       let query = supabase
-        .from('videos')
+        .from(targetTable)
         .select('*', { count: 'exact' })
         .or('is_active.eq.true,is_active.is.null')
         .or('publication_state.eq.published,publication_state.is.null')
@@ -134,27 +138,52 @@ export const api = {
         query = query.eq('category', category);
       }
 
-      const q = (search || '').trim();
       if (q) {
         query = query.or(`title.ilike.%${q}%,category.ilike.%${q}%`);
       }
 
-      switch (sort) {
-        case 'views':
-        case 'trending':
-          query = query.order('views', { ascending: false });
-          break;
-        case 'top_rated':
-          query = query.order('rating', { ascending: false });
-          break;
-        case 'newest':
-        default:
-          query = query.order('created_at', { ascending: false });
-          break;
+      if (isDefaultAllFeed) {
+        query = query.order('round_num', { ascending: true }).order('created_at', { ascending: false });
+      } else {
+        switch (sort) {
+          case 'views':
+          case 'trending':
+            query = query.order('views', { ascending: false });
+            break;
+          case 'top_rated':
+            query = query.order('rating', { ascending: false });
+            break;
+          case 'newest':
+          default:
+            query = query.order('created_at', { ascending: false });
+            break;
+        }
       }
 
       const { data, count, error } = await query;
       if (error) {
+        // If query on interleaved view failed, retry fallback directly on videos table
+        if (isDefaultAllFeed) {
+          try {
+            const fallbackRes = await supabase
+              .from('videos')
+              .select('*', { count: 'exact' })
+              .or('is_active.eq.true,is_active.is.null')
+              .or('publication_state.eq.published,publication_state.is.null')
+              .range(from, to)
+              .order('created_at', { ascending: false });
+            if (!fallbackRes.error && fallbackRes.data) {
+              const total = typeof fallbackRes.count === 'number' ? fallbackRes.count : fallbackRes.data.length;
+              return {
+                items: fallbackRes.data,
+                total,
+                page,
+                pageSize,
+                hasMore: total > to + 1
+              };
+            }
+          } catch {}
+        }
         console.warn('Supabase getVideosPage failed, falling back to local store:', error);
         return this.getLocalVideosPage({ page, pageSize, category, search, sort });
       }
@@ -186,19 +215,45 @@ export const api = {
           (v.category && v.category.toLowerCase().includes(q))
       );
     }
-    switch (sort) {
-      case 'views':
-      case 'trending':
-        pool.sort((a, b) => (b.views || 0) - (a.views || 0));
-        break;
-      case 'top_rated':
-        pool.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
-      case 'newest':
-      default:
-        pool.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-        break;
+
+    const isDefaultAllFeed = (!category || category === 'All') && !q && (!sort || sort === 'newest');
+    if (isDefaultAllFeed && pool.length > 0) {
+      const catGroups = {};
+      pool.forEach((v) => {
+        const c = v.category || 'General';
+        if (!catGroups[c]) catGroups[c] = [];
+        catGroups[c].push(v);
+      });
+      Object.keys(catGroups).forEach((c) => {
+        catGroups[c].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      });
+      const interleaved = [];
+      const catKeys = Object.keys(catGroups);
+      const maxLen = Math.max(...catKeys.map((c) => catGroups[c].length));
+      for (let i = 0; i < maxLen; i++) {
+        for (const c of catKeys) {
+          if (catGroups[c][i]) {
+            interleaved.push(catGroups[c][i]);
+          }
+        }
+      }
+      pool = interleaved;
+    } else {
+      switch (sort) {
+        case 'views':
+        case 'trending':
+          pool.sort((a, b) => (b.views || 0) - (a.views || 0));
+          break;
+        case 'top_rated':
+          pool.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          break;
+        case 'newest':
+        default:
+          pool.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+          break;
+      }
     }
+
     const total = pool.length;
     const from = (page - 1) * pageSize;
     const items = pool.slice(from, from + pageSize);
@@ -255,7 +310,7 @@ export const api = {
     try {
       const { data, error } = await supabase
         .from('videos')
-        .select('category')
+        .select('category, views, rating, tags')
         .or('is_active.eq.true,is_active.is.null')
         .or('publication_state.eq.published,publication_state.is.null');
 

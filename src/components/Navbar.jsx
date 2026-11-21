@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CORE_CATEGORIES } from '../constants/categories';
+import { CORE_CATEGORIES, getAvailableCategories } from '../constants/categories';
 
 export default function Navbar({
   searchQuery,
@@ -135,7 +135,7 @@ export default function Navbar({
                     <i className="ri-folder-video-line text-xs"></i>
                   </div>
                   <div className="space-y-1">
-                    {CORE_CATEGORIES.map((cat) => {
+                    {getAvailableCategories(categoryCounts).map((cat) => {
                       const isSelected = selectedCategory === cat.id;
                       const count = categoryCounts[cat.id] ?? 0;
                       return (

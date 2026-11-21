@@ -18,6 +18,8 @@ globalThis.localStorage = {
 };
 
 import { store } from '../src/services/store.js';
+import { computeCategoryCounts, getAvailableCategories } from '../src/constants/categories.js';
+import { api } from '../src/services/supabase.js';
 
 test('store.updateAdSlot preserves existing fields on partial toggle', () => {
   const initial = store.getAdSettings();
@@ -226,6 +228,52 @@ test('Admin.jsx and store synchronize all 12 ExoClick slots and self-heal stale 
   slotKeys.forEach((key) => {
     assert.ok(adminContent.includes(`'${key}'`), `Admin.jsx preferredOrder must include ${key}`);
   });
+});
+
+test('getAvailableCategories and computeCategoryCounts dynamically discover and count new categories', () => {
+  const sampleVideos = [
+    { id: '1', title: 'Video 1', category: 'Indian Leaks' },
+    { id: '2', title: 'Video 2', category: 'Indian Leaks' },
+    { id: '3', title: 'Video 3', category: 'Cosplay' },
+    { id: '4', title: 'Video 4', category: 'Virtual Reality' }
+  ];
+
+  const counts = computeCategoryCounts(sampleVideos);
+  assert.equal(counts.All, 4);
+  assert.equal(counts['Indian Leaks'], 2);
+  assert.equal(counts['Cosplay'], 1, 'Must dynamically count custom category Cosplay');
+  assert.equal(counts['Virtual Reality'], 1, 'Must dynamically count custom category Virtual Reality');
+
+  const categories = getAvailableCategories(counts);
+  const catIds = categories.map((c) => c.id);
+  assert.ok(catIds.includes('Cosplay'), 'getAvailableCategories must include Cosplay');
+  assert.ok(catIds.includes('Virtual Reality'), 'getAvailableCategories must include Virtual Reality');
+});
+
+test('api.getLocalVideosPage performs round-robin category interleaving on All Streams feed', () => {
+  // Seed store with 3 videos of Cat A and 3 videos of Cat B
+  const mockVideos = [
+    { id: 'a1', title: 'A1', category: 'CatA', created_at: '2026-11-20T10:00:00Z' },
+    { id: 'a2', title: 'A2', category: 'CatA', created_at: '2026-11-20T09:00:00Z' },
+    { id: 'a3', title: 'A3', category: 'CatA', created_at: '2026-11-20T08:00:00Z' },
+    { id: 'b1', title: 'B1', category: 'CatB', created_at: '2026-11-20T09:30:00Z' },
+    { id: 'b2', title: 'B2', category: 'CatB', created_at: '2026-11-20T08:30:00Z' },
+    { id: 'b3', title: 'B3', category: 'CatB', created_at: '2026-11-20T07:30:00Z' }
+  ];
+  const origGetVideos = store.getVideos;
+  store.getVideos = () => mockVideos;
+
+  try {
+    // Query All Streams
+    const res = api.getLocalVideosPage({ page: 1, pageSize: 6, category: 'All', sort: 'newest' });
+    const categorySequence = res.items.map((v) => v.category);
+
+    // The categories should alternate round-robin instead of all CatA followed by all CatB
+    assert.notEqual(categorySequence[0], categorySequence[1], 'Consecutive videos should round-robin across categories');
+    assert.equal(res.items.length, 6, 'All items must be present');
+  } finally {
+    store.getVideos = origGetVideos;
+  }
 });
 
 
