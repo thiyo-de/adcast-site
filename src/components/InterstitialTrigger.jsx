@@ -14,16 +14,31 @@ export default function InterstitialTrigger({ currentView }) {
 
     const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
 
-    // Helper: completely and cleanly remove all interstitial DOM nodes
+    // Helper: completely and cleanly remove all interstitial DOM nodes and restore scrolling
     const dismissInterstitial = () => {
       const container = document.getElementById('adcast-ad-injection-container');
       if (container) container.remove();
 
       document.querySelectorAll('[data-adcast-interstitial="true"]').forEach((el) => el.remove());
 
+      // Remove ExoClick's native overlay container (.ex-over-top, #ad_6093518, etc.)
       document.querySelectorAll(
-        '.eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], div[class*="eas-overlay"], [id*="eas-overlay"], [id*="eas-interstitial"]'
+        '.ex-over-top, [id^="ad_"], .ex-over-front, [class*="ex-over"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], div[class*="eas-overlay"], [id*="eas-overlay"], [id*="eas-interstitial"]'
       ).forEach((el) => el.remove());
+
+      // Restore body and html scrolling if ExoClick locked it
+      if (typeof document !== 'undefined') {
+        if (document.body) {
+          document.body.style.overflow = '';
+          document.body.style.height = '';
+          document.body.style.position = '';
+        }
+        if (document.documentElement) {
+          document.documentElement.style.overflow = '';
+          document.documentElement.style.height = '';
+        }
+      }
+
       mountedRef.current = false;
     };
 
@@ -42,17 +57,26 @@ export default function InterstitialTrigger({ currentView }) {
       const target = ev.target;
       if (!target) return;
 
-      // 1. Direct hit on our dedicated close button
-      if (target.closest('#adcast-interstitial-close-btn')) {
+      // 1. Direct hit on our dedicated high-contrast close button
+      if (target.closest?.('#adcast-interstitial-close-btn')) {
         ev.preventDefault();
         ev.stopPropagation();
         dismissInterstitial();
         return;
       }
 
-      // 2. Click on provider close button, cross icon, skip button, or dismiss text
+      // Check if click is anywhere inside the interstitial overlay hierarchy
+      const isInInterstitial = target.closest?.(
+        '#adcast-interstitial-close-btn, #adcast-ad-injection-container, .ex-over-top, .ex-over-front, [id^="ad_"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], div[class*="eas-overlay"]'
+      );
+
+      // If click is on normal webpage elements outside the interstitial, let it pass freely
+      if (!isInInterstitial) return;
+
+      // 2. Click on ExoClick provider close button, image, cross icon, or dismiss text
       const isCloseTarget =
-        target.closest('[class*="close" i], [id*="close" i], [aria-label*="close" i], [class*="dismiss" i], [class*="skip" i], button, .eas-close') ||
+        target.closest?.('.ex-over-btn, [class*="ex-over-btn"], [class*="close" i], [id*="close" i], [aria-label*="close" i], [class*="dismiss" i], [class*="skip" i], button, .eas-close') ||
+        (target.tagName === 'IMG' && (target.alt?.toLowerCase().includes('close') || target.src?.includes('close'))) ||
         target.textContent?.includes('✕') ||
         target.textContent?.includes('×') ||
         target.textContent?.trim() === 'X' ||
@@ -61,20 +85,18 @@ export default function InterstitialTrigger({ currentView }) {
         target.textContent?.toLowerCase().includes('skip');
 
       if (isCloseTarget) {
-        const isInsideInterstitial = target.closest(
-          '#adcast-ad-injection-container, [data-adcast-interstitial="true"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], div[class*="eas-overlay"]'
-        );
-        if (isInsideInterstitial) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          dismissInterstitial();
-          return;
-        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        dismissInterstitial();
+        return;
       }
 
-      // 3. Click on the dark backdrop outside the ad modal
-      const container = document.getElementById('adcast-ad-injection-container');
-      if (target === container || target.id === 'adcast-ad-injection-container') {
+      // 3. Click on the dark backdrop outside the ad modal:
+      // Any click inside the interstitial hierarchy outside the actual ad creative cards/links dismisses the overlay
+      const isInsideAdContent = target.closest?.('.ex-over-inner-container, [class*="inner-container"], a[href], iframe');
+      if (!isInsideAdContent) {
+        ev.preventDefault();
+        ev.stopPropagation();
         dismissInterstitial();
       }
     };
@@ -82,6 +104,8 @@ export default function InterstitialTrigger({ currentView }) {
     // Escape key dismiss listener
     const handleKeyDown = (ev) => {
       if (ev.key === 'Escape' || ev.keyCode === 27) {
+        ev.preventDefault();
+        ev.stopPropagation();
         dismissInterstitial();
       }
     };
@@ -131,6 +155,25 @@ export default function InterstitialTrigger({ currentView }) {
     interstitialContainer.style.cssText =
       'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;pointer-events:none;';
 
+    // Inject CSS to ensure ExoClick's close button and backdrop always receive pointer events
+    const helperStyle = document.createElement('style');
+    helperStyle.setAttribute('data-adcast-interstitial', 'true');
+    helperStyle.textContent = `
+      #adcast-interstitial-close-btn {
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+      .ex-over-top, .ex-over-front, .ex-over-btn, .ex-over-btn img, [id^="ad_"] {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+      .ex-over-inner-container {
+        cursor: default !important;
+      }
+    `;
+    document.head.appendChild(helperStyle);
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = slot.code;
 
@@ -150,16 +193,17 @@ export default function InterstitialTrigger({ currentView }) {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.id = 'adcast-interstitial-close-btn';
+    closeBtn.setAttribute('data-adcast-interstitial', 'true');
     closeBtn.setAttribute('aria-label', 'Close advertisement');
     closeBtn.innerHTML = '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span>';
     closeBtn.style.cssText =
-      'position:fixed;top:18px;right:18px;z-index:10000000;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
+      'position:fixed;top:18px;right:18px;z-index:2147483647;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
     closeBtn.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       dismissInterstitial();
     });
-    interstitialContainer.appendChild(closeBtn);
+    document.body.appendChild(closeBtn);
 
     document.addEventListener('click', handleCaptureClick, true);
     document.addEventListener('keydown', handleKeyDown, true);
@@ -178,15 +222,10 @@ export default function InterstitialTrigger({ currentView }) {
       document.body.appendChild(newScript);
     });
 
-    // 5. Monitor for confirmed display: stamp cooldown, show close button, and enable pointer events
-    let checkInterval = null;
-    let checks = 0;
-    const maxChecks = 25; // Check for up to 12.5 seconds (500ms * 25)
-
+    // 5. Continuous observer for overlay launch (triggers whenever user clicks on page)
     const checkConfirmedDisplay = () => {
-      checks++;
       const hasOverlay =
-        document.querySelector('.eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], iframe[id*="eas-"], div[class*="eas-overlay"]') ||
+        document.querySelector('.ex-over-top, [id^="ad_"], .eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], iframe[id*="eas-"], div[class*="eas-overlay"]') ||
         (interstitialContainer &&
          Array.from(interstitialContainer.querySelectorAll('iframe, ins > *')).some(el => el.offsetHeight > 50 || el.offsetWidth > 50));
 
@@ -200,27 +239,36 @@ export default function InterstitialTrigger({ currentView }) {
 
         closeBtn.style.display = 'flex';
 
-        // Enable pointer events on the container and all children so close/skip buttons can be clicked
         if (interstitialContainer) {
           interstitialContainer.style.pointerEvents = 'auto';
           interstitialContainer.querySelectorAll('*').forEach((child) => {
             child.style.setProperty('pointer-events', 'auto', 'important');
           });
         }
-
-        if (checkInterval) clearInterval(checkInterval);
-        return;
+        return true;
       }
-
-      if (checks >= maxChecks && checkInterval) {
-        clearInterval(checkInterval);
-      }
+      return false;
     };
 
-    checkInterval = setInterval(checkConfirmedDisplay, 500);
+    // Watch for DOM mutations (when ExoClick injects .ex-over-top upon user click)
+    const observer = new MutationObserver(() => {
+      if (checkConfirmedDisplay()) {
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Also poll every 1s as fallback
+    const pollInterval = setInterval(() => {
+      if (checkConfirmedDisplay()) {
+        clearInterval(pollInterval);
+        observer.disconnect();
+      }
+    }, 1000);
 
     return () => {
-      if (checkInterval) clearInterval(checkInterval);
+      clearInterval(pollInterval);
+      observer.disconnect();
       document.removeEventListener('click', handleCaptureClick, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };

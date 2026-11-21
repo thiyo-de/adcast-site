@@ -1,5 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
 
 // Mock localStorage for headless Node environment
 const mockStorage = new Map();
@@ -57,4 +64,26 @@ test('store provides all 9 dedicated ExoClick slots matching dashboard 1-to-1', 
   assert.equal(settings.slot_top_banner_mobile.zoneId, '6096160');
   assert.equal(settings.slot_sticky_footer_mobile.zoneId, '6096158');
   assert.equal(settings.slot_interstitial.zoneId, '6093518');
+});
+
+test('InterstitialTrigger.jsx contains ExoClick close button selectors, backdrop detection, and non-blocking safety', () => {
+  const filePath = path.join(rootDir, 'src', 'components', 'InterstitialTrigger.jsx');
+  const content = fs.readFileSync(filePath, 'utf8');
+
+  // 1. Must detect ExoClick specific overlay elements
+  assert.ok(content.includes('.ex-over-btn'), 'Must detect .ex-over-btn');
+  assert.ok(content.includes('.ex-over-top'), 'Must detect .ex-over-top');
+  assert.ok(content.includes('.ex-over-front'), 'Must detect .ex-over-front');
+  assert.ok(content.includes('[id^="ad_"]'), 'Must detect [id^="ad_"]');
+  assert.ok(content.includes('#adcast-interstitial-close-btn'), 'Must have dedicated close button');
+
+  // 2. Must restore scrolling on both body and documentElement
+  assert.ok(content.includes("document.body.style.overflow = ''"), 'Must restore body overflow');
+  assert.ok(content.includes("document.documentElement.style.overflow = ''"), 'Must restore html overflow');
+
+  // 3. Must check isInInterstitial so normal page buttons are never intercepted
+  assert.ok(content.includes('isInInterstitial'), 'Must check isInInterstitial before intercepting');
+
+  // 4. Must preserve ad clickthroughs inside ad content
+  assert.ok(content.includes('isInsideAdContent'), 'Must check isInsideAdContent so sponsor clicks work');
 });
