@@ -95,8 +95,9 @@ export default function VideoPlayer({ video, onEnded }) {
     let isCancelled = false;
 
     const lastPreRoll = parseInt(localStorage.getItem('adcast_last_preroll') || '0', 10);
-    const cooldownMs = (preRollSlot?.frequencyMinutes || 5) * 60 * 1000;
-    const isCooldownActive = Date.now() - lastPreRoll < cooldownMs;
+    const cooldownMinutes = typeof preRollSlot?.frequencyMinutes === 'number' ? preRollSlot.frequencyMinutes : 0;
+    const cooldownMs = cooldownMinutes * 60 * 1000;
+    const isCooldownActive = cooldownMs > 0 && (Date.now() - lastPreRoll < cooldownMs);
 
     if (hasPreRoll && preRollSlot?.vastUrl && !isCooldownActive) {
       resolveVastAd(preRollSlot.vastUrl)
@@ -146,11 +147,12 @@ export default function VideoPlayer({ video, onEnded }) {
       }
     }
 
-    // Run pre-roll with 5-minute frequency cooldown (matching ExoClick zone setting)
+    // Run pre-roll with configurable frequency cooldown (0 = every video)
     const now = Date.now();
     const lastPreRoll = parseInt(localStorage.getItem('adcast_last_preroll') || '0', 10);
-    const cooldownMs = (preRollSlot?.frequencyMinutes || 5) * 60 * 1000;
-    const isCooldownActive = now - lastPreRoll < cooldownMs;
+    const cooldownMinutes = typeof preRollSlot?.frequencyMinutes === 'number' ? preRollSlot.frequencyMinutes : 0;
+    const cooldownMs = cooldownMinutes * 60 * 1000;
+    const isCooldownActive = cooldownMs > 0 && (now - lastPreRoll < cooldownMs);
 
     if (hasPreRoll && preRollSlot?.vastUrl && !isCooldownActive) {
       let vastResult = prefetchedAdRef.current;

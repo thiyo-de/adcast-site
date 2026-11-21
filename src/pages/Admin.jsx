@@ -26,6 +26,13 @@ const QUALITY_OPTIONS = [
   { value: '720p HD', label: '720p HD', icon: 'ri-video-line' },
 ];
 
+const PREROLL_FREQUENCY_OPTIONS = [
+  { value: 0, label: 'Every Video (0 min cooldown — Max Revenue)', icon: 'ri-flashlight-fill' },
+  { value: 2, label: 'Every 2 Minutes', icon: 'ri-time-line' },
+  { value: 5, label: 'Every 5 Minutes', icon: 'ri-time-line' },
+  { value: 10, label: 'Every 10 Minutes', icon: 'ri-time-line' },
+];
+
 export default function Admin({ onBack }) {
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1596,22 +1603,37 @@ export default function Admin({ onBack }) {
                             className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
                           />
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                            Sponsor Title Overlay
-                          </label>
-                          <input
-                            type="text"
-                            value={slot.adTitle || ''}
-                            onChange={(e) =>
-                              setAdSettings({
-                                ...adSettings,
-                                [slotKey]: { ...slot, adTitle: e.target.value }
-                              })
-                            }
-                            placeholder="Featured Sponsor..."
-                            className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Sponsor Title Overlay
+                            </label>
+                            <input
+                              type="text"
+                              value={slot.adTitle || ''}
+                              onChange={(e) =>
+                                setAdSettings({
+                                  ...adSettings,
+                                  [slotKey]: { ...slot, adTitle: e.target.value }
+                                })
+                              }
+                              placeholder="Featured Sponsor..."
+                              className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <CustomSelect
+                              label="Frequency Cooldown"
+                              value={slot.frequencyMinutes !== undefined ? slot.frequencyMinutes : 0}
+                              onChange={(val) =>
+                                setAdSettings({
+                                  ...adSettings,
+                                  [slotKey]: { ...slot, frequencyMinutes: Number(val) }
+                                })
+                              }
+                              options={PREROLL_FREQUENCY_OPTIONS}
+                            />
+                          </div>
                         </div>
                       </div>
                     ) : (
