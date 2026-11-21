@@ -163,6 +163,29 @@ test('Admin.jsx implements Video Catalog pagination, quick search, and responsiv
   assert.ok(content.includes('<Pagination'), 'Must render Pagination component for video catalog');
 });
 
+test('CustomSelect.jsx enforces dark luxury aesthetic and App.jsx defaults to dark theme', () => {
+  const customSelectPath = path.join(rootDir, 'src', 'components', 'CustomSelect.jsx');
+  const selectContent = fs.readFileSync(customSelectPath, 'utf8');
+
+  // Must not have white background fallback for menu popover
+  assert.ok(!selectContent.includes('bg-white/95'), 'CustomSelect menu must not use bg-white/95');
+  assert.ok(selectContent.includes('bg-[#0D111D]'), 'CustomSelect menu must use obsidian dark luxury bg-[#0D111D]');
+  assert.ok(selectContent.includes('z-[80]'), 'CustomSelect menu must have high z-index for dropdown popover');
+
+  // App.jsx must default to dark
+  const appPath = path.join(rootDir, 'src', 'App.jsx');
+  const appContent = fs.readFileSync(appPath, 'utf8');
+  assert.ok(!appContent.includes("matchMedia('(prefers-color-scheme: light)')"), 'App.jsx must not override default theme to light');
+  assert.ok(appContent.includes("return 'dark';"), 'App.jsx must default to dark theme');
+
+  // Admin.jsx must have responsive video modal and mobile nav drawer
+  const adminPath = path.join(rootDir, 'src', 'pages', 'Admin.jsx');
+  const adminContent = fs.readFileSync(adminPath, 'utf8');
+  assert.ok(adminContent.includes('max-h-[92vh] overflow-y-auto'), 'Video modal must have max-h and overflow-y-auto');
+  assert.ok(adminContent.includes('bg-[#0E121E]'), 'Mobile nav drawer must have dark background');
+});
+
+
 
 
 

@@ -587,40 +587,42 @@ export default function Admin({ onBack }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Top Admin Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl glass-panel">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-rose-500 flex items-center justify-center text-white shadow-md shadow-rose-600/20">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 sm:p-6 rounded-2xl glass-panel">
+        <div className="flex items-start sm:items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-rose-500 flex items-center justify-center text-white shadow-md shadow-rose-600/20 shrink-0">
             <i className="ri-shield-keyhole-fill not-italic text-xl"></i>
           </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              HornyLeaks Administration
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                HornyLeaks Administration
+              </h1>
               {user ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono whitespace-nowrap inline-flex items-center">
                   AUTH: {user.email}
                 </span>
               ) : (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-mono">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-mono whitespace-nowrap inline-flex items-center">
                   LOCAL OFFLINE
                 </span>
               )}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Manage video catalog, configure ad slots, and control database syncing.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 self-stretch sm:self-auto">
           <button
             onClick={onBack}
-            className="px-4 py-2 rounded-full glass-button text-xs font-semibold"
+            className="flex-1 sm:flex-none px-4 py-2 rounded-full glass-button text-xs font-semibold text-center"
           >
             View Public Site
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white text-xs font-semibold border border-rose-500/20 transition-all cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white text-xs font-semibold border border-rose-500/20 transition-all cursor-pointer"
           >
             <i className="ri-logout-box-r-line not-italic text-sm"></i> Logout
           </button>
@@ -709,20 +711,20 @@ export default function Admin({ onBack }) {
                   />
                   {/* Sheet container */}
                   <div
-                    className="relative z-10 w-full max-h-[82vh] overflow-y-auto bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-white/10 rounded-t-3xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200"
+                    className="relative z-10 w-full max-h-[82vh] overflow-y-auto bg-[#0E121E] border-t border-white/15 rounded-t-3xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200 text-white"
                     style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
                   >
                     {/* Pull handle */}
-                    <div className="w-12 h-1.5 bg-slate-300 dark:bg-white/20 rounded-full mx-auto mb-4" />
+                    <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4" />
 
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06] mb-3">
+                    <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-3">
                       <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                         <i className="ri-dashboard-line text-rose-500 text-sm"></i>
                         Admin Tools Navigation
                       </h3>
                       <button
                         onClick={() => setIsMobileNavOpen(false)}
-                        className="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-400 hover:text-white flex items-center justify-center"
+                        className="w-7 h-7 rounded-full bg-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer"
                         aria-label="Close menu"
                       >
                         <i className="ri-close-line text-sm"></i>
@@ -742,12 +744,12 @@ export default function Admin({ onBack }) {
                             className={`w-full min-h-[48px] px-3.5 py-2.5 rounded-2xl flex items-center justify-between transition-all cursor-pointer ${
                               isSelected
                                 ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
-                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200'
+                                : 'hover:bg-white/[0.08] text-slate-200 hover:text-white'
                             }`}
                           >
                             <div className="flex items-center gap-3">
                               <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm ${
-                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-white/[0.06] text-rose-500'
+                                isSelected ? 'bg-white/20 text-white' : 'bg-white/[0.06] text-rose-500'
                               }`}>
                                 <i className={tab.icon}></i>
                               </div>
@@ -755,7 +757,7 @@ export default function Admin({ onBack }) {
                             </div>
                             {tab.badge !== null && tab.badge !== undefined && (
                               <span className={`text-[11px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
-                                isSelected ? 'bg-black/25 text-white' : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
+                                isSelected ? 'bg-black/30 text-white' : 'bg-white/[0.08] text-slate-300 border border-white/10'
                               }`}>
                                 {tab.badge}
                               </span>
@@ -1084,8 +1086,8 @@ export default function Admin({ onBack }) {
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl glass-panel overflow-hidden border border-slate-200/80 dark:border-white/10">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+            <div className="rounded-2xl glass-panel overflow-x-auto border border-slate-200/80 dark:border-white/10 scrollbar-none">
+              <table className="w-full min-w-[600px] text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-100/70 dark:bg-white/[0.03] text-slate-800 dark:text-slate-200 uppercase font-mono text-[10px] tracking-wider border-b border-slate-200/80 dark:border-white/10">
                   <tr>
                     <th className="p-3.5">Preview</th>
@@ -1887,27 +1889,38 @@ export default function Admin({ onBack }) {
 
       {/* Add / Edit Video Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-lg p-6 sm:p-7 rounded-3xl glass-panel shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-              {editingVideo ? 'Edit Video Embed' : 'Add New Video Embed'}
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto p-5 sm:p-7 rounded-3xl bg-[#0F1320] border border-white/15 shadow-2xl text-white scrollbar-none my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <i className="ri-movie-2-line text-rose-500"></i>
+                {editingVideo ? 'Edit Video Embed' : 'Add New Video Embed'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                aria-label="Close modal"
+              >
+                <i className="ri-close-line text-base"></i>
+              </button>
+            </div>
 
             <form onSubmit={handleSaveVideo} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Title *</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Title *</label>
                 <input
                   type="text"
                   required
                   value={videoForm.title}
                   onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
                   placeholder="Video title"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 bg-white/[0.05] border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Video URL (YouTube, Instagram Reel, Facebook Video, or .mp4/.m3u8) *
                 </label>
                 <input
@@ -1925,12 +1938,12 @@ export default function Admin({ onBack }) {
                     }));
                   }}
                   placeholder="Paste YouTube, Instagram, Facebook, or direct video URL"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 bg-white/[0.05] border border-white/10 rounded-xl text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Thumbnail Image URL *
                 </label>
                 <input
@@ -1939,7 +1952,7 @@ export default function Admin({ onBack }) {
                   value={videoForm.thumbnail_url}
                   onChange={(e) => setVideoForm({ ...videoForm, thumbnail_url: e.target.value })}
                   placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 bg-white/[0.05] border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
@@ -1959,19 +1972,19 @@ export default function Admin({ onBack }) {
                 />
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Duration</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Duration</label>
                   <input
                     type="text"
                     value={videoForm.duration}
                     onChange={(e) => setVideoForm({ ...videoForm, duration: e.target.value })}
                     placeholder="12:45"
-                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                    className="w-full px-3.5 py-2.5 bg-white/[0.05] border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Tags (comma separated)
                 </label>
                 <input
@@ -1979,7 +1992,7 @@ export default function Admin({ onBack }) {
                   value={videoForm.tags}
                   onChange={(e) => setVideoForm({ ...videoForm, tags: e.target.value })}
                   placeholder="racing, tokyo, 4k"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 bg-white/[0.05] border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
@@ -1989,9 +2002,9 @@ export default function Admin({ onBack }) {
                   id="feat"
                   checked={videoForm.is_featured}
                   onChange={(e) => setVideoForm({ ...videoForm, is_featured: e.target.checked })}
-                  className="rounded bg-slate-100 dark:bg-white/[0.05] border-slate-300 dark:border-white/10 text-rose-600 focus:ring-0"
+                  className="rounded bg-white/[0.05] border-white/10 text-rose-600 focus:ring-0"
                 />
-                <label htmlFor="feat" className="text-xs text-slate-600 dark:text-slate-300">
+                <label htmlFor="feat" className="text-xs text-slate-300">
                   Feature this video on homepage badge
                 </label>
               </div>
@@ -2000,13 +2013,13 @@ export default function Admin({ onBack }) {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-full glass-button text-xs font-semibold"
+                  className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white text-xs font-semibold transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md"
+                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/30 transition-all cursor-pointer"
                 >
                   Save Video
                 </button>
@@ -2018,38 +2031,38 @@ export default function Admin({ onBack }) {
 
       {/* Purge All Dead Videos Preview Modal */}
       {isPurgePreviewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-xl max-h-[85vh] flex flex-col p-6 rounded-3xl glass-panel shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-xl max-h-[85vh] flex flex-col p-5 sm:p-6 rounded-3xl bg-[#0F1320] border border-white/15 shadow-2xl text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <i className="ri-error-warning-fill text-rose-500 not-italic"></i>
                 Confirm Permanent Purge ({deadVideos.length} Streams)
               </h3>
               <button
                 type="button"
                 onClick={() => !isPurging && setIsPurgePreviewOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="w-7 h-7 rounded-full bg-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
-                <i className="ri-close-line text-lg not-italic"></i>
+                <i className="ri-close-line text-sm not-italic"></i>
               </button>
             </div>
 
-            <div className="py-3 text-xs text-slate-600 dark:text-slate-300">
+            <div className="py-3 text-xs text-slate-300">
               <p>
                 The following streams have been confirmed dead or quarantined. Purging will <strong>permanently delete</strong> their records and insert their embed URLs into <code className="text-rose-400">suppressed_videos</code> so automated scrapers will never re-import them.
               </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-2 max-h-60 border border-slate-200 dark:border-white/[0.08] rounded-xl p-2 bg-slate-50 dark:bg-black/20">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-2 max-h-60 border border-white/10 rounded-xl p-2 bg-black/40">
               {deadVideos.map((v) => (
-                <div key={v.id} className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-white/[0.03] border border-slate-200/50 dark:border-white/[0.04]">
+                <div key={v.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
                   <img
                     src={v.thumbnail_url}
                     alt=""
                     className="w-12 h-8 object-cover rounded bg-slate-800 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                    <div className="text-xs font-semibold text-white truncate">
                       {v.title}
                     </div>
                     <div className="text-[10px] text-rose-400 truncate">

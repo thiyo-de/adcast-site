@@ -161,15 +161,11 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Dual Theme State (Dark / Light with System Preference Detection)
+  // Theme State: Default to dark luxury streaming theme
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem('adcast_theme');
       if (saved === 'dark' || saved === 'light') return saved;
-      // Fallback to user's OS preference
-      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        return 'light';
-      }
       return 'dark';
     } catch (e) {
       return 'dark';
@@ -187,21 +183,6 @@ export default function App() {
       localStorage.setItem('adcast_theme', theme);
     } catch (e) {}
   }, [theme]);
-
-  // Optional: Listen to system changes if user hasn't manually overridden yet
-  useEffect(() => {
-    try {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = (e) => {
-        const manual = localStorage.getItem('adcast_theme');
-        if (!manual) {
-          setTheme(e.matches ? 'dark' : 'light');
-        }
-      };
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    } catch (e) {}
-  }, []);
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
