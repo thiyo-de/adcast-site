@@ -219,12 +219,12 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         data-ad-slot={slotId}
         data-ad-state={isLoaded ? 'loaded' : 'loading'}
         onClick={handleNativeCardClick}
-        className={`group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-rose-500 ${className}`}
+        className={`group relative flex flex-col h-full rounded-2xl glass-card border border-amber-500/20 hover:border-amber-500/40 overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-amber-500 ${className}`}
       >
         {/* Dev Mode Badge */}
         {isDevMode && devBadge && (
-          <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md pointer-events-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+          <div className="absolute top-2 left-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-sans font-bold tabular-nums bg-black/85 text-amber-400 border border-amber-500/40 shadow-md pointer-events-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
             {`${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
           </div>
         )}
@@ -243,53 +243,37 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
             />
           </div>
 
-          {/* Top Left Badges: HD & Hot pills matching VideoCard */}
-          <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-20">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
-              HD
-            </span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
-              <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
-            </span>
-          </div>
-
-          {/* Top Right: Discrete Micro-Disclosure Pill */}
+          {/* Top Right: Clear Amber Sponsored Badge */}
           <div className="absolute top-2 right-2 flex items-center gap-1 pointer-events-none z-20">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-300 border border-white/10 shadow-sm backdrop-blur-md">
-              PROMO
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-black/85 text-amber-400 border border-amber-500/35 shadow-md backdrop-blur-md">
+              Sponsored ↗
             </span>
-          </div>
-
-          {/* Duration Pill (Bottom Right - Plus Jakarta Sans tabular) */}
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm pointer-events-none z-20">
-            HD Stream
           </div>
         </div>
 
-        {/* 2. Video Info Section matching VideoCard */}
+        {/* 2. Ad Info Section */}
         <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
           <div>
-            {/* Category Tag */}
-            <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
-              FEATURED
+            {/* Sponsor Category Tag */}
+            <span className="inline-block text-xs font-bold uppercase tracking-wider text-amber-400 mb-0.5">
+              Featured Sponsor
             </span>
 
-            {/* Title (Locked to 2 lines so all cards equalize perfectly) */}
-            <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
-              {slot?.title || 'Trending Live Stream — Exclusive HD Preview'}
+            {/* Title */}
+            <h3 className="text-sm sm:text-[15px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-amber-400 line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
+              {slot?.title || 'Exclusive Live Stream — Sponsored Partner Preview'}
             </h3>
           </div>
 
-          {/* Meta Stats Bar matching VideoCard */}
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
-            <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-              <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
-              <span>Trending</span>
+          {/* Meta Disclaimer Bar */}
+          <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
+            <div className="flex items-center gap-1.5 font-semibold text-amber-400/90">
+              <i className="ri-external-link-line not-italic text-sm"></i>
+              <span>Promoted Content</span>
             </div>
 
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <i className="ri-time-line not-italic text-xs"></i>
-              <span>Sponsored</span>
+            <div className="flex items-center gap-1 text-xs text-slate-400">
+              <span>External Partner</span>
             </div>
           </div>
         </div>

@@ -175,7 +175,7 @@
   }
 
   .glass-card {
-    @apply bg-white/85 dark:bg-[#111422]/65 backdrop-blur-xl border border-slate-200/70 dark:border-white/[0.07] shadow-sm dark:shadow-none hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300;
+    @apply bg-white dark:bg-[#111422] border border-slate-200/80 dark:border-white/[0.08] shadow-sm dark:shadow-none hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300;
   }
 
   .glass-button {
