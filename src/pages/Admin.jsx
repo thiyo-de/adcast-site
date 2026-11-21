@@ -10,6 +10,7 @@ export default function Admin({ onBack }) {
   const [authErrorMsg, setAuthErrorMsg] = useState(null);
   const [authSuccessMsg, setAuthSuccessMsg] = useState(null);
   const [activeTab, setActiveTab] = useState('videos');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   // Video Management State
   const [videos, setVideos] = useState([]);
@@ -616,92 +617,162 @@ export default function Admin({ onBack }) {
         </div>
       )}
 
-      {/* Tabs Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1 border-b border-slate-200/80 dark:border-white/[0.08]">
-        <button
-          onClick={() => setActiveTab('videos')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'videos'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-movie-2-line not-italic text-sm"></i>
-          Videos ({videos.length})
-        </button>
+      {/* Tabs Navigation (Responsive Mobile Bottom Sheet & Desktop Segmented Bar) */}
+      {(() => {
+        const ADMIN_TABS = [
+          { id: 'videos', label: 'Videos', icon: 'ri-movie-2-line', badge: videos.length },
+          { id: 'review', label: 'Review Queue', icon: 'ri-checkbox-multiple-line', badge: pendingVideos.length },
+          { id: 'crawler', label: 'Crawler & Sources', icon: 'ri-radar-line', badge: crawlerSources.length },
+          {
+            id: 'ads',
+            label: 'Ad Network Manager',
+            icon: 'ri-megaphone-line',
+            badge: `${Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9} Slots`,
+            shortBadge: `${Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9}`
+          },
+          { id: 'supabase', label: 'Supabase Cloud Sync', icon: 'ri-database-2-line', badge: null },
+          { id: 'dmca', label: 'DMCA Requests', icon: 'ri-shield-check-line', badge: dmcaList.filter((d) => d.status === 'pending').length },
+          { id: 'quarantine', label: 'Dead Streams', icon: 'ri-error-warning-line', badge: deadVideos.length },
+        ];
+        const currentTabObj = ADMIN_TABS.find((t) => t.id === activeTab) || ADMIN_TABS[0];
 
-        <button
-          onClick={() => setActiveTab('review')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'review'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-checkbox-multiple-line not-italic text-sm"></i>
-          Review Queue ({pendingVideos.length})
-        </button>
+        return (
+          <div className="space-y-2">
+            {/* Mobile View: Clean Section Dropdown Button */}
+            <div className="sm:hidden">
+              <button
+                type="button"
+                onClick={() => setIsMobileNavOpen(true)}
+                className="w-full flex items-center justify-between p-3 rounded-2xl glass-card border border-slate-200/80 dark:border-white/10 active:scale-[0.99] transition-all cursor-pointer shadow-sm"
+                aria-label="Select admin section"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                    <i className={`${currentTabObj.icon} text-base`}></i>
+                  </div>
+                  <div className="text-left min-w-0">
+                    <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Current Section</span>
+                    <span className="block text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                      {currentTabObj.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {currentTabObj.badge !== null && currentTabObj.badge !== undefined && (
+                    <span className="text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                      {currentTabObj.shortBadge || currentTabObj.badge}
+                    </span>
+                  )}
+                  <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/[0.06] flex items-center justify-center text-slate-400">
+                    <i className="ri-arrow-down-s-line text-sm"></i>
+                  </div>
+                </div>
+              </button>
 
-        <button
-          onClick={() => setActiveTab('crawler')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'crawler'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-radar-line not-italic text-sm"></i>
-          Crawler & Sources ({crawlerSources.length})
-        </button>
+              {/* Mobile Bottom Sheet Modal */}
+              {isMobileNavOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center" data-react-modal="true">
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+                    onClick={() => setIsMobileNavOpen(false)}
+                  />
+                  {/* Sheet container */}
+                  <div
+                    className="relative z-10 w-full max-h-[82vh] overflow-y-auto bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-white/10 rounded-t-3xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200"
+                    style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+                  >
+                    {/* Pull handle */}
+                    <div className="w-12 h-1.5 bg-slate-300 dark:bg-white/20 rounded-full mx-auto mb-4" />
 
-        <button
-          onClick={() => setActiveTab('ads')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'ads'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-megaphone-line not-italic text-sm"></i>
-          Ad Network Manager ({Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9} Slots)
-        </button>
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06] mb-3">
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i className="ri-dashboard-line text-rose-500 text-sm"></i>
+                        Admin Tools Navigation
+                      </h3>
+                      <button
+                        onClick={() => setIsMobileNavOpen(false)}
+                        className="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-400 hover:text-white flex items-center justify-center"
+                        aria-label="Close menu"
+                      >
+                        <i className="ri-close-line text-sm"></i>
+                      </button>
+                    </div>
 
-        <button
-          onClick={() => setActiveTab('supabase')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'supabase'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-database-2-line not-italic text-sm"></i>
-          Supabase Cloud Sync
-        </button>
+                    <div className="space-y-1.5">
+                      {ADMIN_TABS.map((tab) => {
+                        const isSelected = activeTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              setActiveTab(tab.id);
+                              setIsMobileNavOpen(false);
+                            }}
+                            className={`w-full min-h-[48px] px-3.5 py-2.5 rounded-2xl flex items-center justify-between transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-white/[0.06] text-rose-500'
+                              }`}>
+                                <i className={tab.icon}></i>
+                              </div>
+                              <span className="text-xs font-bold">{tab.label}</span>
+                            </div>
+                            {tab.badge !== null && tab.badge !== undefined && (
+                              <span className={`text-[11px] font-sans font-bold tabular-nums px-2 py-0.5 rounded-full ${
+                                isSelected ? 'bg-black/25 text-white' : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
+                              }`}>
+                                {tab.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
-        <button
-          onClick={() => setActiveTab('dmca')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'dmca'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-shield-check-line not-italic text-sm"></i>
-          DMCA Requests ({dmcaList.filter((d) => d.status === 'pending').length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('quarantine')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === 'quarantine'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'glass-button'
-          }`}
-        >
-          <i className="ri-error-warning-line not-italic text-sm"></i>
-          Dead Streams ({deadVideos.length})
-        </button>
-      </div>
+            {/* Desktop / Tablet View: Modern Segmented Tab Bar */}
+            <div className="hidden sm:flex gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200/80 dark:border-white/[0.08]">
+              {ADMIN_TABS.map((tab) => {
+                const isSelected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <i className={`${tab.icon} not-italic text-sm ${isSelected ? 'text-white' : 'text-rose-500'}`}></i>
+                    <span>{tab.label}</span>
+                    {tab.badge !== null && tab.badge !== undefined && (
+                      <span
+                        className={`text-[10px] font-sans font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
+                          isSelected
+                            ? 'bg-black/25 text-white'
+                            : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TAB 1: VIDEOS MANAGEMENT */}
       {activeTab === 'videos' && (

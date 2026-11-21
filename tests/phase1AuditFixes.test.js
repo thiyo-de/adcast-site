@@ -127,4 +127,16 @@ test('Navbar.jsx hides Categories, Saved bookmarks, and Search bar when in Admin
   assert.ok(appContent.includes('currentView={currentView}'), 'App.jsx must pass currentView to Navbar');
 });
 
+test('Admin.jsx provides responsive mobile bottom sheet drawer and desktop segmented navigation', () => {
+  const adminFilePath = path.join(rootDir, 'src', 'pages', 'Admin.jsx');
+  const content = fs.readFileSync(adminFilePath, 'utf8');
+
+  // Must have mobile state and drawer trigger
+  assert.ok(content.includes('isMobileNavOpen'), 'Must contain isMobileNavOpen state');
+  assert.ok(content.includes('sm:hidden'), 'Must have mobile specific container');
+  assert.ok(content.includes('hidden sm:flex'), 'Must have desktop specific container');
+  assert.ok(content.includes('Admin Tools Navigation'), 'Must have bottom sheet navigation modal');
+});
+
+
 
