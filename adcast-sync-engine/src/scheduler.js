@@ -1,5 +1,6 @@
 import { getDbClient, getActiveSources, syncVideosToDb, updateSourceLastSynced } from './db.js';
 import { scrapeHornyLeak } from './scrapers/hornyleakScraper.js';
+import { scrapeMyDesi } from './scrapers/mydesiScraper.js';
 import { scrapeJsonApi } from './scrapers/jsonApiScraper.js';
 import { scrapeFeed } from './scrapers/feedParser.js';
 import { scrapeHtml } from './scrapers/htmlCrawler.js';
@@ -250,7 +251,9 @@ export async function processSource(source) {
 
   let scrapedVideos = [];
   try {
-    if (source.type === 'hornyleak' || (source.url && source.url.includes('hornyleak'))) {
+    if (source.type === 'mydesi' || (source.url && source.url.includes('mydesi'))) {
+      scrapedVideos = await scrapeMyDesi(source, limit);
+    } else if (source.type === 'hornyleak' || (source.url && source.url.includes('hornyleak'))) {
       scrapedVideos = await scrapeHornyLeak(source, limit);
     } else if (source.type === 'json_api') {
       scrapedVideos = await scrapeJsonApi(source, limit);

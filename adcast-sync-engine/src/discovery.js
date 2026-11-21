@@ -4,6 +4,7 @@ import { scrapeJsonApi } from './scrapers/jsonApiScraper.js';
 import { scrapeFeed } from './scrapers/feedParser.js';
 import { scrapeHtml } from './scrapers/htmlCrawler.js';
 import { scrapeHornyLeak } from './scrapers/hornyleakScraper.js';
+import { scrapeMyDesi } from './scrapers/mydesiScraper.js';
 
 /**
  * Autonomous Source Discovery Engine
@@ -123,6 +124,23 @@ export async function discoverSource(targetUrl) {
             confidence: 'high',
             sampleItems: sample.slice(0, 3),
             details: { title: pageTitle, message: 'Matched dedicated HornyLeak video platform.' }
+          };
+        }
+      } catch (e) {}
+    }
+
+    // 4c. Known Platform Match: MyDesi pattern
+    if (url.includes('mydesi') || $('.video-block.thumbs-rotation, .video-block').length > 0) {
+      try {
+        const sample = await scrapeMyDesi({ url }, 3);
+        if (sample && sample.length > 0) {
+          return {
+            ok: true,
+            detectedType: 'mydesi',
+            recommendedUrl: url,
+            confidence: 'high',
+            sampleItems: sample.slice(0, 3),
+            details: { title: pageTitle, message: 'Matched dedicated MyDesi video platform.' }
           };
         }
       } catch (e) {}

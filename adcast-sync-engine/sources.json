@@ -1,26 +1,19 @@
 [
   {
+    "id": "mydesi-top",
+    "name": "MyDesi.fun (Top Desi MMS)",
+    "type": "mydesi",
+    "url": "https://mydesi.fun/",
+    "enabled": true,
+    "video_limit": 20,
+    "category": "Creator Leaks"
+  },
+  {
     "id": "hornyleak-latest",
     "name": "HornyLeak.tv (Latest Updates)",
     "type": "hornyleak",
     "url": "https://www.hornyleak.tv/latest-updates/",
     "enabled": true,
     "category": "Trending"
-  },
-  {
-    "id": "hornyleak-popular",
-    "name": "HornyLeak.tv (Most Popular)",
-    "type": "hornyleak",
-    "url": "https://www.hornyleak.tv/most-popular/",
-    "enabled": true,
-    "category": "Creator Leaks"
-  },
-  {
-    "id": "hornyleak-top-rated",
-    "name": "HornyLeak.tv (Top Rated)",
-    "type": "hornyleak",
-    "url": "https://www.hornyleak.tv/top-rated/",
-    "enabled": true,
-    "category": "Hardcore"
   }
 ]
