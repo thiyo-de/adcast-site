@@ -68,6 +68,7 @@ test('store provides all 12 dedicated ExoClick slots matching dashboard 1-to-1',
   assert.equal(settings.slot_sticky_footer_mobile.zoneId, '6096158');
   assert.equal(settings.slot_interstitial.zoneId, '6093518');
   assert.equal(settings.slot_mobile_interstitial.zoneId, '6100242');
+  assert.equal(settings.slot_desktop_skyscraper_left.zoneId, '6100280');
 });
 
 test('DesktopGutterAds.jsx isolates 160x600 skyscraper towers to widescreen displays (2xl) with user dismiss controls', () => {
