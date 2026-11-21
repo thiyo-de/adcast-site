@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { store, parseToEmbedUrl, getThumbnailForUrl, parseDurationToSeconds, formatDuration } from '../services/store';
 import { api, auth, getSupabaseConfig, saveSupabaseConfig, getSupabaseClient } from '../services/supabase';
+import CustomSelect from '../components/CustomSelect';
+import Pagination from '../components/Pagination';
+
+const ADAPTER_TYPE_OPTIONS = [
+  { value: 'json_api', label: 'JSON API (Fastest)', icon: 'ri-code-s-slash-line' },
+  { value: 'mrss_feed', label: 'MRSS / RSS Feed (Standard)', icon: 'ri-rss-line' },
+  { value: 'hornyleak', label: 'HornyLeak Platform', icon: 'ri-shield-flash-line' },
+  { value: 'html_scrape', label: 'HTML Web Crawler', icon: 'ri-spider-line' },
+];
+
+const CATEGORY_OPTIONS = [
+  { value: 'Trending', label: 'Trending', icon: 'ri-fire-fill', color: 'text-rose-500' },
+  { value: 'Creator Leaks', label: 'Creator Leaks', icon: 'ri-shield-star-fill', color: 'text-rose-400' },
+  { value: 'Amateur', label: 'Amateur', icon: 'ri-camera-lens-fill', color: 'text-rose-400' },
+  { value: 'Hardcore', label: 'Hardcore', icon: 'ri-flashlight-fill', color: 'text-rose-400' },
+];
+
+const QUALITY_OPTIONS = [
+  { value: '4K UHD', label: '4K UHD', icon: 'ri-hd-line', badge: 'Ultra HD' },
+  { value: '1080p 60FPS', label: '1080p 60FPS', icon: 'ri-film-line', badge: '60fps' },
+  { value: '1080p', label: '1080p Full HD', icon: 'ri-film-line' },
+  { value: '720p HD', label: '720p HD', icon: 'ri-video-line' },
+];
 
 export default function Admin({ onBack }) {
   const [user, setUser] = useState(null);
@@ -11,6 +34,11 @@ export default function Admin({ onBack }) {
   const [authSuccessMsg, setAuthSuccessMsg] = useState(null);
   const [activeTab, setActiveTab] = useState('videos');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Catalog Pagination & Search State
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogPageSize, setCatalogPageSize] = useState(10);
+  const [catalogSearch, setCatalogSearch] = useState('');
 
   // Video Management State
   const [videos, setVideos] = useState([]);
@@ -619,20 +647,22 @@ export default function Admin({ onBack }) {
 
       {/* Tabs Navigation (Responsive Mobile Bottom Sheet & Desktop Segmented Bar) */}
       {(() => {
+        const slotCount = Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9;
         const ADMIN_TABS = [
           { id: 'videos', label: 'Videos', icon: 'ri-movie-2-line', badge: videos.length },
-          { id: 'review', label: 'Review Queue', icon: 'ri-checkbox-multiple-line', badge: pendingVideos.length },
-          { id: 'crawler', label: 'Crawler & Sources', icon: 'ri-radar-line', badge: crawlerSources.length },
+          { id: 'review', label: 'Review Queue', desktopLabel: 'Review Queue', icon: 'ri-checkbox-multiple-line', badge: pendingVideos.length },
+          { id: 'crawler', label: 'Crawler & Sources', desktopLabel: 'Crawler', icon: 'ri-radar-line', badge: crawlerSources.length },
           {
             id: 'ads',
             label: 'Ad Network Manager',
+            desktopLabel: 'Ad Manager',
             icon: 'ri-megaphone-line',
-            badge: `${Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9} Slots`,
-            shortBadge: `${Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9}`
+            badge: `${slotCount} Slots`,
+            shortBadge: `${slotCount}`
           },
-          { id: 'supabase', label: 'Supabase Cloud Sync', icon: 'ri-database-2-line', badge: null },
-          { id: 'dmca', label: 'DMCA Requests', icon: 'ri-shield-check-line', badge: dmcaList.filter((d) => d.status === 'pending').length },
-          { id: 'quarantine', label: 'Dead Streams', icon: 'ri-error-warning-line', badge: deadVideos.length },
+          { id: 'supabase', label: 'Supabase Cloud Sync', desktopLabel: 'Cloud Sync', icon: 'ri-database-2-line', badge: null },
+          { id: 'dmca', label: 'DMCA Requests', desktopLabel: 'DMCA', icon: 'ri-shield-check-line', badge: dmcaList.filter((d) => d.status === 'pending').length },
+          { id: 'quarantine', label: 'Dead Streams', desktopLabel: 'Dead Streams', icon: 'ri-error-warning-line', badge: deadVideos.length },
         ];
         const currentTabObj = ADMIN_TABS.find((t) => t.id === activeTab) || ADMIN_TABS[0];
 
@@ -739,8 +769,8 @@ export default function Admin({ onBack }) {
               )}
             </div>
 
-            {/* Desktop / Tablet View: Modern Segmented Tab Bar */}
-            <div className="hidden sm:flex gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200/80 dark:border-white/[0.08]">
+            {/* Desktop / Tablet View: Modern Wrap-Aware Segmented Tab Bar (Zero Hiding on PC) */}
+            <div className="hidden sm:flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-200/80 dark:border-white/[0.08]">
               {ADMIN_TABS.map((tab) => {
                 const isSelected = activeTab === tab.id;
                 return (
@@ -754,7 +784,7 @@ export default function Admin({ onBack }) {
                     }`}
                   >
                     <i className={`${tab.icon} not-italic text-sm ${isSelected ? 'text-white' : 'text-rose-500'}`}></i>
-                    <span>{tab.label}</span>
+                    <span>{tab.desktopLabel || tab.label}</span>
                     {tab.badge !== null && tab.badge !== undefined && (
                       <span
                         className={`text-[10px] font-sans font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
@@ -763,7 +793,7 @@ export default function Admin({ onBack }) {
                             : 'bg-slate-200/60 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400'
                         }`}
                       >
-                        {tab.badge}
+                        {tab.shortBadge || tab.badge}
                       </span>
                     )}
                   </button>
@@ -775,92 +805,251 @@ export default function Admin({ onBack }) {
       })()}
 
       {/* TAB 1: VIDEOS MANAGEMENT */}
-      {activeTab === 'videos' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Video Catalog</h2>
-            <button
-              onClick={() => {
-                setEditingVideo(null);
-                setVideoForm({
-                  title: '',
-                  embed_url: '',
-                  thumbnail_url: '',
-                  duration: '10:00',
-                  category: 'Trending',
-                  quality: '4K UHD',
-                  rating: 98,
-                  tags: 'trending, viral',
-                  is_featured: false
-                });
-                setIsAddModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition-all cursor-pointer"
-            >
-              <i className="ri-add-line not-italic text-sm"></i> Add Video Embed
-            </button>
-          </div>
+      {activeTab === 'videos' && (() => {
+        const filteredCatalogVideos = videos.filter((vid) => {
+          if (!catalogSearch) return true;
+          const q = catalogSearch.toLowerCase();
+          const titleMatch = (vid.title || '').toLowerCase().includes(q);
+          const categoryMatch = (vid.category || '').toLowerCase().includes(q);
+          const embedMatch = (vid.embed_url || '').toLowerCase().includes(q);
+          const tagsMatch = Array.isArray(vid.tags) && vid.tags.some((t) => (t || '').toLowerCase().includes(q));
+          return titleMatch || categoryMatch || embedMatch || tagsMatch;
+        });
 
-          <div className="overflow-x-auto rounded-2xl glass-panel">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 uppercase font-semibold border-b border-slate-200 dark:border-white/10">
-                <tr>
-                  <th className="p-3.5">Thumbnail</th>
-                  <th className="p-3.5">Title & Embed URL</th>
-                  <th className="p-3.5">Category</th>
-                  <th className="p-3.5">Rating</th>
-                  <th className="p-3.5">Views</th>
-                  <th className="p-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200/60 dark:divide-white/[0.06]">
-                {videos.map((vid) => (
-                  <tr key={vid.id} className="hover:bg-slate-100/50 dark:hover:bg-white/[0.02] transition-colors">
-                    <td className="p-3.5 w-24">
-                      <div className="relative w-20 aspect-video rounded-xl overflow-hidden bg-slate-950">
+        const totalPages = Math.max(1, Math.ceil(filteredCatalogVideos.length / catalogPageSize));
+        const safePage = Math.min(catalogPage, totalPages);
+        const startIndex = (safePage - 1) * catalogPageSize;
+        const paginatedCatalogVideos = filteredCatalogVideos.slice(startIndex, startIndex + catalogPageSize);
+
+        return (
+          <div id="admin-catalog-top" className="space-y-4">
+            {/* Catalog Header & Action */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Video Catalog</span>
+                  <span className="text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                    {filteredCatalogVideos.length} Streams
+                  </span>
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Showing {filteredCatalogVideos.length === 0 ? 0 : startIndex + 1}–{Math.min(startIndex + catalogPageSize, filteredCatalogVideos.length)} of {filteredCatalogVideos.length} videos
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEditingVideo(null);
+                  setVideoForm({
+                    title: '',
+                    embed_url: '',
+                    thumbnail_url: '',
+                    duration: '10:00',
+                    category: 'Trending',
+                    quality: '4K UHD',
+                    rating: 98,
+                    tags: 'trending, viral',
+                    is_featured: false
+                  });
+                  setIsAddModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition-all cursor-pointer shrink-0"
+              >
+                <i className="ri-add-line not-italic text-sm"></i> Add Video Embed
+              </button>
+            </div>
+
+            {/* Catalog Quick Filter / Search Bar & Page Sizer */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl glass-panel">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <i className="ri-search-line text-xs"></i>
+                </div>
+                <input
+                  type="text"
+                  value={catalogSearch}
+                  onChange={(e) => {
+                    setCatalogSearch(e.target.value);
+                    setCatalogPage(1);
+                  }}
+                  placeholder="Search catalog by title, embed URL, category, or tags..."
+                  className="w-full pl-8 pr-8 py-2 bg-slate-100/70 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 transition-all"
+                />
+                {catalogSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCatalogSearch('');
+                      setCatalogPage(1);
+                    }}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white"
+                  >
+                    <i className="ri-close-line text-xs"></i>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                <span className="text-[11px] font-semibold text-slate-400">Per page:</span>
+                <div className="flex gap-1">
+                  {[10, 20, 50].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => {
+                        setCatalogPageSize(size);
+                        setCatalogPage(1);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        catalogPageSize === size
+                          ? 'bg-rose-600 text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-white/[0.04] text-slate-500 hover:text-white border border-slate-200 dark:border-white/5'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 1. Mobile Cards View (< 640px) */}
+            <div className="sm:hidden space-y-3">
+              {paginatedCatalogVideos.length === 0 ? (
+                <div className="p-8 text-center glass-panel rounded-2xl text-slate-400 text-xs">
+                  No videos matched your search filter.
+                </div>
+              ) : (
+                paginatedCatalogVideos.map((vid) => (
+                  <div key={`m-vid-${vid.id}`} className="p-3.5 rounded-2xl glass-card border border-slate-200/80 dark:border-white/10 space-y-3">
+                    <div className="flex gap-3">
+                      <div className="relative w-24 aspect-video rounded-xl overflow-hidden bg-slate-950 shrink-0">
                         <img src={vid.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                        <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-bold text-white">
+                          {vid.duration || 'Stream'}
+                        </span>
                       </div>
-                    </td>
-                    <td className="p-3.5">
-                      <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{vid.title}</div>
-                      <div className="text-[11px] text-slate-400 font-mono truncate max-w-md">
-                        {vid.embed_url}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2">
+                          {vid.title}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="px-2 py-0.5 rounded-full font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                            {vid.category}
+                          </span>
+                          <span className="text-emerald-500 font-bold">{vid.rating || 98}%</span>
+                          <span className="text-slate-400 font-mono">{(vid.views || 0).toLocaleString()} views</span>
+                        </div>
                       </div>
-                    </td>
-                    <td className="p-3.5">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                        {vid.category}
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      <span className="font-bold text-emerald-500 dark:text-emerald-400">{vid.rating || 98}%</span>
-                    </td>
-                    <td className="p-3.5 font-mono text-slate-600 dark:text-slate-300">
-                      {(vid.views || 0).toLocaleString()}
-                    </td>
-                    <td className="p-3.5 text-right space-x-1">
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-mono truncate bg-slate-100/60 dark:bg-white/[0.03] p-1.5 rounded-lg">
+                      {vid.embed_url}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60 dark:border-white/5">
                       <button
                         onClick={() => handleEditClick(vid)}
-                        className="p-2 rounded-xl glass-button"
-                        title="Edit video"
+                        className="py-2 rounded-xl glass-button text-xs font-bold flex items-center justify-center gap-1.5"
                       >
-                        <i className="ri-edit-line not-italic text-sm"></i>
+                        <i className="ri-edit-line text-sm"></i> Edit
                       </button>
                       <button
                         onClick={() => handleDeleteVideo(vid.id)}
-                        className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
-                        title="Delete video"
+                        className="py-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5"
                       >
-                        <i className="ri-delete-bin-line not-italic text-sm"></i>
+                        <i className="ri-delete-bin-line text-sm"></i> Delete
                       </button>
-                    </td>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* 2. Desktop Table View (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto rounded-2xl glass-panel">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 uppercase font-semibold border-b border-slate-200 dark:border-white/10">
+                  <tr>
+                    <th className="p-3.5">Thumbnail</th>
+                    <th className="p-3.5">Title & Embed URL</th>
+                    <th className="p-3.5">Category</th>
+                    <th className="p-3.5">Rating</th>
+                    <th className="p-3.5">Views</th>
+                    <th className="p-3.5 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200/60 dark:divide-white/[0.06]">
+                  {paginatedCatalogVideos.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400 text-xs">
+                        No videos matched your search filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedCatalogVideos.map((vid) => (
+                      <tr key={vid.id} className="hover:bg-slate-100/50 dark:hover:bg-white/[0.02] transition-colors">
+                        <td className="p-3.5 w-24">
+                          <div className="relative w-20 aspect-video rounded-xl overflow-hidden bg-slate-950">
+                            <img src={vid.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{vid.title}</div>
+                          <div className="text-[11px] text-slate-400 font-mono truncate max-w-md">
+                            {vid.embed_url}
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                            {vid.category}
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="font-bold text-emerald-500 dark:text-emerald-400">{vid.rating || 98}%</span>
+                        </td>
+                        <td className="p-3.5 font-mono text-slate-600 dark:text-slate-300">
+                          {(vid.views || 0).toLocaleString()}
+                        </td>
+                        <td className="p-3.5 text-right space-x-1">
+                          <button
+                            onClick={() => handleEditClick(vid)}
+                            className="p-2 rounded-xl glass-button cursor-pointer"
+                            title="Edit video"
+                          >
+                            <i className="ri-edit-line not-italic text-sm"></i>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVideo(vid.id)}
+                            className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
+                            title="Delete video"
+                          >
+                            <i className="ri-delete-bin-line not-italic text-sm"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Catalog Pagination Controls */}
+            {filteredCatalogVideos.length > catalogPageSize && (
+              <Pagination
+                currentPage={safePage}
+                totalItems={filteredCatalogVideos.length}
+                pageSize={catalogPageSize}
+                onPageChange={(p) => {
+                  setCatalogPage(p);
+                  const el = document.getElementById('admin-catalog-top');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              />
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TAB: REVIEW QUEUE (CONTENT MODERATION UX13) */}
       {activeTab === 'review' && (
@@ -1159,37 +1348,19 @@ export default function Admin({ onBack }) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Adapter Type
-                  </label>
-                  <select
-                    value={sourceForm.type || 'json_api'}
-                    onChange={(e) => setSourceForm({ ...sourceForm, type: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
-                  >
-                    <option value="json_api" className="bg-white dark:bg-[#0F111A]">JSON API (Fastest)</option>
-                    <option value="mrss_feed" className="bg-white dark:bg-[#0F111A]">MRSS / RSS Feed (Standard)</option>
-                    <option value="hornyleak" className="bg-white dark:bg-[#0F111A]">HornyLeak Platform</option>
-                    <option value="html_scrape" className="bg-white dark:bg-[#0F111A]">HTML Web Crawler</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Adapter Type"
+                  value={sourceForm.type || 'json_api'}
+                  onChange={(val) => setSourceForm({ ...sourceForm, type: val })}
+                  options={ADAPTER_TYPE_OPTIONS}
+                />
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Default Category
-                  </label>
-                  <select
-                    value={sourceForm.category}
-                    onChange={(e) => setSourceForm({ ...sourceForm, category: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
-                  >
-                    <option value="Trending" className="bg-white dark:bg-[#0F111A]">Trending</option>
-                    <option value="Creator Leaks" className="bg-white dark:bg-[#0F111A]">Creator Leaks</option>
-                    <option value="Amateur" className="bg-white dark:bg-[#0F111A]">Amateur</option>
-                    <option value="Hardcore" className="bg-white dark:bg-[#0F111A]">Hardcore</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Default Category"
+                  value={sourceForm.category}
+                  onChange={(val) => setSourceForm({ ...sourceForm, category: val })}
+                  options={CATEGORY_OPTIONS}
+                />
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1772,36 +1943,20 @@ export default function Admin({ onBack }) {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                  <select
-                    value={videoForm.category}
-                    onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
-                  >
-                    <option value="Trending" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">Trending</option>
-                    <option value="Cinematic" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">Cinematic</option>
-                    <option value="Music" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">Music</option>
-                    <option value="Action" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">Action</option>
-                    <option value="Tutorials" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">Tutorials</option>
-                    <option value="Featured" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">Featured</option>
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <CustomSelect
+                  label="Category"
+                  value={videoForm.category}
+                  onChange={(val) => setVideoForm({ ...videoForm, category: val })}
+                  options={CATEGORY_OPTIONS}
+                />
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Quality</label>
-                  <select
-                    value={videoForm.quality}
-                    onChange={(e) => setVideoForm({ ...videoForm, quality: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white dark:[color-scheme:dark]"
-                  >
-                    <option value="4K UHD" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">4K UHD</option>
-                    <option value="1080p 60FPS" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">1080p 60FPS</option>
-                    <option value="1080p" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">1080p</option>
-                    <option value="720p HD" className="bg-white dark:bg-[#0F111A] text-slate-900 dark:text-white">720p HD</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Quality"
+                  value={videoForm.quality}
+                  onChange={(val) => setVideoForm({ ...videoForm, quality: val })}
+                  options={QUALITY_OPTIONS}
+                />
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Duration</label>
@@ -1810,7 +1965,7 @@ export default function Admin({ onBack }) {
                     value={videoForm.duration}
                     onChange={(e) => setVideoForm({ ...videoForm, duration: e.target.value })}
                     placeholder="12:45"
-                    className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
                   />
                 </div>
               </div>

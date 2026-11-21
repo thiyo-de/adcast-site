@@ -127,16 +127,42 @@ test('Navbar.jsx hides Categories, Saved bookmarks, and Search bar when in Admin
   assert.ok(appContent.includes('currentView={currentView}'), 'App.jsx must pass currentView to Navbar');
 });
 
-test('Admin.jsx provides responsive mobile bottom sheet drawer and desktop segmented navigation', () => {
+test('Admin.jsx provides responsive mobile bottom sheet drawer and desktop segmented navigation with flex-wrap', () => {
   const adminFilePath = path.join(rootDir, 'src', 'pages', 'Admin.jsx');
   const content = fs.readFileSync(adminFilePath, 'utf8');
 
   // Must have mobile state and drawer trigger
   assert.ok(content.includes('isMobileNavOpen'), 'Must contain isMobileNavOpen state');
   assert.ok(content.includes('sm:hidden'), 'Must have mobile specific container');
-  assert.ok(content.includes('hidden sm:flex'), 'Must have desktop specific container');
+  assert.ok(content.includes('hidden sm:flex flex-wrap'), 'Must have desktop flex-wrap container so no tabs hide on PC');
   assert.ok(content.includes('Admin Tools Navigation'), 'Must have bottom sheet navigation modal');
+
+  // Must NOT have unscrollable scrollbar-none clipping on desktop tabs
+  assert.ok(!content.includes('hidden sm:flex gap-1.5 overflow-x-auto pb-1 scrollbar-none'), 'Desktop tabs must not be clipped by scrollbar-none');
 });
+
+test('Admin.jsx uses CustomSelect for all dropdowns and has zero raw select elements', () => {
+  const adminFilePath = path.join(rootDir, 'src', 'pages', 'Admin.jsx');
+  const content = fs.readFileSync(adminFilePath, 'utf8');
+
+  assert.ok(content.includes('import CustomSelect from'), 'Must import CustomSelect');
+  assert.ok(!content.includes('<select'), 'Must have zero raw <select> elements in Admin.jsx');
+  assert.ok(content.includes('options={CATEGORY_OPTIONS}'), 'Must pass CATEGORY_OPTIONS to CustomSelect');
+  assert.ok(content.includes('options={QUALITY_OPTIONS}'), 'Must pass QUALITY_OPTIONS to CustomSelect');
+  assert.ok(content.includes('options={ADAPTER_TYPE_OPTIONS}'), 'Must pass ADAPTER_TYPE_OPTIONS to CustomSelect');
+});
+
+test('Admin.jsx implements Video Catalog pagination, quick search, and responsive mobile cards', () => {
+  const adminFilePath = path.join(rootDir, 'src', 'pages', 'Admin.jsx');
+  const content = fs.readFileSync(adminFilePath, 'utf8');
+
+  assert.ok(content.includes('import Pagination from'), 'Must import Pagination');
+  assert.ok(content.includes('catalogSearch'), 'Must have catalogSearch state');
+  assert.ok(content.includes('catalogPageSize'), 'Must have catalogPageSize state');
+  assert.ok(content.includes('m-vid-'), 'Must have responsive mobile video card keys');
+  assert.ok(content.includes('<Pagination'), 'Must render Pagination component for video catalog');
+});
+
 
 
 
