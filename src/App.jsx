@@ -36,21 +36,38 @@ function parseRoute(pathname = window.location.pathname) {
   return { view: 'home', videoId: null };
 }
 
+function parseCatalogParams() {
+  if (typeof window === 'undefined') return { page: 1, category: 'All', sort: 'newest', search: '' };
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const p = parseInt(params.get('page') || '1', 10);
+    return {
+      page: Number.isFinite(p) && p >= 1 ? p : 1,
+      category: params.get('category') || 'All',
+      sort: params.get('sort') || 'newest',
+      search: params.get('search') || '',
+    };
+  } catch {
+    return { page: 1, category: 'All', sort: 'newest', search: '' };
+  }
+}
+
 export default function App() {
   const [routeState, setRouteState] = useState(() => parseRoute());
   const currentView = routeState.view;
   const selectedVideoId = routeState.videoId;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [initialCatalog] = useState(() => parseCatalogParams());
+  const [searchQuery, setSearchQuery] = useState(initialCatalog.search);
+  const [selectedCategory, setSelectedCategory] = useState(initialCatalog.category);
+  const [sortBy, setSortBy] = useState(initialCatalog.sort);
+  const [page, setPage] = useState(initialCatalog.page);
   const [videos, setVideos] = useState([]);
-  const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [totalVideos, setTotalVideos] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [sortBy, setSortBy] = useState('newest');
   const [categoryCounts, setCategoryCounts] = useState({});
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
@@ -119,6 +136,11 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       setRouteState(parseRoute());
+      const p = parseCatalogParams();
+      setPage(p.page);
+      setSelectedCategory(p.category);
+      setSortBy(p.sort);
+      setSearchQuery(p.search);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -214,14 +236,44 @@ export default function App() {
   const handlePageChange = (targetPage) => {
     const totalPages = Math.max(1, Math.ceil(totalVideos / pageSize));
     if (targetPage >= 1 && targetPage <= totalPages && targetPage !== page) {
+      setPage(targetPage);
       fetchVideosPage(targetPage, false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const catalogEl = document.getElementById('catalog-feed');
+      if (catalogEl) {
+        catalogEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
+  const isInitialFilterMount = useRef(true);
   useEffect(() => {
+    if (isInitialFilterMount.current) {
+      isInitialFilterMount.current = false;
+      fetchVideosPage(page, false);
+      return;
+    }
+    setPage(1);
     fetchVideosPage(1, false);
   }, [searchQuery, selectedCategory, sortBy]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || currentView !== 'home') return;
+    const params = new URLSearchParams();
+    if (page > 1) params.set('page', page.toString());
+    if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory);
+    if (sortBy && sortBy !== 'newest') params.set('sort', sortBy);
+    if (searchQuery) params.set('search', searchQuery);
+
+    const queryString = params.toString();
+    const targetUrl = queryString ? `/?${queryString}` : '/';
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (currentUrl !== targetUrl) {
+      window.history.replaceState({ ...window.history.state, page, selectedCategory, sortBy, searchQuery }, '', targetUrl);
+    }
+  }, [page, selectedCategory, sortBy, searchQuery, currentView]);
 
   useEffect(() => {
     loadCategoryCounts();

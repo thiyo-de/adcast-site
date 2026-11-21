@@ -138,7 +138,7 @@ export default function Home({
       )}
 
       {/* 3. Stream Feed Header & Sorting Bar */}
-      <div className="relative z-30 p-3 sm:p-3.5 rounded-2xl glass-panel flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-xs">
+      <div id="catalog-feed" className="relative z-30 p-3 sm:p-3.5 rounded-2xl glass-panel flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-xs">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <h2 className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5 shrink-0 whitespace-nowrap">
             <i className="ri-movie-2-line not-italic text-rose-500 text-sm sm:text-base"></i>
@@ -211,7 +211,24 @@ export default function Home({
       </div>
 
       {/* 4. Responsive Video Grid with Native Ads */}
-      {processedVideos.length === 0 ? (
+      {isLoadingVideos ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 animate-pulse">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={`skeleton-${i}`} className="flex flex-col h-full rounded-2xl glass-card overflow-hidden">
+              <div className="aspect-video w-full bg-slate-800/40" />
+              <div className="p-3.5 space-y-2.5 flex-1">
+                <div className="w-16 h-2.5 bg-slate-800/60 rounded" />
+                <div className="w-full h-3.5 bg-slate-800/60 rounded" />
+                <div className="w-2/3 h-3.5 bg-slate-800/60 rounded" />
+                <div className="pt-2 border-t border-slate-800/40 flex justify-between">
+                  <div className="w-12 h-2.5 bg-slate-800/50 rounded" />
+                  <div className="w-10 h-2.5 bg-slate-800/50 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : processedVideos.length === 0 ? (
         <div className="relative overflow-hidden p-8 sm:p-14 text-center rounded-3xl glass-card border border-slate-200/60 dark:border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-4 max-w-2xl mx-auto my-6">
           {/* Subtle Ambient Radial Backlight */}
           <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-48 bg-gradient-to-b from-rose-500/15 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
