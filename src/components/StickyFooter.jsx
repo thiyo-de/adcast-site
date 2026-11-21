@@ -7,7 +7,6 @@ export default function StickyFooter({ currentView }) {
   const { isNoticeOpen } = useAdBlock();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasProviderClose, setHasProviderClose] = useState(false);
   const wrapperRef = useRef(null);
   const adSettings = useAdSettings();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -20,7 +19,6 @@ export default function StickyFooter({ currentView }) {
   useEffect(() => {
     setIsDismissed(false);
     setIsLoaded(false);
-    setHasProviderClose(false);
   }, [currentView]);
 
   useEffect(() => {
@@ -35,12 +33,6 @@ export default function StickyFooter({ currentView }) {
 
       if (isCurrentlyVisible) {
         setIsLoaded(true);
-        const providerClose = wrapperRef.current.querySelector(
-          '.exo-close, .ad-close, [class*="close-btn"], [class*="close_btn"], [class*="close_button"], [aria-label*="close" i]:not([aria-label="Close advertisement"])'
-        );
-        if (providerClose) {
-          setHasProviderClose(true);
-        }
         if (intervalId) {
           clearInterval(intervalId);
           intervalId = null;
@@ -77,12 +69,27 @@ export default function StickyFooter({ currentView }) {
       }`}
       style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}
     >
+      {/* Suppress duplicate provider-injected bottom close bars so only our corner ✕ button is shown */}
+      <style>{`
+        #adcast-sticky-footer .exo-close,
+        #adcast-sticky-footer [class*="close-btn"],
+        #adcast-sticky-footer [class*="close_btn"],
+        #adcast-sticky-footer [class*="close_bar"],
+        #adcast-sticky-footer [class*="close-bar"],
+        #adcast-sticky-footer [class*="close-button"],
+        #adcast-sticky-footer [class*="close_button"],
+        #adcast-sticky-footer a[class*="close"],
+        #adcast-sticky-footer div[class*="close"] {
+          display: none !important;
+        }
+      `}</style>
+
       <div
         ref={wrapperRef}
         className="relative pointer-events-auto w-fit max-w-[98vw] flex items-center justify-center mx-auto"
       >
-        {/* Floating Close Button tightly anchored to the creative */}
-        {isLoaded && !hasProviderClose && (
+        {/* Sole Unified Floating Close Button tightly anchored to the creative top-right corner */}
+        {isLoaded && (
           <button
             type="button"
             onClick={handleDismiss}

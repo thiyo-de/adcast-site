@@ -299,3 +299,24 @@ test('AdBlock detection uses Brave-sensitive canaries, fast 250ms timers, and In
     'Must use responsive centered popup slot across all viewports instead of mobile drawer'
   );
 });
+
+test('AdBlockNotice locks html/body/touchAction against mobile scroll glitch and StickyFooter suppresses duplicate close bar', () => {
+  const noticeFile = path.join(rootDir, 'src', 'components', 'AdBlockNotice.jsx');
+  const noticeContent = fs.readFileSync(noticeFile, 'utf8');
+
+  // Verify dual-element scroll lock and touch containment
+  assert.ok(noticeContent.includes("document.documentElement.style.overflow = 'hidden'"), 'Must lock documentElement overflow');
+  assert.ok(noticeContent.includes("document.body.style.overflow = 'hidden'"), 'Must lock body overflow');
+  assert.ok(noticeContent.includes("document.body.style.touchAction = 'none'"), 'Must set touchAction none');
+  assert.ok(noticeContent.includes('overscroll-contain'), 'Must contain overscroll on mobile');
+  assert.ok(noticeContent.includes('max-h-[92dvh]'), 'Must restrict card max-height on small screens');
+
+  const stickyFile = path.join(rootDir, 'src', 'components', 'StickyFooter.jsx');
+  const stickyContent = fs.readFileSync(stickyFile, 'utf8');
+
+  // Verify duplicate provider close bar suppression and single unified button
+  assert.ok(stickyContent.includes('#adcast-sticky-footer .exo-close'), 'Must suppress provider .exo-close bar');
+  assert.ok(stickyContent.includes('display: none !important;'), 'Must hide provider close bars');
+  assert.ok(stickyContent.includes('{isLoaded && ('), 'Must render corner close button as sole unified button');
+});
+

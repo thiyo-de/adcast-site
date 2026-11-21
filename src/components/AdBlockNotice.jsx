@@ -14,9 +14,14 @@ export default function AdBlockNotice() {
     // Record previous active element to restore focus when dismissed
     prevActiveElementRef.current = document.activeElement;
 
-    // Lock page background scrolling
-    const prevOverflow = document.body.style.overflow;
+    // Lock page background scrolling on both html and body to stop mobile scroll chaining completely
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevTouchAction = document.body.style.touchAction;
+
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
 
     // Autofocus the primary action button
     const focusTimer = setTimeout(() => {
@@ -56,7 +61,9 @@ export default function AdBlockNotice() {
     return () => {
       clearTimeout(focusTimer);
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.touchAction = prevTouchAction;
 
       // Restore focus to previous element if available
       if (prevActiveElementRef.current && typeof prevActiveElementRef.current.focus === 'function') {
@@ -72,14 +79,20 @@ export default function AdBlockNotice() {
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn overflow-y-auto overscroll-contain"
+      onTouchMove={(e) => {
+        // Prevent backdrop touch drags from reaching the page underneath
+        if (e.target === dialogRef.current) {
+          e.preventDefault();
+        }
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="adblock-dialog-title"
       aria-describedby="adblock-dialog-desc"
     >
       <div
-        className="relative w-full max-w-lg bg-[#0F111A] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl text-white"
+        className="relative w-full max-w-lg my-auto max-h-[92dvh] overflow-y-auto bg-[#0F111A] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl text-white overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
