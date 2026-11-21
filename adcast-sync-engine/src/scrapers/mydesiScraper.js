@@ -152,7 +152,10 @@ export async function scrapeMyDesi(source = {}, limit = 20) {
             const urlObj = new URL(embedUrl);
             const qParam = urlObj.searchParams.get('q');
             if (qParam) {
-              const decodedTag = Buffer.from(qParam, 'base64').toString('utf8');
+              let decodedTag = Buffer.from(qParam, 'base64').toString('utf8');
+              try {
+                decodedTag = decodeURIComponent(decodedTag);
+              } catch {}
               const srcMatch = decodedTag.match(/src=["']([^"']+)["']/i);
               if (srcMatch && srcMatch[1]) {
                 streamUrl = srcMatch[1];
@@ -199,9 +202,9 @@ export async function scrapeMyDesi(source = {}, limit = 20) {
       console.warn(`    [WARN] Error fetching details for ${card.postUrl}: ${err.message}`);
     }
 
-    // Embed URL preference:
-    // If we have an embed iframe URL, use it; otherwise fallback to postUrl or streamUrl
-    const finalEmbed = embedUrl || streamUrl || card.postUrl;
+    // Stream URL preference:
+    // Direct stream (MP4/HLS) takes top priority over blocked clean-tube-player iframes
+    const finalEmbed = streamUrl || embedUrl || card.postUrl;
 
     const normalized = normalizeVideo({
       source_id: sourceId,

@@ -64,6 +64,28 @@ export function parseToEmbedUrl(url) {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
   }
 
+  // 5. Clean Tube Player / MyDesi base64 player proxy fallback
+  if (trimmed.includes('clean-tube-player') && trimmed.includes('q=')) {
+    try {
+      const q = new URL(trimmed).searchParams.get('q');
+      if (q) {
+        let decoded = '';
+        if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+          decoded = decodeURIComponent(escape(window.atob(q)));
+        } else if (typeof Buffer !== 'undefined') {
+          decoded = Buffer.from(q, 'base64').toString('utf8');
+        }
+        try {
+          decoded = decodeURIComponent(decoded);
+        } catch {}
+        const match = decoded.match(/src=["']([^"']+\.mp4[^"']*)["']/i) || decoded.match(/src=["']([^"']+)["']/i);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    } catch {}
+  }
+
   return trimmed;
 }
 

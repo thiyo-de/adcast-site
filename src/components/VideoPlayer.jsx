@@ -25,7 +25,7 @@ export default function VideoPlayer({ video, onEnded }) {
   const preRollSlot = adSettings['slot_video_preroll'];
   const hasPreRoll = preRollSlot && preRollSlot.isActive;
 
-  const rawUrl = video?.embed_url || '';
+  const rawUrl = video?.stream_url || video?.embed_url || '';
   const resolvedEmbedUrl = parseToEmbedUrl(rawUrl);
 
   const recordAdDiagnostic = (code, message) => {

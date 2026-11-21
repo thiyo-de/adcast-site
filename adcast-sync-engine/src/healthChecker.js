@@ -27,7 +27,13 @@ export async function checkStreamHealth(embedUrl) {
   if (!embedUrl) return { isAlive: false, reason: 'Missing embed URL' };
 
   try {
-    const res = await safeFetch(embedUrl, { timeout: 10000 });
+    const isDirectMedia = /\.(mp4|m3u8|webm)(\?.*)?$/i.test(embedUrl);
+    const fetchOptions = {
+      timeout: 10000,
+      headers: isDirectMedia ? { Range: 'bytes=0-1024' } : {}
+    };
+
+    const res = await safeFetch(embedUrl, fetchOptions);
 
     // Explicit connection drops (status 0), timeouts (status 408 / isTimeout), or Cloudflare challenges
     if (res.isTimeout || res.status === 408 || res.status === 0) {
@@ -51,6 +57,11 @@ export async function checkStreamHealth(embedUrl) {
     // Temporary server issues, 5xx, 429 rate limits, and generic 403 are transient
     if (res.status >= 500 || res.status === 429 || res.status === 403) {
       return { isAlive: null, isTransient: true, isUnknown: true, reason: `HTTP ${res.status} Transient` };
+    }
+
+    // Direct media streams: HTTP 200 or 206 Partial Content confirms stream is active and reachable
+    if (isDirectMedia && (res.status === 200 || res.status === 206)) {
+      return { isAlive: true, isTransient: false, isUnknown: false, reason: null };
     }
 
     // Check specific HTML title or header tags for removal notices
@@ -221,7 +232,7 @@ export async function runHealthCheck() {
 }
 
 // Allow direct CLI execution
-if (process.argv[1].endsWith('healthChecker.js')) {
+if (process.argv[1] && process.argv[1].endsWith('healthChecker.js')) {
   runHealthCheck().then(() => {
     console.log('[HEALTH CHECK] Finished.');
     process.exit(0);
