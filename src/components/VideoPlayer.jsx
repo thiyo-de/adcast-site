@@ -284,31 +284,32 @@ export default function VideoPlayer({ video, onEnded }) {
           style={{ backgroundImage: `url(${video.thumbnail_url})` }}
           onClick={handleStartPlay}
         >
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] transition-all duration-300 group-hover:bg-black/25" />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] transition-all duration-300 group-hover:bg-black/40" />
 
-          {/* Centered Play Button (Cinematic Glass Lens with Rose Ambient Glow) */}
+          {/* Centered Play Button (44px+ touch-safe) */}
           <button
-            className="relative z-10 flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/50 hover:bg-black/75 backdrop-blur-md border border-white/25 hover:border-rose-500/80 text-white shadow-2xl transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_35px_rgba(225,29,72,0.5)] active:scale-95 cursor-pointer"
+            className="relative z-10 flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-xl shadow-rose-600/30 transform transition-all duration-300 group-hover:scale-110 active:scale-95 cursor-pointer"
             aria-label="Play video"
           >
-            <i className="ri-play-fill not-italic text-3xl sm:text-4xl ml-1 text-white group-hover:text-rose-400 transition-colors"></i>
+            <i className="ri-play-fill not-italic text-3xl sm:text-4xl ml-1"></i>
           </button>
 
-          {/* Top-Left Quality Badge (Cyan Information Token - UX01) */}
+          {/* Top-Left Quality Badge (Render only when factual quality data exists - UX01) */}
           {video.quality && (
             <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5">
-              <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 backdrop-blur-md shadow-md">
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500 text-black shadow-md">
                 {video.quality}
               </span>
             </div>
           )}
 
           {/* Bottom Badges */}
-          <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 text-xs font-semibold text-white shadow-md">
+          <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-xs font-bold text-white shadow-md">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
             <span>{video.category || 'Stream'}</span>
           </div>
 
-          <div className="absolute bottom-4 right-4 z-10 px-2.5 py-1 rounded-lg bg-black/75 backdrop-blur-md border border-white/10 text-xs font-sans font-bold tabular-nums tracking-tight text-white shadow-md">
+          <div className="absolute bottom-4 right-4 z-10 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-white/10 text-xs font-sans font-bold tabular-nums tracking-tight text-white shadow-md">
             {video.duration || 'HD'}
           </div>
         </div>

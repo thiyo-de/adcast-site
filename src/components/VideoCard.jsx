@@ -75,13 +75,13 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         {/* Top Badges (Standardized rounded-lg Pills) */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5">
           {video.quality && (
-            <span className="px-2 py-0.5 rounded-lg text-xs font-bold tracking-wider uppercase bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 backdrop-blur-md shadow-sm">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-cyan-500 text-black shadow-sm">
               {video.quality}
             </span>
           )}
           {video.is_featured && (
-            <span className="px-2 py-0.5 rounded-lg text-xs font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
-              <i className="ri-sparkling-fill not-italic text-xs"></i> Hot
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm flex items-center gap-0.5">
+              <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
             </span>
           )}
         </div>
@@ -124,7 +124,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         </button>
 
         {/* Duration Pill (Bottom Right - Plus Jakarta Sans tabular) */}
-        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-xs font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm">
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm">
           {formatDuration(video.duration_seconds || video.duration)}
         </div>
       </div>
@@ -133,24 +133,24 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
       <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
         <div>
           {/* Category Tag */}
-          <span className="inline-block text-xs font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
+          <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
             {video.category || 'General'}
           </span>
 
           {/* Title (Locked to 2 lines so all cards equalize perfectly) */}
-          <h3 className="text-sm sm:text-[15px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
+          <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
             {video.title}
           </h3>
         </div>
 
         {/* Meta Stats Bar */}
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
+          <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
             <i className="ri-eye-line not-italic text-cyan-500 dark:text-cyan-400 text-sm"></i>
-            <span className="tabular-nums">{formatViews(video.views)}</span>
+            <span>{formatViews(video.views)}</span>
           </div>
 
-          <div className="flex items-center gap-1 text-xs text-slate-400 tabular-nums">
+          <div className="flex items-center gap-1 text-[11px] text-slate-400">
             <i className="ri-time-line not-italic text-xs"></i>
             <span>{timeAgo(video.created_at)}</span>
           </div>
