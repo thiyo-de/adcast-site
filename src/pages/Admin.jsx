@@ -663,7 +663,7 @@ export default function Admin({ onBack }) {
           }`}
         >
           <i className="ri-megaphone-line not-italic text-sm"></i>
-          Ad Network Manager ({Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 7} Slots)
+          Ad Network Manager ({Object.keys(adSettings).filter((k) => k.startsWith('slot_')).length || 9} Slots)
         </button>
 
         <button
@@ -1306,13 +1306,32 @@ export default function Admin({ onBack }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Object.keys(adSettings)
-              .filter((slotKey) => slotKey.startsWith('slot_'))
-              .map((slotKey) => {
-              const slot = adSettings[slotKey];
-              const isSaved = savedSlotId === slotKey;
+            {(() => {
+              const preferredOrder = [
+                'slot_top_banner',
+                'slot_top_banner_mobile',
+                'slot_native_feed',
+                'slot_below_player',
+                'slot_sticky_footer',
+                'slot_sticky_footer_mobile',
+                'slot_video_preroll',
+                'slot_popunder',
+                'slot_interstitial'
+              ];
+              const slotKeys = Object.keys(adSettings).filter((k) => k.startsWith('slot_'));
+              slotKeys.sort((a, b) => {
+                const idxA = preferredOrder.indexOf(a);
+                const idxB = preferredOrder.indexOf(b);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.localeCompare(b);
+              });
+              return slotKeys.map((slotKey) => {
+                const slot = adSettings[slotKey];
+                const isSaved = savedSlotId === slotKey;
 
-              return (
+                return (
                 <div
                   key={slotKey}
                   className="p-5 rounded-2xl glass-panel space-y-4 flex flex-col justify-between"
@@ -1413,7 +1432,8 @@ export default function Admin({ onBack }) {
                   </button>
                 </div>
               );
-            })}
+            });
+          })()}
           </div>
         </div>
       )}

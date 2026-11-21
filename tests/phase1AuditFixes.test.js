@@ -38,3 +38,23 @@ test('store.updateAdSlot correctly updates vastUrl for pre-roll slot', () => {
   assert.equal(updated.slot_video_preroll.vastUrl, testUrl, 'vastUrl must match the provided URL');
   assert.equal(updated.slot_video_preroll.targetUrl, testUrl, 'targetUrl must match the provided URL');
 });
+
+test('store provides all 9 dedicated ExoClick slots matching dashboard 1-to-1', () => {
+  const settings = store.getAdSettings();
+  const slotKeys = Object.keys(settings).filter((k) => k.startsWith('slot_'));
+  
+  assert.equal(slotKeys.length, 9, 'Must have exactly 9 dedicated ad slots');
+  assert.ok(settings.slot_top_banner, 'slot_top_banner must exist');
+  assert.ok(settings.slot_top_banner_mobile, 'slot_top_banner_mobile must exist');
+  assert.ok(settings.slot_native_feed, 'slot_native_feed must exist');
+  assert.ok(settings.slot_below_player, 'slot_below_player must exist');
+  assert.ok(settings.slot_sticky_footer, 'slot_sticky_footer must exist');
+  assert.ok(settings.slot_sticky_footer_mobile, 'slot_sticky_footer_mobile must exist');
+  assert.ok(settings.slot_video_preroll, 'slot_video_preroll must exist');
+  assert.ok(settings.slot_popunder, 'slot_popunder must exist');
+  assert.ok(settings.slot_interstitial, 'slot_interstitial must exist');
+
+  assert.equal(settings.slot_top_banner_mobile.zoneId, '6096160');
+  assert.equal(settings.slot_sticky_footer_mobile.zoneId, '6096158');
+  assert.equal(settings.slot_interstitial.zoneId, '6093518');
+});

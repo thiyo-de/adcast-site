@@ -9,8 +9,11 @@ export default function StickyFooter({ currentView }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasProviderClose, setHasProviderClose] = useState(false);
   const wrapperRef = useRef(null);
-  const adSettings = useAdSettings();
-  const slot = adSettings['slot_sticky_footer'];
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const activeSlotId = (isMobile && adSettings['slot_sticky_footer_mobile']?.isActive)
+    ? 'slot_sticky_footer_mobile'
+    : 'slot_sticky_footer';
+  const slot = adSettings[activeSlotId];
 
   // Reset dismissal when user navigates to a new page (matching ExoClick 'Show on every page' setting)
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function StickyFooter({ currentView }) {
           </button>
         )}
 
-        <AdSlot key={currentView} slotId="slot_sticky_footer" devBadge={false} />
+        <AdSlot key={`${currentView}-${activeSlotId}`} slotId={activeSlotId} devBadge={false} />
       </div>
     </aside>
   );

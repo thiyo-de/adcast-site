@@ -31,11 +31,18 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   // Device-adaptive zone switching based on Ads-Prop specifications:
   // Top banner: mobile 300x250 banner zone 6096160 (<768px), desktop 728x90 zone 6093488 (>=768px)
   // Sticky bottom: mobile zone 6096158 (<768px), desktop zone 6093426 (>=768px)
-  const rawCode = slot?.code || '';
+  const isDedicatedMobileBanner = slotId === 'slot_top_banner_mobile' || slotId === 'slot_sticky_footer_mobile';
+  const activeSlot = (slotId === 'slot_top_banner' && isMobileViewport && adSettings['slot_top_banner_mobile']?.isActive)
+    ? adSettings['slot_top_banner_mobile']
+    : ((slotId === 'slot_sticky_footer' && isMobileViewport && adSettings['slot_sticky_footer_mobile']?.isActive)
+      ? adSettings['slot_sticky_footer_mobile']
+      : slot);
+
+  const rawCode = activeSlot?.code || '';
   let effectiveCode = rawCode;
   if (slotId === 'slot_top_banner' && rawCode) {
-    const desktopZone = slot.desktopZoneId || '6093488';
-    const mobileZone = slot.mobileZoneId || '6096160';
+    const desktopZone = slot?.desktopZoneId || '6093488';
+    const mobileZone = slot?.mobileZoneId || '6096160';
     if (isMobileViewport) {
       effectiveCode = rawCode.includes(desktopZone)
         ? rawCode.replaceAll(desktopZone, mobileZone)
@@ -46,8 +53,8 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         : (rawCode.includes('6093362') ? rawCode.replaceAll('6093362', desktopZone) : rawCode);
     }
   } else if (slotId === 'slot_sticky_footer' && rawCode) {
-    const desktopZone = slot.desktopZoneId || '6093426';
-    const mobileZone = slot.mobileZoneId || '6096158';
+    const desktopZone = slot?.desktopZoneId || '6093426';
+    const mobileZone = slot?.mobileZoneId || '6096158';
     if (isMobileViewport) {
       effectiveCode = rawCode.includes(desktopZone)
         ? rawCode.replaceAll(desktopZone, mobileZone)
@@ -60,9 +67,11 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
   }
 
   const isNative = slotId === 'slot_native_feed';
-  const frameWidth = slotId === 'slot_below_player' ? 300
+  const frameWidth = (slotId === 'slot_below_player' || isDedicatedMobileBanner)
+    ? 300
     : (slotId === 'slot_top_banner' || slotId === 'slot_sticky_footer')
-      ? (isMobileViewport ? 300 : 728) : undefined;
+      ? (isMobileViewport ? 300 : 728)
+      : undefined;
   const frameHeight = frameWidth === 728 ? 90 : 250;
 
   // Consolidated effect: parse and inject ad tag or switch to fallback
@@ -288,7 +297,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
     );
   }
 
-  const showDisclosure = slotId !== 'slot_sticky_footer' && slotId !== 'slot_native_feed';
+  const showDisclosure = slotId !== 'slot_sticky_footer' && slotId !== 'slot_sticky_footer_mobile' && slotId !== 'slot_native_feed';
 
   return (
     <div

@@ -69,21 +69,6 @@
   transform: none !important;
 }
 
-/*
- * ExoClick's 16:9 recommendation frame reserves a small empty header strip.
- * Clip that strip at the real iframe boundary without zooming or moving the
- * surrounding <ins>, so the native image remains sharp and card-sized.
- */
-.adcast-ad-native iframe,
-.adcast-ad-native-container iframe {
-  position: relative !important;
-  top: -20px !important;
-  height: calc(100% + 20px) !important;
-  min-height: calc(100% + 20px) !important;
-  transform: none !important;
-  transform-origin: top center !important;
-}
-
 .adcast-ad-native img,
 .adcast-ad-native video,
 .adcast-ad-native-container img,
@@ -97,6 +82,50 @@
   border: none !important;
   border-radius: 0 !important;
 }
+
+/*
+ * ExoClick native recommendation widgets inject their own empty header,
+ * grid gutters and text/branding row. The site supplies its own visible
+ * Sponsored disclosure and metadata, so keep only the real 16:9 creative.
+ * These rules are deliberately scoped to the native slot and cannot affect
+ * banners, sticky ads, interstitials, popunders or VAST playback.
+ */
+.adcast-ad-native .exo-native-widget-header {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 0 !important;
+}
+
+.adcast-ad-native .exo-native-widget-outer-container {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+}
+
+.adcast-ad-native .exo-native-widget-item-container {
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.adcast-ad-native .exo-native-widget-item-image-ratio {
+  padding-top: 56.25% !important;
+}
+
+.adcast-ad-native .exo-native-widget-item-content {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
 .adcast-ad-content > iframe,
 .adcast-ad-content > ins > iframe,
 .adcast-ad-content > ins > div,

@@ -14,54 +14,8 @@ export default function InterstitialTrigger({ currentView }) {
 
     const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
 
-    if (!slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code) || isExcludedRoute || isNoticeOpen) {
-      return;
-    }
-
-    // 2. Frequency capping check: 1 time per 1 hour (matching ExoClick zone setting)
-    const now = Date.now();
-    const lastTrigger = parseInt(localStorage.getItem('adcast_last_interstitial') || '0', 10);
-    const oneHourMs = (slot.frequencyHours || 1) * 60 * 60 * 1000;
-
-    if (now - lastTrigger < oneHourMs) {
-      return; // Capped for this hour
-    }
-
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-
-    // 3. Clean up any previous interstitial artifacts
-    const oldElements = document.querySelectorAll('[data-adcast-interstitial="true"]');
-    oldElements.forEach((el) => el.remove());
-
-    // 4. Inject container and provider tag into body with fixed, centered overlay geometry
-    const interstitialContainer = document.createElement('div');
-    interstitialContainer.id = 'adcast-ad-injection-container';
-    interstitialContainer.setAttribute('data-adcast-interstitial', 'true');
-    interstitialContainer.style.cssText =
-      'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = slot.code;
-
-    // Non-script elements (e.g. <ins class="eas6a97888e35" data-zoneid="6093518"></ins>)
-    const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    interstitialContainer.innerHTML = nonScripts;
-
-    const insEl = interstitialContainer.querySelector('ins');
-    if (insEl) {
-      insEl.style.setProperty('margin', '0 auto', 'important');
-      insEl.style.setProperty('display', 'block', 'important');
-      insEl.style.setProperty('text-align', 'center', 'important');
-      insEl.style.setProperty('pointer-events', 'auto', 'important');
-    }
-
     // Helper: completely and cleanly remove all interstitial DOM nodes
     const dismissInterstitial = () => {
-      try {
-        localStorage.setItem('adcast_last_interstitial', Date.now().toString());
-      } catch {}
-
       const container = document.getElementById('adcast-ad-injection-container');
       if (container) container.remove();
 
@@ -70,22 +24,18 @@ export default function InterstitialTrigger({ currentView }) {
       document.querySelectorAll(
         '.eas-interstitial, [class*="eas-interstitial"], [class*="interstitial-modal"], div[class*="eas-overlay"], [id*="eas-overlay"], [id*="eas-interstitial"]'
       ).forEach((el) => el.remove());
+      mountedRef.current = false;
     };
 
-    // Dedicated high-contrast Close Button to guarantee user can always exit
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.id = 'adcast-interstitial-close-btn';
-    closeBtn.setAttribute('aria-label', 'Close advertisement');
-    closeBtn.innerHTML = '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span>';
-    closeBtn.style.cssText =
-      'position:fixed;top:18px;right:18px;z-index:10000000;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
-    closeBtn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
+    // If on excluded route or notice open, clean up any visible interstitial
+    if (isExcludedRoute || isNoticeOpen) {
       dismissInterstitial();
-    });
-    interstitialContainer.appendChild(closeBtn);
+      return;
+    }
+
+    if (!slot || !slot.isActive || !slot.code || isPlaceholderAdCode(slot.code)) {
+      return;
+    }
 
     // Global capture-phase dismiss listener: intercepts clicks before child scripts can call stopPropagation()
     const handleCaptureClick = (ev) => {
@@ -123,11 +73,11 @@ export default function InterstitialTrigger({ currentView }) {
       }
 
       // 3. Click on the dark backdrop outside the ad modal
-      if (target === interstitialContainer || target.id === 'adcast-ad-injection-container') {
+      const container = document.getElementById('adcast-ad-injection-container');
+      if (target === container || target.id === 'adcast-ad-injection-container') {
         dismissInterstitial();
       }
     };
-    document.addEventListener('click', handleCaptureClick, true);
 
     // Escape key dismiss listener
     const handleKeyDown = (ev) => {
@@ -135,6 +85,83 @@ export default function InterstitialTrigger({ currentView }) {
         dismissInterstitial();
       }
     };
+
+    // If container already exists (persisting across page transitions), just keep listeners active
+    const existingContainer = document.getElementById('adcast-ad-injection-container');
+    if (existingContainer) {
+      document.addEventListener('click', handleCaptureClick, true);
+      document.addEventListener('keydown', handleKeyDown, true);
+      return () => {
+        document.removeEventListener('click', handleCaptureClick, true);
+        document.removeEventListener('keydown', handleKeyDown, true);
+      };
+    }
+
+    // 2. Frequency capping check: 3 times per 1 hour (matching ExoClick zone setting)
+    const now = Date.now();
+    try {
+      localStorage.removeItem('adcast_last_interstitial'); // Clear legacy 1-per-hour lockout
+    } catch {}
+
+    let history = [];
+    try {
+      history = JSON.parse(localStorage.getItem('adcast_interstitial_history') || '[]');
+      if (!Array.isArray(history)) history = [];
+    } catch {
+      history = [];
+    }
+    const recentTriggers = history.filter((ts) => typeof ts === 'number' && now - ts < 3600000);
+    const maxPerHour = slot.frequencyHours ? slot.frequencyHours * 3 : 3;
+
+    if (recentTriggers.length >= maxPerHour) {
+      return; // Capped for this hour
+    }
+
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
+    // 3. Clean up any previous interstitial artifacts
+    const oldElements = document.querySelectorAll('[data-adcast-interstitial="true"]');
+    oldElements.forEach((el) => el.remove());
+
+    // 4. Inject container and provider tag into body with fixed, centered overlay geometry
+    const interstitialContainer = document.createElement('div');
+    interstitialContainer.id = 'adcast-ad-injection-container';
+    interstitialContainer.setAttribute('data-adcast-interstitial', 'true');
+    interstitialContainer.style.cssText =
+      'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = slot.code;
+
+    // Non-script elements (e.g. <ins class="eas6a97888e35" data-zoneid="6093518"></ins>)
+    const nonScripts = slot.code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    interstitialContainer.innerHTML = nonScripts;
+
+    const insEl = interstitialContainer.querySelector('ins');
+    if (insEl) {
+      insEl.style.setProperty('margin', '0 auto', 'important');
+      insEl.style.setProperty('display', 'block', 'important');
+      insEl.style.setProperty('text-align', 'center', 'important');
+      insEl.style.setProperty('pointer-events', 'auto', 'important');
+    }
+
+    // Dedicated high-contrast Close Button to guarantee user can always exit
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.id = 'adcast-interstitial-close-btn';
+    closeBtn.setAttribute('aria-label', 'Close advertisement');
+    closeBtn.innerHTML = '<span style="font-size:22px;line-height:1;font-weight:700;display:inline-block;pointer-events:none;">✕</span>';
+    closeBtn.style.cssText =
+      'position:fixed;top:18px;right:18px;z-index:10000000;width:44px;height:44px;border-radius:9999px;background:rgba(0,0,0,0.85);border:1.5px solid rgba(255,255,255,0.4);color:#ffffff;display:none;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 6px 24px rgba(0,0,0,0.7);transition:transform 0.15s ease,background 0.15s ease;';
+    closeBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      dismissInterstitial();
+    });
+    interstitialContainer.appendChild(closeBtn);
+
+    document.addEventListener('click', handleCaptureClick, true);
     document.addEventListener('keydown', handleKeyDown, true);
 
     document.body.appendChild(interstitialContainer);
@@ -165,7 +192,10 @@ export default function InterstitialTrigger({ currentView }) {
 
       if (hasOverlay) {
         try {
-          localStorage.setItem('adcast_last_interstitial', Date.now().toString());
+          const h = JSON.parse(localStorage.getItem('adcast_interstitial_history') || '[]');
+          const updated = Array.isArray(h) ? h.filter((ts) => typeof ts === 'number' && Date.now() - ts < 3600000) : [];
+          updated.push(Date.now());
+          localStorage.setItem('adcast_interstitial_history', JSON.stringify(updated));
         } catch {}
 
         closeBtn.style.display = 'flex';
@@ -193,8 +223,6 @@ export default function InterstitialTrigger({ currentView }) {
       if (checkInterval) clearInterval(checkInterval);
       document.removeEventListener('click', handleCaptureClick, true);
       document.removeEventListener('keydown', handleKeyDown, true);
-      dismissInterstitial();
-      mountedRef.current = false;
     };
   }, [slot, currentView, isNoticeOpen]);
 

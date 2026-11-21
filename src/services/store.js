@@ -551,17 +551,28 @@ const SEED_VIDEOS = [
   }
 ];
 
-// 6 Core Ad Slots Setup (100% ExoClick Dedicated) - Aligned with Ads-Prop
+// 9 Core Ad Slots Setup (100% ExoClick Dedicated) - Aligned 1-to-1 with ExoClick Zones
 const DEFAULT_AD_SETTINGS = {
   slot_top_banner: {
     id: 'slot_top_banner',
-    name: 'Top Banner (Desktop 728x90: 6093488 / Mobile 300x250: 6096160)',
-    network: 'ExoClick / Adaptive Banner',
-    dimensions: '728x90 / 300x250',
+    name: 'Top Banner 728x90 (Desktop)',
+    network: 'ExoClick / 728x90',
+    dimensions: '728x90',
+    zoneId: '6093488',
     desktopZoneId: '6093488',
     mobileZoneId: '6096160',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6093488"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+  },
+  slot_top_banner_mobile: {
+    id: 'slot_top_banner_mobile',
+    name: 'Mobile Top Banner 300x250',
+    network: 'ExoClick / 300x250',
+    dimensions: '300x250',
+    zoneId: '6096160',
+    format: 'banner',
+    isActive: true,
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6096160"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_native_feed: {
     id: 'slot_native_feed',
@@ -574,13 +585,24 @@ const DEFAULT_AD_SETTINGS = {
   },
   slot_sticky_footer: {
     id: 'slot_sticky_footer',
-    name: 'Sticky Bottom Banner (Desktop 728x90: 6093426 / Mobile 300x250: 6096158)',
+    name: 'Sticky Bottom Banner 728x90 (Desktop)',
     network: 'ExoClick Sticky Banner',
-    dimensions: '728x90 / 300x250',
+    dimensions: '728x90',
+    zoneId: '6093426',
     desktopZoneId: '6093426',
     mobileZoneId: '6096158',
     isActive: true,
     code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6093426"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+  },
+  slot_sticky_footer_mobile: {
+    id: 'slot_sticky_footer_mobile',
+    name: 'Mobile Sticky Bottom 300x250',
+    network: 'ExoClick Sticky Banner',
+    dimensions: '300x250',
+    zoneId: '6096158',
+    format: 'sticky',
+    isActive: true,
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6096158"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   slot_below_player: {
     id: 'slot_below_player',
@@ -618,7 +640,7 @@ const DEFAULT_AD_SETTINGS = {
     id: 'slot_interstitial',
     name: 'Desktop Fullpage Interstitial',
     network: 'ExoClick / Interstitial',
-    dimensions: 'Full Screen',
+    dimensions: '1600x900',
     format: 'interstitial',
     zoneId: '6093518',
     isActive: true,
