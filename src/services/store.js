@@ -674,9 +674,9 @@ const DEFAULT_AD_SETTINGS = {
     network: 'ExoClick / 160x600',
     dimensions: '160x600',
     format: 'skyscraper_right',
-    zoneId: '',
+    zoneId: '6100290',
     isActive: true,
-    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid=""></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
+    code: '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6100290"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>'
   },
   affiliate_fallbacks: {
     isEnabled: false,
