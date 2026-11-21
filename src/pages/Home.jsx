@@ -255,51 +255,55 @@ export default function Home({
           ))}
         </div>
       ) : processedVideos.length === 0 ? (
-        <div className="relative overflow-hidden p-8 sm:p-14 text-center rounded-3xl glass-card border border-slate-200/60 dark:border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-4 max-w-2xl mx-auto my-6">
-          {/* Subtle Ambient Radial Backlight */}
-          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-48 bg-gradient-to-b from-rose-500/15 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="min-h-[50vh] sm:min-h-[55vh] flex flex-col items-center justify-center py-6 sm:py-10">
+          <div className="relative overflow-hidden w-full max-w-lg p-8 sm:p-12 text-center rounded-3xl glass-card border border-slate-200/60 dark:border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-4 mx-auto">
+            {/* Subtle Ambient Radial Backlight */}
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-48 bg-gradient-to-b from-rose-500/20 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-          {/* Modernized Curved Icon Badge */}
-          <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-rose-500/15 via-purple-500/10 to-cyan-500/15 border border-rose-500/20 dark:border-white/10 flex items-center justify-center shadow-lg">
-            <div className="absolute inset-0 rounded-2xl bg-rose-500/5 blur-sm" />
-            <i className="ri-clapperboard-line not-italic text-3xl sm:text-4xl text-rose-500 dark:text-rose-400 relative z-10"></i>
-          </div>
-
-          <div className="space-y-1.5 relative z-10">
-            <h3 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight">
-              {videos.length === 0 ? 'No video streams in catalog' : 'No streams match your filter'}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-              {videos.length === 0
-                ? 'The catalog is currently empty. Use the admin panel to sync streams from your crawler sources.'
-                : 'Try selecting another category or reset your search query.'}
-            </p>
-          </div>
-
-          {(selectedCategory !== 'All' || searchQuery) ? (
-            <div className="pt-2 relative z-10">
-              <button
-                onClick={() => {
-                  if (typeof onSelectCategory === 'function') onSelectCategory('All');
-                  if (typeof onClearSearch === 'function') onClearSearch();
-                }}
-                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-bold shadow-lg shadow-rose-600/25 transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
-              >
-                <i className="ri-refresh-line not-italic text-xs"></i>
-                <span>Clear all filters</span>
-              </button>
+            {/* Modernized Curved Icon Badge */}
+            <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-rose-500/15 via-purple-500/10 to-rose-500/20 border border-rose-500/30 dark:border-white/10 flex items-center justify-center shadow-lg shadow-rose-600/10">
+              <div className="absolute inset-0 rounded-2xl bg-rose-500/10 blur-sm" />
+              <i className="ri-movie-2-line not-italic text-3xl sm:text-4xl text-rose-500 relative z-10"></i>
             </div>
-          ) : videos.length === 0 && (
-            <div className="pt-2 relative z-10">
-              <button
-                onClick={() => window.location.reload()}
-                className="px-5 py-2.5 rounded-full bg-slate-100 dark:bg-white/[0.08] hover:bg-slate-200 dark:hover:bg-white/[0.14] text-slate-800 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-white/10 shadow-sm transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
-              >
-                <i className="ri-refresh-line not-italic text-xs text-rose-500"></i>
-                <span>Refresh Catalog</span>
-              </button>
+
+            <div className="space-y-1.5 relative z-10">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight">
+                {videos.length === 0 ? 'Updating Stream Library' : 'No streams match your filter'}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                {videos.length === 0
+                  ? 'Our streaming network is refreshing content feeds. Check back shortly or browse popular categories.'
+                  : 'Try selecting another category or clear your search filter.'}
+              </p>
             </div>
-          )}
+
+            {(selectedCategory !== 'All' || searchQuery) ? (
+              <div className="pt-2 relative z-10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof onSelectCategory === 'function') onSelectCategory('All');
+                    if (typeof onClearSearch === 'function') onClearSearch();
+                  }}
+                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-bold shadow-lg shadow-rose-600/25 transition-all active:scale-95 flex items-center gap-1.5 mx-auto cursor-pointer"
+                >
+                  <i className="ri-refresh-line not-italic text-xs"></i>
+                  <span>Clear all filters</span>
+                </button>
+              </div>
+            ) : (
+              <div className="pt-2 relative z-10 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <i className="ri-refresh-line not-italic text-xs"></i>
+                  <span>Refresh Streams</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">

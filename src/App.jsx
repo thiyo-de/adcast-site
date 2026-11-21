@@ -80,7 +80,7 @@ export default function App() {
   const [pageSize] = useState(20);
   const [totalVideos, setTotalVideos] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [categoryCounts, setCategoryCounts] = useState({});
   const [bookmarks, setBookmarks] = useState(store.getBookmarks());
