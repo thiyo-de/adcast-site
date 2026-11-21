@@ -27,6 +27,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
     <div
       role="article"
       tabIndex={0}
+      onClick={() => onSelect(video.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -41,9 +42,10 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         onClick={(e) => {
           if (e.metaKey || e.ctrlKey || e.shiftKey) return;
           e.preventDefault();
+          e.stopPropagation();
           onSelect(video.id);
         }}
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-[1]"
         aria-label={video.title}
       />
 
