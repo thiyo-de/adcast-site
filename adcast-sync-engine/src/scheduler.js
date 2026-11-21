@@ -233,6 +233,17 @@ export async function processSource(source) {
           updated_at: new Date().toISOString()
         }, { onConflict: 'source_id' });
     } catch (lockErr) {
+      if (lockErr.message && lockErr.message.includes('run_state')) {
+        try {
+          await db
+            .from('source_schedules')
+            .upsert({
+              source_id: scheduleId,
+              next_run_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'source_id' });
+        } catch {}
+      }
       console.warn('    [LOCK NOTICE] Could not acquire temporary schedule lease:', lockErr.message);
     }
   }
@@ -307,6 +318,18 @@ export async function processSource(source) {
             updated_at: new Date().toISOString()
           }, { onConflict: 'source_id' });
       } catch (schedErr) {
+        if (schedErr.message && schedErr.message.includes('run_state')) {
+          try {
+            await db
+              .from('source_schedules')
+              .upsert({
+                source_id: scheduleId,
+                last_run_at: new Date().toISOString(),
+                next_run_at: calculateNextCronRun(source.cron_expression, source.timezone),
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'source_id' });
+          } catch {}
+        }
         console.warn('    [SCHEDULE NOTICE] Could not release lease and schedule next run:', schedErr.message);
       }
     }
@@ -349,8 +372,12 @@ export async function runSchedulerTick() {
   console.log(`[SCHEDULER] ${dueSources.length} source(s) due for ingest.`);
 
   // Bounded execution: process sources with rate delay between jobs
+  let failedCount = 0;
   for (let i = 0; i < dueSources.length; i++) {
-    await processSource(dueSources[i]);
+    const res = await processSource(dueSources[i]);
+    if (res && res.ok === false) {
+      failedCount++;
+    }
     if (i < dueSources.length - 1) {
       await sleep(config.requestDelayMs || 2000);
     }
@@ -358,8 +385,13 @@ export async function runSchedulerTick() {
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log('------------------------------------------------------');
-  console.log(`[TICK COMPLETE] Finished in ${duration}s`);
+  console.log(`[TICK COMPLETE] Finished in ${duration}s (Total: ${dueSources.length}, Failed: ${failedCount})`);
   console.log('------------------------------------------------------\n');
+
+  // If sources were due and all failed, throw so CI fails visibly instead of false green
+  if (dueSources.length > 0 && failedCount === dueSources.length) {
+    throw new Error(`All ${dueSources.length} scheduled source(s) failed during execution`);
+  }
 }
 
 // Allow direct CLI execution: node src/scheduler.js
@@ -367,7 +399,7 @@ if (process.argv[1].endsWith('scheduler.js')) {
   runSchedulerTick()
     .then(() => process.exit(0))
     .catch((err) => {
-      console.error('[SCHEDULER FATAL]', err);
+      console.error('[SCHEDULER FATAL]', err.message || err);
       process.exit(1);
     });
 }

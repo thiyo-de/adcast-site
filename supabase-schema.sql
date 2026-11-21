@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS public.source_schedules (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE public.source_schedules ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.source_schedules ADD COLUMN IF NOT EXISTS run_state TEXT DEFAULT 'idle';
 
 -- 7. Create Source Checkpoints (Incremental Pagination State)
 CREATE TABLE IF NOT EXISTS public.source_checkpoints (

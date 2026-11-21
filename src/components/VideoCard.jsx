@@ -24,15 +24,29 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
   };
 
   return (
-    <a
-      href={`/watch/${encodeURIComponent(video.id)}`}
-      onClick={(e) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-        e.preventDefault();
-        onSelect(video.id);
+    <div
+      role="article"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(video.id);
+        }
       }}
       className="group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-rose-500"
     >
+      {/* Native clickable link covering the card for SEO & right-click navigation */}
+      <a
+        href={`/watch/${encodeURIComponent(video.id)}`}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+          e.preventDefault();
+          onSelect(video.id);
+        }}
+        className="absolute inset-0 z-0"
+        aria-label={video.title}
+      />
+
       {/* Thumbnail Container (16:9) */}
       <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
         <img
@@ -71,7 +85,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
         </div>
 
         {/* Top Right: Bookmark Pill */}
-        <div className="absolute top-2 right-2 flex items-center gap-1">
+        <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
 
           <button
             type="button"
@@ -140,6 +154,6 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
           </div>
         </div>
       </div>
-    </a>
+    </div>
   );
 }

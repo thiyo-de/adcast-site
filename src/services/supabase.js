@@ -500,20 +500,21 @@ export const api = {
 
   async updateAdSlot(slotId, fields) {
     const updated = store.updateAdSlot(slotId, fields);
+    const fullSlot = updated[slotId] || {};
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
         const payload = {
           slot_id: slotId,
-          name: fields.name || slotId,
-          network: fields.network || 'Custom',
-          dimensions: fields.dimensions || 'Custom',
-          code: fields.code !== undefined ? fields.code : null,
-          format: fields.format || 'banner',
-          target_url: fields.targetUrl || null,
-          vast_url: fields.vastUrl || null,
-          frequency_hours: fields.frequencyHours !== undefined ? fields.frequencyHours : 1,
-          is_active: fields.isActive !== false,
+          name: fullSlot.name || slotId,
+          network: fullSlot.network || 'Custom',
+          dimensions: fullSlot.dimensions || 'Custom',
+          code: fullSlot.code !== undefined ? fullSlot.code : null,
+          format: fullSlot.format || 'banner',
+          target_url: fullSlot.targetUrl || null,
+          vast_url: fullSlot.vastUrl || null,
+          frequency_hours: fullSlot.frequencyHours !== undefined ? fullSlot.frequencyHours : 1,
+          is_active: fullSlot.isActive !== false,
           updated_at: new Date().toISOString()
         };
 

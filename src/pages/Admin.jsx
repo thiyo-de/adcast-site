@@ -1482,14 +1482,14 @@ export default function Admin({ onBack }) {
                           </label>
                           <input
                             type="text"
-                            value={slot.targetUrl || ''}
+                            value={slot.vastUrl || slot.targetUrl || ''}
                             onChange={(e) =>
                               setAdSettings({
                                 ...adSettings,
-                                [slotKey]: { ...slot, targetUrl: e.target.value }
+                                [slotKey]: { ...slot, vastUrl: e.target.value, targetUrl: e.target.value }
                               })
                             }
-                            placeholder="https://example.com/sponsor"
+                            placeholder="https://syndication.exoclick.com/splash.php?idzone=... or https://..."
                             className="w-full px-3 py-2 bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white"
                           />
                         </div>

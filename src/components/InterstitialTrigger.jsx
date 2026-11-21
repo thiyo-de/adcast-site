@@ -9,8 +9,8 @@ export default function InterstitialTrigger({ currentView }) {
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    // 1. Guard check: Active slot, valid code, not admin/legal routes, and adblock notice not open (universal device support)
-    if (typeof window === 'undefined') return;
+    // 1. Guard check: Active slot, valid code, desktop-only viewport (1600x900), not admin/legal routes, and adblock notice not open
+    if (typeof window === 'undefined' || window.innerWidth < 768) return;
 
     const isExcludedRoute = ['admin', 'dmca', 'privacy', 'terms'].includes(currentView);
 
