@@ -10,7 +10,6 @@ export default function AdBlockNotice() {
   // Manage body scroll, autofocus, keyboard focus-trap, and focus restoration
   useEffect(() => {
     if (!isNoticeOpen) {
-      setRetryFailed(false);
       return;
     }
 
