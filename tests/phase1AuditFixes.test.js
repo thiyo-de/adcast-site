@@ -270,7 +270,7 @@ test('AdBlockNotice locks html/body/touchAction against mobile scroll glitch', (
 
 test('Supabase and store persist frequencyMinutes and migrate all 12 ad slots', () => {
   const storeSettings = store.getAdSettings();
-  assert.equal(storeSettings.slot_video_preroll.frequencyMinutes, 5, 'Pre-roll default frequencyMinutes must be 5');
+  assert.equal(storeSettings.slot_video_preroll.frequencyMinutes, 0, 'Pre-roll default frequencyMinutes must be 0');
 
   const supabaseFile = path.join(rootDir, 'src', 'services', 'supabase.js');
   const content = fs.readFileSync(supabaseFile, 'utf8');

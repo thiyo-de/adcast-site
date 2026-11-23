@@ -125,6 +125,9 @@
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important;
     -webkit-tap-highlight-color: transparent !important;
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
   }
 
   .ex-over-top .ex-over-btn > img {
@@ -144,6 +147,7 @@
     position: absolute;
     inset: -10px;
     pointer-events: auto;
+    touch-action: none !important;
   }
 }
 

@@ -40,9 +40,17 @@ export default function InterstitialTrigger({ currentView, videoId }) {
     let disposed = false;
     let unmountTag;
     function restoreScroll() {
-      if (!beforeLock || !display) return;
-      for (const [property, locked] of Object.entries({ overflow: 'hidden', position: 'fixed', height: '100vh' })) {
-        if (document.body.style[property] === locked) document.body.style[property] = beforeLock[property];
+      if (!display) return;
+      if (beforeLock) {
+        document.body.style.overflow = beforeLock.overflow || '';
+        document.body.style.position = beforeLock.position || '';
+        document.body.style.height = beforeLock.height || '';
+        document.documentElement.style.overflow = beforeLock.htmlOverflow || '';
+        document.body.style.touchAction = beforeLock.touchAction || '';
+      } else {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        document.body.style.touchAction = '';
       }
     }
     function dispose() {
@@ -69,22 +77,44 @@ export default function InterstitialTrigger({ currentView, videoId }) {
         clearTimeout(timer);
         try { localStorage.setItem(key, JSON.stringify([...recentDisplays(key, period), Date.now()])); } catch {}
 
-        // Bind direct tap/click listener to ensure immediate dismissal on mobile devices
+        // Lock background scrolling and touch action on both html and body while ad is displayed
+        if (!beforeLock) {
+          beforeLock = {
+            overflow: document.body.style.overflow,
+            position: document.body.style.position,
+            height: document.body.style.height,
+            htmlOverflow: document.documentElement.style.overflow,
+            touchAction: document.body.style.touchAction
+          };
+        }
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.touchAction = 'none';
+
+        // Bind direct tap/click listener with ghost-click prevention on mobile devices
         const closeBtn = overlay.querySelector('.ex-over-btn');
         if (closeBtn) {
           const onDismiss = (e) => {
+            if (e.cancelable) e.preventDefault();
             e.stopPropagation();
             dispose();
           };
           closeBtn.addEventListener('click', onDismiss);
-          closeBtn.addEventListener('touchend', onDismiss, { passive: true });
+          closeBtn.addEventListener('touchend', onDismiss, { passive: false });
         }
       }
     }
     function startSafetyTimer(event) {
       if (display || timer || host.contains(event.target) || event.target.closest?.('[role="dialog"]')) return;
-      const { overflow, position, height } = document.body.style;
-      beforeLock = { overflow, position, height };
+      if (!beforeLock) {
+        beforeLock = {
+          overflow: document.body.style.overflow,
+          position: document.body.style.position,
+          height: document.body.style.height,
+          htmlOverflow: document.documentElement.style.overflow,
+          touchAction: document.body.style.touchAction
+        };
+      }
       timer = setTimeout(() => {
         checkDisplay();
         if (!display) dispose();
