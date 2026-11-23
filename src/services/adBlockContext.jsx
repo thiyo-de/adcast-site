@@ -63,7 +63,8 @@ export function AdBlockProvider({ children, currentView = 'home', videoId = null
     if (!endpoints) return true;
     if (pending.current?.scope === scope) return await run() !== S.SUSPECTED_BLOCKING;
     if (state === S.SUSPECTED_BLOCKING) return false;
-    if (state === S.NO_BLOCKING_DETECTED && Date.now() - last.time < 45000) return true;
+    const maxCacheAge = currentView === 'watch' ? 10000 : 45000;
+    if (state === S.NO_BLOCKING_DETECTED && Date.now() - (last?.time || 0) < maxCacheAge) return true;
     return await run() !== S.SUSPECTED_BLOCKING;
   };
   const recheck = () => {

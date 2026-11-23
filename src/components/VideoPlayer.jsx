@@ -4,7 +4,7 @@ import { useAdBlock } from '../services/adBlockContext';
 import { resolveVastAd, vastSkipSeconds } from '../utils/vast';
 
 export default function VideoPlayer({ video, onEnded }) {
-  const { verifyBeforePlayback } = useAdBlock();
+  const { verifyBeforePlayback, recheck } = useAdBlock();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPreRoll, setShowPreRoll] = useState(false);
   const [countdown, setCountdown] = useState(null);
@@ -218,6 +218,10 @@ export default function VideoPlayer({ video, onEnded }) {
           vastResult?.errorCode || 'NO_FILL',
           vastResult?.errorMessage || 'No video creative available from ad provider'
         );
+        // If VAST failed due to network error while online, re-verify ad blocker status
+        if (vastResult?.errorCode === 'NETWORK_ERROR' && typeof recheck === 'function' && navigator.onLine) {
+          recheck();
+        }
       }
     }
 

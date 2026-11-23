@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAdBlock } from '../services/adBlockContext';
 
 export default function AdBlockNotice() {
@@ -6,21 +6,41 @@ export default function AdBlockNotice() {
   const dialogRef = useRef(null);
   const buttonRef = useRef(null);
   const prevActiveElementRef = useRef(null);
+  const [retryFailed, setRetryFailed] = useState(false);
+  const wasRecheckingRef = useRef(false);
+
+  // Monitor recheck attempts to give visual feedback if AdBlock is still active
+  useEffect(() => {
+    if (wasRecheckingRef.current && !isRechecking && isNoticeOpen) {
+      setRetryFailed(true);
+    }
+    wasRecheckingRef.current = isRechecking;
+  }, [isRechecking, isNoticeOpen]);
 
   // Manage body scroll, autofocus, keyboard focus-trap, and focus restoration
   useEffect(() => {
-    if (!isNoticeOpen) return;
+    if (!isNoticeOpen) {
+      setRetryFailed(false);
+      return;
+    }
 
     // Record previous active element to restore focus when dismissed
     prevActiveElementRef.current = document.activeElement;
 
-    // Lock page background scrolling on both html and body to stop mobile scroll chaining completely
+    // Pin scroll offset and lock page background scrolling completely on mobile & desktop
+    const scrollY = window.scrollY;
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     const prevTouchAction = document.body.style.touchAction;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyTop = document.body.style.top;
+    const prevBodyWidth = document.body.style.width;
 
-    document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
     document.body.style.touchAction = 'none';
 
     // Autofocus the primary action button
@@ -63,7 +83,11 @@ export default function AdBlockNotice() {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.top = prevBodyTop;
+      document.body.style.width = prevBodyWidth;
       document.body.style.touchAction = prevTouchAction;
+      window.scrollTo(0, scrollY);
 
       // Restore focus to previous element if available
       if (prevActiveElementRef.current && typeof prevActiveElementRef.current.focus === 'function') {
@@ -76,12 +100,17 @@ export default function AdBlockNotice() {
 
   if (!isNoticeOpen) return null;
 
+  const handleRecheckClick = () => {
+    setRetryFailed(false);
+    recheck();
+  };
+
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn overflow-y-auto overscroll-contain"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn overflow-hidden touch-none"
       onTouchMove={(e) => {
-        // Prevent backdrop touch drags from reaching the page underneath
+        // Prevent all backdrop touch drags from reaching the page underneath
         if (e.target === dialogRef.current) {
           e.preventDefault();
         }
@@ -142,12 +171,20 @@ export default function AdBlockNotice() {
           </div>
         </div>
 
+        {/* Feedback message if recheck failed */}
+        {retryFailed && !isRechecking && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-2.5 text-xs text-amber-300 animate-fadeIn">
+            <i className="ri-error-warning-line text-base shrink-0 text-amber-400"></i>
+            <span>Ad blocker still detected. Please pause it or allow ads for this site to continue.</span>
+          </div>
+        )}
+
         {/* Primary Action Button */}
         <div>
           <button
             ref={buttonRef}
             type="button"
-            onClick={recheck}
+            onClick={handleRecheckClick}
             aria-disabled={isRechecking}
             aria-busy={isRechecking}
             className="w-full py-3.5 px-6 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer"
