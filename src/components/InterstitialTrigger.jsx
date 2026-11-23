@@ -68,6 +68,17 @@ export default function InterstitialTrigger({ currentView, videoId }) {
         display = overlay;
         clearTimeout(timer);
         try { localStorage.setItem(key, JSON.stringify([...recentDisplays(key, period), Date.now()])); } catch {}
+
+        // Bind direct tap/click listener to ensure immediate dismissal on mobile devices
+        const closeBtn = overlay.querySelector('.ex-over-btn');
+        if (closeBtn) {
+          const onDismiss = (e) => {
+            e.stopPropagation();
+            dispose();
+          };
+          closeBtn.addEventListener('click', onDismiss);
+          closeBtn.addEventListener('touchend', onDismiss, { passive: true });
+        }
       }
     }
     function startSafetyTimer(event) {
