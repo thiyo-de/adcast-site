@@ -143,8 +143,12 @@ export const api = {
       }
 
       if (isDefaultAllFeed) {
-        query = query.order('round_num', { ascending: true }).order('created_at', { ascending: false });
+        query = query
+          .order('is_pinned', { ascending: false, nullsFirst: false })
+          .order('round_num', { ascending: true })
+          .order('created_at', { ascending: false });
       } else {
+        query = query.order('is_pinned', { ascending: false, nullsFirst: false });
         switch (sort) {
           case 'views':
           case 'trending':
@@ -171,6 +175,7 @@ export const api = {
               .or('is_active.eq.true,is_active.is.null')
               .or('publication_state.eq.published,publication_state.is.null')
               .range(from, to)
+              .order('is_pinned', { ascending: false, nullsFirst: false })
               .order('created_at', { ascending: false });
             if (!fallbackRes.error && fallbackRes.data) {
               const total = typeof fallbackRes.count === 'number' ? fallbackRes.count : fallbackRes.data.length;
@@ -218,8 +223,10 @@ export const api = {
 
     const isDefaultAllFeed = (!category || category === 'All') && !q && (!sort || sort === 'newest');
     if (isDefaultAllFeed && pool.length > 0) {
+      const pinned = pool.filter((v) => Boolean(v.is_pinned));
+      const nonPinned = pool.filter((v) => !v.is_pinned);
       const catGroups = {};
-      pool.forEach((v) => {
+      nonPinned.forEach((v) => {
         const c = v.category || 'General';
         if (!catGroups[c]) catGroups[c] = [];
         catGroups[c].push(v);
@@ -229,7 +236,7 @@ export const api = {
       });
       const interleaved = [];
       const catKeys = Object.keys(catGroups);
-      const maxLen = Math.max(...catKeys.map((c) => catGroups[c].length));
+      const maxLen = catKeys.length > 0 ? Math.max(...catKeys.map((c) => catGroups[c].length)) : 0;
       for (let i = 0; i < maxLen; i++) {
         for (const c of catKeys) {
           if (catGroups[c][i]) {
@@ -237,7 +244,7 @@ export const api = {
           }
         }
       }
-      pool = interleaved;
+      pool = [...pinned, ...interleaved];
     } else {
       switch (sort) {
         case 'views':
@@ -251,6 +258,9 @@ export const api = {
         default:
           pool.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
           break;
+      }
+      if (!q) {
+        pool.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
       }
     }
 

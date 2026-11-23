@@ -226,6 +226,7 @@ const SEED_VIDEOS = [
     views: 1250,
     likes: 84,
     is_featured: true,
+    is_pinned: true,
     created_at: '2026-11-23T03:51:08.694Z'
   },
   {
@@ -243,6 +244,7 @@ const SEED_VIDEOS = [
     views: 1420,
     likes: 98,
     is_featured: true,
+    is_pinned: true,
     created_at: '2026-11-23T07:33:00.000Z'
   },
   {
@@ -260,6 +262,7 @@ const SEED_VIDEOS = [
     views: 1180,
     likes: 82,
     is_featured: false,
+    is_pinned: true,
     created_at: '2026-11-23T07:33:01.000Z'
   },
   {
@@ -277,6 +280,7 @@ const SEED_VIDEOS = [
     views: 1350,
     likes: 91,
     is_featured: true,
+    is_pinned: true,
     created_at: '2026-11-23T07:33:02.000Z'
   },
   {

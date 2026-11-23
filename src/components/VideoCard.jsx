@@ -68,12 +68,17 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
 
         {/* Top Badges (Standardized rounded-lg Pills) */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
+          {video.is_pinned && (
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold tracking-wider uppercase bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm shadow-amber-500/40 flex items-center gap-0.5">
+              <i className="ri-pushpin-fill not-italic text-[10px]"></i> Pinned
+            </span>
+          )}
           {video.quality && (
             <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-200 border border-white/20 backdrop-blur-md shadow-sm">
               {video.quality}
             </span>
           )}
-          {video.is_featured && (
+          {video.is_featured && !video.is_pinned && (
             <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm shadow-rose-600/40 flex items-center gap-0.5">
               <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
             </span>

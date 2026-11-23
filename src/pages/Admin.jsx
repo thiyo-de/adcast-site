@@ -62,7 +62,8 @@ export default function Admin({ onBack }) {
     quality: '1080p',
     rating: 98,
     tags: 'trending, viral',
-    is_featured: false
+    is_featured: false,
+    is_pinned: false
   });
 
   // Ad Settings State
@@ -277,7 +278,8 @@ export default function Admin({ onBack }) {
       quality: videoForm.quality || '4K UHD',
       rating: parseInt(videoForm.rating, 10) || 98,
       tags: tagArray,
-      is_featured: videoForm.is_featured
+      is_featured: videoForm.is_featured,
+      is_pinned: Boolean(videoForm.is_pinned)
     };
 
     try {
@@ -298,11 +300,24 @@ export default function Admin({ onBack }) {
         quality: '4K UHD',
         rating: 98,
         tags: 'trending, viral',
-        is_featured: false
+        is_featured: false,
+        is_pinned: false
       });
       await loadData();
     } catch (err) {
       alert(`Failed to save video: ${err.message || 'Database mutation rejected.'}`);
+    }
+  };
+
+  const handleTogglePin = async (vid) => {
+    try {
+      const nextPinned = !vid.is_pinned;
+      await api.updateVideo(vid.id, { is_pinned: nextPinned });
+      setVideos((prev) =>
+        prev.map((v) => (v.id === vid.id ? { ...v, is_pinned: nextPinned } : v))
+      );
+    } catch (err) {
+      alert(`Failed to toggle pin: ${err.message || 'Database mutation rejected.'}`);
     }
   };
 
@@ -465,7 +480,8 @@ export default function Admin({ onBack }) {
       quality: v.quality || '4K UHD',
       rating: v.rating || 98,
       tags: Array.isArray(v.tags) ? v.tags.join(', ') : '',
-      is_featured: v.is_featured || false
+      is_featured: v.is_featured || false,
+      is_pinned: Boolean(v.is_pinned)
     });
     setIsAddModalOpen(true);
   };
@@ -913,8 +929,13 @@ export default function Admin({ onBack }) {
                         </span>
                       </div>
                       <div className="min-w-0 flex-1 space-y-1">
-                        <div className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2">
-                          {vid.title}
+                        <div className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2 flex items-center gap-1.5">
+                          {vid.is_pinned && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-black">
+                              PINNED
+                            </span>
+                          )}
+                          <span>{vid.title}</span>
                         </div>
                         <div className="flex items-center gap-2 text-[10px]">
                           <span className="px-2 py-0.5 rounded-full font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
@@ -930,16 +951,31 @@ export default function Admin({ onBack }) {
                       {vid.embed_url}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60 dark:border-white/5">
+                    <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60 dark:border-white/5">
                       <button
+                        type="button"
+                        onClick={() => handleTogglePin(vid)}
+                        className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                          vid.is_pinned
+                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            : 'glass-button text-slate-400 hover:text-amber-400'
+                        }`}
+                        title={vid.is_pinned ? 'Unpin from first row' : 'Pin to first row'}
+                      >
+                        <i className={vid.is_pinned ? 'ri-pushpin-fill text-amber-400' : 'ri-pushpin-line'}></i>
+                        <span>{vid.is_pinned ? 'Pinned' : 'Pin'}</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => handleEditClick(vid)}
-                        className="py-2 rounded-xl glass-button text-xs font-bold flex items-center justify-center gap-1.5"
+                        className="py-2 rounded-xl glass-button text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <i className="ri-edit-line text-sm"></i> Edit
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDeleteVideo(vid.id)}
-                        className="py-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5"
+                        className="py-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <i className="ri-delete-bin-line text-sm"></i> Delete
                       </button>
@@ -978,7 +1014,14 @@ export default function Admin({ onBack }) {
                           </div>
                         </td>
                         <td className="p-3.5">
-                          <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{vid.title}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-white line-clamp-1">{vid.title}</span>
+                            {vid.is_pinned && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1 shadow-sm shadow-amber-500/10">
+                                <i className="ri-pushpin-fill text-[10px]"></i> PINNED (ROW 1)
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[11px] text-slate-400 font-mono truncate max-w-md">
                             {vid.embed_url}
                           </div>
@@ -994,8 +1037,21 @@ export default function Admin({ onBack }) {
                         <td className="p-3.5 font-mono text-slate-600 dark:text-slate-300">
                           {(vid.views || 0).toLocaleString()}
                         </td>
-                        <td className="p-3.5 text-right space-x-1">
+                        <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
                           <button
+                            type="button"
+                            onClick={() => handleTogglePin(vid)}
+                            className={`p-2 rounded-xl transition-all cursor-pointer ${
+                              vid.is_pinned
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm shadow-amber-500/20'
+                                : 'glass-button hover:text-amber-400'
+                            }`}
+                            title={vid.is_pinned ? 'Unpin video from first row' : 'Pin video to first row cards'}
+                          >
+                            <i className={`${vid.is_pinned ? 'ri-pushpin-fill text-amber-400' : 'ri-pushpin-line'} not-italic text-sm`}></i>
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleEditClick(vid)}
                             className="p-2 rounded-xl glass-button cursor-pointer"
                             title="Edit video"
@@ -1003,6 +1059,7 @@ export default function Admin({ onBack }) {
                             <i className="ri-edit-line not-italic text-sm"></i>
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDeleteVideo(vid.id)}
                             className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
                             title="Delete video"
@@ -1933,6 +1990,19 @@ export default function Admin({ onBack }) {
                 />
                 <label htmlFor="feat" className="text-xs text-slate-600 dark:text-slate-300">
                   Feature this video on homepage badge
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="pin"
+                  checked={videoForm.is_pinned}
+                  onChange={(e) => setVideoForm({ ...videoForm, is_pinned: e.target.checked })}
+                  className="rounded bg-slate-100 dark:bg-white/[0.05] border-slate-300 dark:border-white/10 text-amber-500 focus:ring-0"
+                />
+                <label htmlFor="pin" className="text-xs text-amber-500 dark:text-amber-400 font-semibold flex items-center gap-1 cursor-pointer">
+                  <i className="ri-pushpin-fill text-xs"></i> Pin to First Row Cards on Homepage
                 </label>
               </div>
 
