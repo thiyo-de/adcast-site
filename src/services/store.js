@@ -89,6 +89,40 @@ export function parseToEmbedUrl(url) {
     } catch {}
   }
 
+  // 6. MyDesi blog post URL resolver (direct mp4 stream fallback)
+  if (trimmed.includes('mydesi.fun/')) {
+    const slugMatch = trimmed.match(/mydesi\.fun\/([^\/\?#]+)/);
+    const slug = slugMatch ? slugMatch[1] : '';
+    const MYDESI_MAP = {
+      'horny-gf-eye-rolling-orgasm-fuck-update': 'https://vidserv.cc/sdfsd.mp4',
+      'sexy-desi-babe-hard-fucking-collection': 'https://vidserv.cc/sdxasD.mp4',
+      'hot-air-hostress-hard-fucking-with-lover': 'https://vidserv.cc/3WWLsfAs-asdxas.mp4',
+      'sexy-hot-dusky-babe-fucking-collection-40-videos': 'https://vidserv.cc/sadsdx.mp4',
+      'desi-guy-smashing-multiple-cheater-wifes': 'https://vidserv.cc/dxazsd.mp4',
+      'beautiful-sexy-gf-bj-anal-play-hard-fuck-taking-cum-on-boobs': 'https://vidserv.cc/fcszdf.mp4',
+      'sexy-hot-gf-blowjob-riding-hard-fuck-collection': 'https://vidserv.cc/dazscsd.mp4',
+      'horny-babe-blowjob-hard-fucking-with-lover': 'https://vidserv.cc/sdazsd.mp4',
+      'cute-bigboob-gf-blowjob-hard-fuck-riding': 'https://vidserv.cc/SDSAD.mp4',
+      'milf-bhabhi-hard-fucking-full-video': 'https://vidserv.cc/scszdvc.mp4',
+      'sexy-babe-hard-vacation-fuck-6-videos-collaction': 'https://vidserv.cc/aDASZ.mp4',
+      'hot-babe-sexy-big-ass-fucking-update': 'https://vidserv.cc/dasdasd.mp4',
+      'horny-gf-blowjob-passionately-riding': 'https://vidserv.cc/csdcxazs.mp4',
+      'horny-big-boobs-babe-hard-fucking': 'https://vidserv.cc/cxdcwqd.mp4',
+      'busty-wife-hard-fucking-riding-on-husband': 'https://vidserv.cc/sdfcsd.mp4',
+      'submissive-horny-desi-babe-bdsm-fucking-20clips': 'https://vidserv.cc/sADSXDSA.mp4',
+      'sexy-babe-teasing-fingering-hard-fucking-collection': 'https://vidserv.cc/ADXSS.mp4',
+      'horny-hot-figure-gf-riding-moaning': 'https://vidserv.cc/adxasfc.mp4',
+      'beautiful-babe-getting-threesome-fucked-update': 'https://vidserv.cc/adsczc.mp4',
+      'busty-base-showing-hot-figure-pussy-fucking-collection': 'https://vidserv.cc/fzsdfd.mp4',
+      'horny-freaky-gf-hard-fucking-collection-2': 'https://vidserv.cc/sadsdx.mp4',
+      'sexy-hot-baddie-fucking-with-bf-2': 'https://vidserv.cc/aDASZ.mp4',
+      'cute-horny-gf-fucking-cum-shower-collection-3': 'https://vidserv.cc/SDSAD.mp4'
+    };
+    if (slug && MYDESI_MAP[slug]) {
+      return MYDESI_MAP[slug];
+    }
+  }
+
   return trimmed;
 }
 
@@ -165,7 +199,7 @@ export function formatDuration(input) {
 }
 
 const STORAGE_KEYS = {
-  VIDEOS: 'adcast_videos_v5',
+  VIDEOS: 'adcast_videos_v6',
   AD_SETTINGS: 'adcast_ad_settings_v1',
   BOOKMARKS: 'adcast_bookmarks_v1',
   LIKES: 'adcast_likes_v1',
@@ -193,6 +227,23 @@ const SEED_VIDEOS = [
     likes: 84,
     is_featured: true,
     created_at: '2026-11-23T03:51:08.694Z'
+  },
+  {
+    id: 'vid-desi-32a0ff20',
+    title: 'Sexy Desi Babe Hard Fucking Collection',
+    embed_url: 'https://vidserv.cc/sdxasD.mp4',
+    thumbnail_url: 'https://mydesi.thumbserv.cc/BeFunky-collage-2-9.jpg',
+    duration: '10:00',
+    durationMinutes: 10,
+    duration_seconds: 600,
+    category: 'Indian Leaks',
+    quality: '1080p',
+    rating: 96,
+    tags: ['indian leaks', 'desi', 'mms', 'babe'],
+    views: 26590,
+    likes: 310,
+    is_featured: true,
+    created_at: '2026-11-21T07:45:32.269Z'
   },
   {
     id: 'vid-hl-33857',

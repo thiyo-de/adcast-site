@@ -31,10 +31,16 @@ export default function VideoPlayer({ video, onEnded }) {
   const rawUrl = video?.stream_url || video?.embed_url || '';
   const resolvedEmbedUrl = parseToEmbedUrl(rawUrl);
 
-  // Dynamically resolve Onestream and wrapped media pages into direct CDN mp4 streams
+  // Dynamically resolve Onestream, MyDesi, and HornyLeaks into direct streams / clean embed players
   useEffect(() => {
     let isMounted = true;
-    if (rawUrl && (rawUrl.includes('onestream.today') || rawUrl.includes('play.onestream'))) {
+    if (
+      rawUrl &&
+      (rawUrl.includes('onestream.today') ||
+        rawUrl.includes('play.onestream') ||
+        rawUrl.includes('mydesi.fun') ||
+        rawUrl.includes('hornyleak.tv/embed/'))
+    ) {
       setIsResolvingStream(true);
       const endpoint =
         typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -43,8 +49,12 @@ export default function VideoPlayer({ video, onEnded }) {
       fetch(endpoint)
         .then((res) => res.json())
         .then((data) => {
-          if (isMounted && data?.ok && data?.streamUrl) {
-            setDirectStreamUrl(data.streamUrl);
+          if (isMounted && data?.ok) {
+            if (data.streamUrl) {
+              setDirectStreamUrl(data.streamUrl);
+            } else if (data.embedUrl) {
+              setDirectStreamUrl(data.embedUrl);
+            }
           }
         })
         .catch((err) => console.warn('Stream resolution fallback:', err))
@@ -80,7 +90,8 @@ export default function VideoPlayer({ video, onEnded }) {
       url.endsWith('.webm') ||
       url.includes('.mp4?') ||
       url.includes('stream=1') ||
-      url.includes('fastbytes.xyz')
+      url.includes('fastbytes.xyz') ||
+      url.includes('vidserv.cc')
     );
   };
 
@@ -524,9 +535,12 @@ export default function VideoPlayer({ video, onEnded }) {
             <iframe
               src={activeMediaUrl}
               title={video.title}
+              scrolling="no"
+              frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
-              className="w-full h-full border-0 bg-black"
+              className="w-full h-full border-0 bg-black block overflow-hidden"
+              style={{ overflow: 'hidden', border: 'none', display: 'block', width: '100%', height: '100%' }}
               sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
             />
           )}

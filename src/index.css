@@ -242,3 +242,20 @@ a[href*="netlify.com"].netlify-badge {
   pointer-events: none;
 }
 
+/* Video Player Iframe Stream & Scrollbar Suppression */
+iframe[src*="hornyleak"],
+iframe[src*="hdplayer"],
+.aspect-video iframe {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+
+.aspect-video iframe::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+

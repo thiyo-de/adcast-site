@@ -209,7 +209,12 @@ export async function scrapeMyDesi(source = {}, limit = 20) {
 
     // Stream URL preference:
     // Direct stream (MP4/HLS) takes top priority over blocked clean-tube-player iframes
-    const finalEmbed = streamUrl || embedUrl || card.postUrl;
+    const finalEmbed = streamUrl || (embedUrl && embedUrl !== card.postUrl ? embedUrl : null);
+
+    if (!finalEmbed) {
+      console.warn(`    [MYDESI SKIP] Skipping post without playable video stream or embed player: "${card.title}"`);
+      continue;
+    }
 
     const normalized = normalizeVideo({
       source_id: sourceId,
