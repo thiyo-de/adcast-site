@@ -1,69 +1,51 @@
-﻿import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { useAdSettings } from '../services/store';
+import { useWideAdViewport } from '../services/adViewport';
 import AdSlot from './AdSlot';
 
-export default function DesktopGutterAds({ currentView }) {
-  const adSettings = useAdSettings();
-  const [leftDismissed, setLeftDismissed] = useState(false);
-  const [rightDismissed, setRightDismissed] = useState(false);
+const towerWidth = 160;
+const clearance = 16;
 
-  const leftSlot = adSettings['slot_desktop_skyscraper_left'];
-  const rightSlot = adSettings['slot_desktop_skyscraper_right'];
+export default function DesktopGutterAds({ currentView, contentRef }) {
+  const settings = useAdSettings();
+  const wide = useWideAdViewport();
+  const publicView = currentView === 'home' || currentView === 'watch';
+  const [room, setRoom] = useState(null);
 
-  if (['admin', 'dmca', 'privacy', 'terms'].includes(currentView)) {
-    return null;
-  }
+  useLayoutEffect(() => {
+    const content = contentRef?.current;
+    if (!wide || !publicView || !content) {
+      setRoom(null);
+      return;
+    }
+    function measure() {
+      const bounds = content.getBoundingClientRect();
+      const left = bounds.left;
+      const right = document.documentElement.clientWidth - bounds.right;
+      const fits = Math.min(left, right) >= towerWidth + 2 * clearance;
+      setRoom(fits ? { left: (left - towerWidth) / 2, right: (right - towerWidth) / 2 } : null);
+    }
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    observer.observe(document.documentElement);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [contentRef, publicView, wide]);
 
-  const showLeft = leftSlot?.isActive && !leftDismissed;
-  const showRight = rightSlot?.isActive && !rightDismissed;
-
-  if (!showLeft && !showRight) return null;
-
-  return (
-    <>
-      {/* Left Skyscraper (160x600) */}
-      {showLeft && (
-        <aside
-          aria-label="Advertisement Sponsor Left"
-          className="fixed left-2 2xl:left-4 top-28 z-20 hidden 2xl:flex flex-col items-center w-[160px] select-none"
-        >
-          <div className="w-full flex items-center justify-between pb-1 px-1 text-[9px] font-bold text-slate-400">
-            <span>SPONSOR</span>
-            <button
-              onClick={() => setLeftDismissed(true)}
-              className="hover:text-rose-500 flex items-center gap-0.5 cursor-pointer transition-colors"
-              title="Hide this ad"
-            >
-              <i className="ri-close-line text-xs"></i> Hide
-            </button>
-          </div>
-          <div className="w-[160px] min-h-[600px] rounded-xl overflow-hidden border border-slate-200/60 dark:border-white/10 bg-white/40 dark:bg-black/40 backdrop-blur-sm shadow-xl flex items-center justify-center">
-            <AdSlot slotId="slot_desktop_skyscraper_left" devBadge={false} />
-          </div>
-        </aside>
-      )}
-
-      {/* Right Skyscraper (160x600) */}
-      {showRight && (
-        <aside
-          aria-label="Advertisement Sponsor Right"
-          className="fixed right-2 2xl:right-4 top-28 z-20 hidden 2xl:flex flex-col items-center w-[160px] select-none"
-        >
-          <div className="w-full flex items-center justify-between pb-1 px-1 text-[9px] font-bold text-slate-400">
-            <span>SPONSOR</span>
-            <button
-              onClick={() => setRightDismissed(true)}
-              className="hover:text-rose-500 flex items-center gap-0.5 cursor-pointer transition-colors"
-              title="Hide this ad"
-            >
-              <i className="ri-close-line text-xs"></i> Hide
-            </button>
-          </div>
-          <div className="w-[160px] min-h-[600px] rounded-xl overflow-hidden border border-slate-200/60 dark:border-white/10 bg-white/40 dark:bg-black/40 backdrop-blur-sm shadow-xl flex items-center justify-center">
-            <AdSlot slotId="slot_desktop_skyscraper_right" devBadge={false} />
-          </div>
-        </aside>
-      )}
-    </>
-  );
+  if (!wide || !publicView || !room) return null;
+  return ['left', 'right'].map(side => {
+    const slotId = 'slot_desktop_skyscraper_' + side;
+    if (!settings[slotId]?.isActive) return null;
+    return (
+      <aside key={side} aria-label={side + ' sponsor'}
+        className="adcast-gutter fixed top-28 z-20 pointer-events-none"
+        style={{ [side]: room[side], width: towerWidth }}>
+        <AdSlot slotId={slotId} devBadge={false} />
+      </aside>
+    );
+  });
 }

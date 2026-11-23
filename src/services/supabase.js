@@ -292,6 +292,20 @@ export const api = {
 
       const { data, error } = await query;
       if (error || !data || data.length === 0) {
+        // If the specific category is sparse, query other authentic published videos from Supabase
+        if (category && category !== 'All') {
+          let fallbackQuery = supabase
+            .from('videos')
+            .select('*')
+            .or('is_active.eq.true,is_active.is.null')
+            .or('publication_state.eq.published,publication_state.is.null')
+            .order('views', { ascending: false })
+            .limit(limit);
+          if (excludeId) fallbackQuery = fallbackQuery.neq('id', excludeId);
+          const { data: generalData } = await fallbackQuery;
+          if (generalData && generalData.length > 0) return generalData;
+        }
+
         const pool = store.getVideos() || [];
         return pool.filter((v) => !excludeId || v.id !== excludeId).slice(0, limit);
       }
@@ -515,6 +529,7 @@ export const api = {
           return;
         }
 
+        const existing = mapped[item.slot_id] || {};
         let code = item.code;
         // Targeted migration: Repair historical typo in top banner class if present in DB
         if (item.slot_id === 'slot_top_banner' && code && code.includes('class="eas6a9788e2"')) {
@@ -526,7 +541,6 @@ export const api = {
           code = existing.code;
         }
 
-        const existing = mapped[item.slot_id] || {};
         // Inoculate against placeholder poisoning: If remote code is a placeholder, retain existing working code
         if (isPlaceholderAdCode(code) && existing.code && !isPlaceholderAdCode(existing.code)) {
           code = existing.code;
@@ -543,9 +557,11 @@ export const api = {
           targetUrl: item.target_url || existing.targetUrl,
           vastUrl: item.vast_url || existing.vastUrl,
           frequencyHours: item.frequency_hours !== undefined ? item.frequency_hours : existing.frequencyHours,
+          frequencyMinutes: item.frequency_minutes ?? existing.frequencyMinutes ?? (item.slot_id === 'slot_video_preroll' ? 5 : undefined),
           isActive: item.is_active !== false
         };
       });
+
       return mapped;
     } catch (err) {
       console.warn('Failed to fetch cloud ad settings, falling back to local store:', err);
@@ -554,8 +570,7 @@ export const api = {
   },
 
   async updateAdSlot(slotId, fields) {
-    const updated = store.updateAdSlot(slotId, fields);
-    const fullSlot = updated[slotId] || {};
+    const fullSlot = { ...store.getAdSettings()[slotId], ...fields, id: slotId };
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
@@ -569,6 +584,7 @@ export const api = {
           target_url: fullSlot.targetUrl || null,
           vast_url: fullSlot.vastUrl || null,
           frequency_hours: fullSlot.frequencyHours !== undefined ? fullSlot.frequencyHours : 1,
+          frequency_minutes: fullSlot.frequencyMinutes !== undefined ? fullSlot.frequencyMinutes : (fullSlot.id === 'slot_video_preroll' ? 5 : null),
           is_active: fullSlot.isActive !== false,
           updated_at: new Date().toISOString()
         };
@@ -583,7 +599,7 @@ export const api = {
         throw err;
       }
     }
-    return updated;
+    return store.updateAdSlot(slotId, fields);
   },
 
   async updateAffiliateFallbacks(fields) {

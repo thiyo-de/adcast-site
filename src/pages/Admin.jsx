@@ -13,6 +13,7 @@ const ADAPTER_TYPE_OPTIONS = [
 
 const CATEGORY_OPTIONS = [
   { value: 'Trending', label: 'Trending', icon: 'ri-fire-fill', color: 'text-rose-500' },
+  { value: 'Movies', label: 'Movies', icon: 'ri-film-fill', color: 'text-rose-400' },
   { value: 'Indian Leaks', label: 'Indian Leaks', icon: 'ri-flag-fill', color: 'text-amber-400' },
   { value: 'Creator Leaks', label: 'Creator Leaks', icon: 'ri-shield-star-fill', color: 'text-rose-400' },
   { value: 'Amateur', label: 'Amateur', icon: 'ri-camera-lens-fill', color: 'text-rose-400' },

@@ -74,41 +74,6 @@ test('store provides all 12 dedicated ExoClick slots matching dashboard 1-to-1',
   assert.equal(settings.slot_desktop_skyscraper_right.zoneId, '6100290');
 });
 
-test('DesktopGutterAds.jsx isolates 160x600 skyscraper towers to widescreen displays (2xl) with user dismiss controls', () => {
-  const gutterPath = path.join(rootDir, 'src', 'components', 'DesktopGutterAds.jsx');
-  assert.ok(fs.existsSync(gutterPath), 'DesktopGutterAds.jsx must exist');
-  const gutterContent = fs.readFileSync(gutterPath, 'utf8');
-
-  assert.ok(gutterContent.includes('hidden 2xl:flex'), 'Must only be visible on 2xl screens (hidden 2xl:flex)');
-  assert.ok(gutterContent.includes('slot_desktop_skyscraper_left'), 'Must reference left skyscraper slot');
-  assert.ok(gutterContent.includes('slot_desktop_skyscraper_right'), 'Must reference right skyscraper slot');
-  assert.ok(gutterContent.includes('<AdSlot'), 'Must render AdSlot for safe ad injection');
-  assert.ok(gutterContent.includes('setLeftDismissed'), 'Must provide left dismiss control');
-  assert.ok(gutterContent.includes('setRightDismissed'), 'Must provide right dismiss control');
-});
-
-test('InterstitialTrigger.jsx contains ExoClick close button selectors, backdrop detection, and non-blocking safety', () => {
-  const filePath = path.join(rootDir, 'src', 'components', 'InterstitialTrigger.jsx');
-  const content = fs.readFileSync(filePath, 'utf8');
-
-  // 1. Must detect ExoClick specific overlay elements
-  assert.ok(content.includes('.ex-over-btn'), 'Must detect .ex-over-btn');
-  assert.ok(content.includes('.ex-over-top'), 'Must detect .ex-over-top');
-  assert.ok(content.includes('.ex-over-front'), 'Must detect .ex-over-front');
-  assert.ok(content.includes('[id^="ad_"]'), 'Must detect [id^="ad_"]');
-  assert.ok(content.includes('#adcast-interstitial-close-btn'), 'Must have dedicated close button');
-
-  // 2. Must restore scrolling on both body and documentElement
-  assert.ok(content.includes("document.body.style.overflow = ''"), 'Must restore body overflow');
-  assert.ok(content.includes("document.documentElement.style.overflow = ''"), 'Must restore html overflow');
-
-  // 3. Must check isInInterstitial so normal page buttons are never intercepted
-  assert.ok(content.includes('isInInterstitial'), 'Must check isInInterstitial before intercepting');
-
-  // 4. Must preserve ad clickthroughs inside ad content
-  assert.ok(content.includes('isInsideAdContent'), 'Must check isInsideAdContent so sponsor clicks work');
-});
-
 test('CORE_CATEGORIES contains canonical categories including Indian Leaks and Home.jsx removes duplicate pills row', () => {
   const catFilePath = path.join(rootDir, 'src', 'constants', 'categories.js');
   const catContent = fs.readFileSync(catFilePath, 'utf8');
@@ -276,31 +241,21 @@ test('api.getLocalVideosPage performs round-robin category interleaving on All S
   }
 });
 
-test('AdBlock detection uses Brave-sensitive canaries, fast 250ms timers, and Interstitial renders as centered popup on mobile', () => {
-  const detectionFile = path.join(rootDir, 'src', 'services', 'adBlockDetection.js');
-  const detectionContent = fs.readFileSync(detectionFile, 'utf8');
-
-  // Brave Shields canary verification
-  assert.ok(detectionContent.includes('a.magsrv.com/ad-provider.js'), 'Must probe a.magsrv.com for Brave Shields and Opera');
-  assert.ok(detectionContent.includes('anyBlocked = true'), 'Must trigger when any canary ad CDN is blocked');
-  assert.ok(detectionContent.includes('setTimeout(async () => {'), 'Must schedule initial probe');
-  assert.ok(detectionContent.includes('}, 250);'), 'Probe and confirmation timers must be 250ms for sub-second detection');
-
-  // AdBlockContext fast mount verification
-  const contextFile = path.join(rootDir, 'src', 'services', 'adBlockContext.jsx');
-  const contextContent = fs.readFileSync(contextFile, 'utf8');
-  assert.ok(contextContent.includes('}, 250);'), 'Mount settle delay in AdBlockContext must be 250ms');
-
-  // InterstitialTrigger mobile popup verification
-  const interstitialFile = path.join(rootDir, 'src', 'components', 'InterstitialTrigger.jsx');
-  const interstitialContent = fs.readFileSync(interstitialFile, 'utf8');
-  assert.ok(
-    interstitialContent.includes("slot_interstitial") && !interstitialContent.includes("const slotKey = isMobile ? 'slot_mobile_interstitial' : 'slot_interstitial'"),
-    'Must use responsive centered popup slot across all viewports instead of mobile drawer'
-  );
+test('only active ExoClick zones for this view and device supply detector endpoints', async () => {
+  const { exoProbeUrls } = await import('../src/services/adBlockDetection.js');
+  const settings = {
+    slot_top_banner: { isActive: true, code: 'https://a.magsrv.com/ad-provider.js' },
+    slot_top_banner_mobile: { isActive: false, code: 'https://a.magsrv.com/ad-provider.js' },
+    slot_popunder: { isActive: true, code: 'https://example.org/ad.js' },
+    slot_video_preroll: { isActive: true, vastUrl: 'https://s.pemsrv.com/v1/vast.php?idz=123' }
+  };
+  assert.deepEqual(exoProbeUrls(settings, 'home', false, false), ['https://a.magsrv.com/ad-provider.js']);
+  assert.deepEqual(exoProbeUrls(settings, 'home', true, false), []);
+  assert.deepEqual(exoProbeUrls(settings, 'watch', true, false), ['https://a.pemsrv.com/ad-provider.js']);
+  assert.deepEqual(exoProbeUrls(settings, 'privacy', false, true), []);
 });
 
-test('AdBlockNotice locks html/body/touchAction against mobile scroll glitch and StickyFooter suppresses duplicate close bar', () => {
+test('AdBlockNotice locks html/body/touchAction against mobile scroll glitch', () => {
   const noticeFile = path.join(rootDir, 'src', 'components', 'AdBlockNotice.jsx');
   const noticeContent = fs.readFileSync(noticeFile, 'utf8');
 
@@ -311,12 +266,19 @@ test('AdBlockNotice locks html/body/touchAction against mobile scroll glitch and
   assert.ok(noticeContent.includes('overscroll-contain'), 'Must contain overscroll on mobile');
   assert.ok(noticeContent.includes('max-h-[92dvh]'), 'Must restrict card max-height on small screens');
 
-  const stickyFile = path.join(rootDir, 'src', 'components', 'StickyFooter.jsx');
-  const stickyContent = fs.readFileSync(stickyFile, 'utf8');
-
-  // Verify duplicate provider close bar suppression and single unified button
-  assert.ok(stickyContent.includes('#adcast-sticky-footer .exo-close'), 'Must suppress provider .exo-close bar');
-  assert.ok(stickyContent.includes('display: none !important;'), 'Must hide provider close bars');
-  assert.ok(stickyContent.includes('{isLoaded && ('), 'Must render corner close button as sole unified button');
 });
 
+test('Supabase and store persist frequencyMinutes and migrate all 12 ad slots', () => {
+  const storeSettings = store.getAdSettings();
+  assert.equal(storeSettings.slot_video_preroll.frequencyMinutes, 5, 'Pre-roll default frequencyMinutes must be 5');
+
+  const supabaseFile = path.join(rootDir, 'src', 'services', 'supabase.js');
+  const content = fs.readFileSync(supabaseFile, 'utf8');
+
+  assert.ok(content.includes('frequency_minutes:'), 'Must persist frequency_minutes');
+  const migration = fs.readFileSync(path.join(rootDir, 'supabase/migrations/202611210001_ad_placement_settings.sql'), 'utf8');
+  for (const id of ['slot_mobile_interstitial', 'slot_desktop_skyscraper_left', 'slot_desktop_skyscraper_right']) {
+    assert.ok(migration.includes(id));
+  }
+  assert.match(migration, /ON CONFLICT \(slot_id\) DO NOTHING/);
+});

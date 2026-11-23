@@ -1,7 +1,9 @@
 import React from 'react';
+import { popunderLinkClass, useClickAd } from '../services/clickAdContext';
 import { formatDuration, FALLBACK_THUMB } from '../services/store';
 
 export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmarked }) {
+  const popunderEligible = useClickAd() === 'popunder';
 
   const formatViews = (num) => {
     if (!num) return '0';
@@ -44,7 +46,7 @@ export default function VideoCard({ video, onSelect, onBookmarkToggle, isBookmar
           e.stopPropagation();
           onSelect(video.id);
         }}
-        className="absolute inset-0 z-[1]"
+        className={`absolute inset-0 z-[1] ${popunderEligible ? popunderLinkClass : ''}`}
         aria-label={video.title}
       />
 

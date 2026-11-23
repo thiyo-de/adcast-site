@@ -1,0 +1,57 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<div id="root"></div>
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { store } from '/src/services/store.js';
+import AdSlot from '/src/components/AdSlot.jsx';
+import StickyFooter from '/src/components/StickyFooter.jsx';
+import Interstitial from '/src/components/InterstitialTrigger.jsx';
+import Popunder from '/src/components/PopunderTrigger.jsx';
+import AgeModal from '/src/components/AgeModal.jsx';
+import Towers from '/src/components/DesktopGutterAds.jsx';
+import { ClickAdProvider } from '/src/services/clickAdContext.jsx';
+import { AdBlockProvider, useAdBlock } from '/src/services/adBlockContext.jsx';
+import Notice from '/src/components/AdBlockNotice.jsx';
+import VideoCard from '/src/components/VideoCard.jsx';
+import Player from '/src/components/VideoPlayer.jsx';
+import '/src/index.css';
+
+const h = React.createElement;
+const root = createRoot(document.querySelector('#root'));
+const contentRef = React.createRef();
+function Detector() {
+  const {detectionState, verifyBeforePlayback, recheck} = useAdBlock();
+  window.verify = verifyBeforePlayback;
+  window.retry = recheck;
+  return h('output', {id:'result'}, detectionState);
+}
+window.setup = (kind, confirmed = true) => {
+  localStorage.setItem('adcast_age_verified', String(Date.now() - (confirmed ? 0 : 32 * 86400000)));
+  window.toggle = (id, isActive) => store.updateAdSlot(id, { isActive });
+  window.show = (currentView = 'home', videoId = null) => {
+    const props = { currentView, videoId };
+    let items;
+    if (kind === 'detector') {
+      root.render(h(AdBlockProvider, props, h(Detector), h(AgeModal), h(Notice)));
+      return;
+    } else if (kind === 'native') {
+      items = h('div', {className: 'relative grid grid-cols-2', style: {width: '320px'}},
+        h('div', {id: 'one'}, 'One'), h(AdSlot, {slotId: 'slot_native_feed'}), h('div', {id:'two'}, 'Two'));
+    } else if (kind === 'towers') items = [
+      h('main', {key:'main',ref:contentRef,style:{width:'100%',maxWidth:'1280px',margin:'auto'}}, 'Catalog'),
+      h(Towers, {...props,contentRef,key:'towers'})
+    ];
+    else if (kind === 'player') items = [
+      h(Player,{key:'video',video:{id:'demo',embed_url:'https://example.org/embed/demo',thumbnail_url:'/icon.png'}}),
+      h(AdSlot,{key:'below',slotId:'slot_below_player'})
+    ];
+    else if (kind === 'device') items = [h(AdSlot, {key: 'top', slotId: 'slot_top_banner'}), h(StickyFooter, {key: 'sticky', ...props}), h(Interstitial, {key: 'full', ...props})];
+    else items = [h(AgeModal, {key: 'age'}), h(Popunder, {key:'pop', ...props}), h(Interstitial, {key:'full', ...props}), h(StickyFooter, {key:'sticky', ...props})];
+    root.render(h(ClickAdProvider, props, h('button', {id:'under', style:{position:'fixed',bottom:0,left:0}, onClick:()=>window.clicks=(window.clicks||0)+1}, 'Page button'), items,
+      kind === 'gates' && h(VideoCard, {video:{id:'test',title:'Sample',thumbnail_url:'/icon.png'},onSelect:()=>{}, onBookmarkToggle:()=>{}})));
+  };
+  window.show();
+};
+</script>

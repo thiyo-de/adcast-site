@@ -11,9 +11,10 @@ import Watch from './pages/Watch';
 import Admin from './pages/Admin';
 import DMCA from './pages/DMCA';
 import Legal from './pages/Legal';
-import { store } from './services/store';
+import { store, AdSettingsReady } from './services/store';
 import { api } from './services/supabase';
 import { AdBlockProvider } from './services/adBlockContext';
+import { ClickAdProvider } from './services/clickAdContext';
 import AdBlockNotice from './components/AdBlockNotice';
 import { computeCategoryCounts } from './constants/categories';
 
@@ -69,6 +70,7 @@ function parseCatalogParams() {
 
 export default function App() {
   const [routeState, setRouteState] = useState(() => parseRoute());
+  const [adsReady, setAdsReady] = useState(false);
   const currentView = routeState.view;
   const selectedVideoId = routeState.videoId;
 
@@ -103,6 +105,7 @@ export default function App() {
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isDevMode, setIsDevMode] = useState(store.isDevMode());
   const lastHomeScrollY = useRef(0);
+  const contentRef = useRef(null);
 
   const navigate = (view, videoId = null, replace = false) => {
     // Preserve scroll offset when leaving home (UX07)
@@ -115,11 +118,6 @@ export default function App() {
       path = `/watch/${encodeURIComponent(videoId)}`;
     } else if (view === 'admin') {
       path = '/admin';
-      // Hard navigation boundary to ensure completely clean, isolated JS runtime on Admin (purges 3rd-party ad listeners)
-      if (typeof window !== 'undefined' && window.location.pathname !== '/admin') {
-        window.location.href = '/admin';
-        return;
-      }
     } else if (view === 'dmca') {
       path = '/dmca';
     } else if (view === 'terms') {
@@ -128,12 +126,13 @@ export default function App() {
       path = '/privacy';
     }
 
-    // When leaving Admin to browse public content, perform clean page load to re-initialize ad zones cleanly
-    if (currentView === 'admin' && view !== 'admin') {
-      if (typeof window !== 'undefined') {
-        window.location.href = path;
-        return;
-      }
+    // Provider scripts install document-level listeners. Crossing into or out of
+    // an ad-free route requires a fresh document, including its history entry.
+    const permitsAds = route => route === 'home' || route === 'watch';
+    if (permitsAds(currentView) !== permitsAds(view) && window.location.pathname !== path) {
+      if (replace) window.location.replace(path);
+      else window.location.assign(path);
+      return;
     }
 
     if (window.location.pathname !== path) {
@@ -290,27 +289,26 @@ export default function App() {
 
   useEffect(() => {
     loadCategoryCounts();
-    loadAdSettings();
-    const unsubscribeAds = api.subscribeToAdSettings((cloudAds) => {
-      if (cloudAds) {
+    let active = true;
+    let receivedUpdate = false;
+    const unsubscribeAds = api.subscribeToAdSettings(cloudAds => {
+      if (active && cloudAds) {
+        receivedUpdate = true;
         store.saveAdSettings(cloudAds);
+        setAdsReady(true);
       }
     });
+    api.getAdSettings().then(cloudAds => {
+      if (active && !receivedUpdate && cloudAds) {
+        store.saveAdSettings(cloudAds);
+        setAdsReady(true);
+      }
+    }).catch(err => console.warn('Initial cloud ad load notice:', err));
     return () => {
-      if (typeof unsubscribeAds === 'function') unsubscribeAds();
+      active = false;
+      unsubscribeAds?.();
     };
   }, []);
-
-  const loadAdSettings = async () => {
-    try {
-      const cloudAds = await api.getAdSettings();
-      if (cloudAds) {
-        store.saveAdSettings(cloudAds);
-      }
-    } catch (err) {
-      console.warn('Initial cloud ad load notice:', err);
-    }
-  };
 
   const handleSelectVideo = (id) => {
     navigate('watch', id);
@@ -328,7 +326,9 @@ export default function App() {
   };
 
   return (
-    <AdBlockProvider currentView={currentView} videoId={selectedVideoId}>
+    <AdSettingsReady.Provider value={adsReady}>
+      <AdBlockProvider currentView={currentView} videoId={selectedVideoId}>
+      <ClickAdProvider currentView={currentView}>
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-obsidian text-slate-900 dark:text-[#F8FAFC] transition-colors duration-300">
         {/* 18+ Age Verification Modal */}
         <AgeModal />
@@ -357,7 +357,7 @@ export default function App() {
       />
 
       {/* Main Dynamic View */}
-      <main className="flex-1 pb-4 sm:pb-6">
+      <main ref={contentRef} className={`flex-1 pb-4 sm:pb-6 ${currentView === 'home' || currentView === 'watch' ? 'w-full max-w-7xl mx-auto' : ''}`}>
         {currentView === 'home' && (
           <Home
             videos={videos}
@@ -419,10 +419,10 @@ export default function App() {
       {/* Sticky Bottom Mobile Ad Banner, Popunder, and Desktop Interstitial Triggers */}
       {currentView !== 'admin' && (
         <>
-          <DesktopGutterAds currentView={currentView} />
-          <StickyFooter currentView={currentView} />
+          <DesktopGutterAds currentView={currentView} contentRef={contentRef} />
+          <StickyFooter currentView={currentView} videoId={selectedVideoId} />
           <PopunderTrigger />
-          <InterstitialTrigger currentView={currentView} />
+          <InterstitialTrigger currentView={currentView} videoId={selectedVideoId} />
         </>
       )}
 
@@ -481,6 +481,8 @@ export default function App() {
         </div>
       </footer>
     </div>
-  </AdBlockProvider>
+      </ClickAdProvider>
+      </AdBlockProvider>
+    </AdSettingsReady.Provider>
   );
 }

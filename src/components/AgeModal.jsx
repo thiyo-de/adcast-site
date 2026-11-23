@@ -1,33 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+import { confirmAge, useAgeConfirmed } from '../services/ageVerification';
 
 export default function AgeModal() {
-  const [isOpen, setIsOpen] = useState(false);
+  const isOpen = !useAgeConfirmed();
   const enterBtnRef = useRef(null);
   const exitBtnRef = useRef(null);
   const dialogRef = useRef(null);
-
-  useEffect(() => {
-    try {
-      const hasCookie = document.cookie.includes('age_verified=true');
-      const verifiedTimestamp = localStorage.getItem('adcast_age_verified');
-
-      if (hasCookie && verifiedTimestamp) {
-        const elapsed = Date.now() - parseInt(verifiedTimestamp, 10);
-        if (elapsed < THIRTY_DAYS_MS) {
-          setIsOpen(false);
-          return;
-        }
-      } else if (hasCookie || (verifiedTimestamp && verifiedTimestamp === 'true')) {
-        setIsOpen(false);
-        return;
-      }
-      setIsOpen(true);
-    } catch (e) {
-      setIsOpen(false);
-    }
-  }, []);
 
   // Trap focus and lock background scroll while age gate is open
   useEffect(() => {
@@ -70,18 +49,6 @@ export default function AgeModal() {
     };
   }, [isOpen]);
 
-  const handleEnter = () => {
-    try {
-      localStorage.setItem('adcast_age_verified', Date.now().toString());
-      // Set 30-day HTTP cookie (2,592,000 seconds)
-      document.cookie = 'age_verified=true; max-age=2592000; path=/; SameSite=Lax';
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('adcast_age_verified'));
-      }
-    } catch (e) {}
-    setIsOpen(false);
-  };
-
   const handleExit = () => {
     window.location.replace('https://www.google.com');
   };
@@ -115,7 +82,7 @@ export default function AgeModal() {
         <div className="flex flex-col gap-2.5">
           <button
             ref={enterBtnRef}
-            onClick={handleEnter}
+            onClick={confirmAge}
             className="w-full min-h-[48px] h-12 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs tracking-wider uppercase transition-all duration-200 shadow-lg shadow-rose-600/30 active:scale-95 flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400"
           >
             <i className="ri-checkbox-circle-fill not-italic text-base"></i>

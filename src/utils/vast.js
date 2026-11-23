@@ -4,10 +4,23 @@
  * tracking impressions, quartiles, and click-through destination URLs using native DOMParser.
  */
 
+import { isExoEntryUrl } from '../services/adTag.js';
+
 function getTextContent(element) {
   if (!element) return null;
   const text = element.textContent || '';
   return text.trim() || null;
+}
+
+// A VAST Linear can express its skip time as HH:MM:SS[.mmm] or a percentage.
+export function vastSkipSeconds(offset, duration) {
+  if (!offset) return null;
+  if (/^\d+(?:\.\d+)?%$/.test(offset)) {
+    const percent = Number(offset.slice(0, -1));
+    return percent <= 100 && Number.isFinite(duration) && duration > 0 ? duration * percent / 100 : null;
+  }
+  const parts = /^(\d{2,}):([0-5]\d):([0-5]\d(?:\.\d+)?)$/.exec(offset);
+  return parts ? Number(parts[1]) * 3600 + Number(parts[2]) * 60 + Number(parts[3]) : null;
 }
 
 function parseVastXmlDocument(xmlText) {
@@ -100,8 +113,11 @@ function parseVastXmlDocument(xmlText) {
       }
     }
 
+    const selectedMedia = mediaFileEls.find(element => getTextContent(element) === mediaUrl);
+    const linear = selectedMedia?.closest('Linear') || getElement('Linear');
     return {
       mediaUrl,
+      skipOffset: linear?.getAttribute('skipoffset')?.trim() || null,
       clickUrl,
       clickTrackingUrls,
       impressionUrls,
@@ -116,7 +132,7 @@ function parseVastXmlDocument(xmlText) {
 }
 
 export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
-  if (!vastUrl || typeof vastUrl !== 'string') return null;
+  if (!isExoEntryUrl(vastUrl)) return null;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), maxTimeoutMs);
@@ -128,6 +144,7 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
 
     let mediaUrl = null;
     let clickUrl = null;
+    const skipOffsets = [];
     const impressionUrls = [];
     const clickTrackingUrls = [];
     const trackingEvents = {};
@@ -159,6 +176,7 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
         clickUrl = parsed.clickUrl;
       }
       mergeTracking(parsed.trackingEvents);
+      if (parsed.skipOffset) skipOffsets.push(parsed.skipOffset);
 
       if (parsed.mediaUrl) {
         mediaUrl = parsed.mediaUrl;
@@ -185,7 +203,8 @@ export async function resolveVastAd(vastUrl, maxTimeoutMs = 3500) {
 
     return {
       mediaUrl,
-      clickUrl: clickUrl || vastUrl,
+      skipOffsets,
+      clickUrl,
       clickTrackingUrls: Array.from(new Set(clickTrackingUrls)),
       impressionUrls: Array.from(new Set(impressionUrls)),
       impressionUrl: impressionUrls[0] || null,

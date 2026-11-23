@@ -286,7 +286,7 @@ export default function Watch({
         {/* Centered / Theater-aware Player Section */}
         <div className={`space-y-4 ${isTheaterMode ? 'w-full' : 'max-w-5xl mx-auto'}`}>
           {/* Player Container */}
-          <VideoPlayer video={video} />
+          <VideoPlayer key={video.id} video={video} />
 
           {/* Video Title & Badges */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -411,7 +411,7 @@ export default function Watch({
           )}
 
           {/* Ad Slot 4: Below-Player High CTR Banner (Centered with explicit max-width) */}
-          <div className="w-full min-w-0 my-6 sm:my-8 flex justify-center">
+          <div className="adcast-inline-placement w-full min-w-0 my-6 sm:my-8 flex justify-center">
             <AdSlot key={video.id} slotId="slot_below_player" className="rounded-2xl" />
           </div>
 
@@ -514,7 +514,9 @@ export default function Watch({
             <div role="group" aria-label="Recommendation filters" className="min-w-0 w-full md:max-w-2xl grid grid-cols-2 md:grid-cols-4 auto-rows-fr gap-2 pt-1">
               {(() => {
                 const categoryIcon =
-                  video.category === 'Hardcore'
+                  video.category === 'Movies'
+                    ? 'ri-film-fill'
+                    : video.category === 'Hardcore'
                     ? 'ri-flashlight-fill'
                     : video.category === 'Indian Leaks'
                     ? 'ri-flag-fill'
@@ -566,7 +568,7 @@ export default function Watch({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {relatedVideos.map((item, index) => {
                 const showNativeAd = showRecommendationAdAfter(index, relatedVideos.length);
 

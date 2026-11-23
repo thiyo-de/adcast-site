@@ -30,6 +30,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+  if (url.origin === self.location.origin && url.pathname === '/ads/banner-ad.js') return;
 
   // Development modules are not immutable assets. Never cache Vite's source or runtime.
   if (url.origin === self.location.origin &&

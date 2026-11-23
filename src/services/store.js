@@ -1,5 +1,5 @@
 // Central Data & Ad Settings Store
-import { useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 // Ad Settings Reactive Listeners
 const adSettingsListeners = new Set();
@@ -19,14 +19,17 @@ export function notifyAdSettingsChanged(settings) {
   });
 }
 
+export const AdSettingsReady = createContext(true);
+
 export function useAdSettings() {
+  const ready = useContext(AdSettingsReady);
   const [settings, setSettings] = useState(() => store.getAdSettings());
 
   useEffect(() => {
     return subscribeAdSettings(setSettings);
   }, []);
 
-  return settings;
+  return ready ? settings : {};
 }
 
 
@@ -162,7 +165,7 @@ export function formatDuration(input) {
 }
 
 const STORAGE_KEYS = {
-  VIDEOS: 'adcast_videos_v4',
+  VIDEOS: 'adcast_videos_v5',
   AD_SETTINGS: 'adcast_ad_settings_v1',
   BOOKMARKS: 'adcast_bookmarks_v1',
   LIKES: 'adcast_likes_v1',
@@ -172,404 +175,58 @@ const STORAGE_KEYS = {
   ADMIN_AUTH: 'adcast_admin_session'
 };
 
-// High-Quality Seed Videos with Tube-specific metadata (Direct MP4, YouTube, Instagram Reels, Facebook Watch)
+// Authentic Platform Seed Videos (Tamil Movies, HornyLeaks, MyDesiFun)
 const SEED_VIDEOS = [
-  // --- MULTI-PLATFORM EMBEDS (TESTING SUITE) ---
   {
-    id: 'vid-yt-01',
-    title: 'Cyberpunk Metropolis 2077: Rain & Neon Alley Tour (YouTube 4K)',
-    embed_url: 'https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1&rel=0',
-    thumbnail_url: 'https://img.youtube.com/vi/aqz-KE-bpKQ/maxresdefault.jpg',
-    duration: '10:34',
-    durationMinutes: 10,
-    category: 'Cinematic',
-    quality: '4K UHD',
-    rating: 99,
-    tags: ['youtube', 'cyberpunk', '4k', 'cinematic', 'neon'],
-    views: 1892000,
-    likes: 42100,
+    id: 'vid-movie-aot-2026',
+    title: 'AOT (Aakasamlo Oka Tara) Tamil Movie 2026 | Dulquer Salmaan | Satvika Veeravalli | Shruti Haasan',
+    embed_url: 'https://play.onestream.today/stream/page/103714',
+    thumbnail_url: 'https://assets.voxcinemas.com/posters/P_HO00013891_1794903003416.jpg',
+    duration: '2:15:00',
+    durationMinutes: 135,
+    duration_seconds: 8100,
+    category: 'Movies',
+    quality: '720p HD',
+    rating: 96,
+    tags: ['Tamil', 'Movie', 'AOT', 'Dulquer Salmaan', 'Aakasamlo Oka Tara', 'Romantic Drama', '2026', 'Shruti Haasan', 'GV Prakash'],
+    views: 1250,
+    likes: 84,
     is_featured: true,
-    created_at: new Date().toISOString()
+    created_at: '2026-11-23T03:51:08.694Z'
   },
   {
-    id: 'vid-yt-02',
-    title: 'Sintel Open Movie: High Fantasy Dragon Quest (YouTube 4K)',
-    embed_url: 'https://www.youtube.com/embed/eRsGyueVLvQ?autoplay=1&rel=0',
-    thumbnail_url: 'https://img.youtube.com/vi/eRsGyueVLvQ/maxresdefault.jpg',
-    duration: '14:48',
-    durationMinutes: 14,
-    category: 'Trending',
-    quality: '4K UHD',
-    rating: 98,
-    tags: ['youtube', 'fantasy', 'animation', 'action', 'trending'],
-    views: 2450000,
-    likes: 58000,
-    is_featured: true,
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString()
-  },
-  {
-    id: 'vid-ig-01',
-    title: 'High-Altitude Mountain Ridge FPV Drone Dive (Instagram Reel)',
-    embed_url: 'https://www.instagram.com/reel/C8P4fC0u7V-/embed/',
-    thumbnail_url: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&auto=format&fit=crop&q=80',
-    duration: '00:45',
-    durationMinutes: 1,
-    category: 'Hardcore',
-    quality: '1080p 60FPS',
-    rating: 97,
-    tags: ['instagram', 'reels', 'fpv', 'action', 'drone'],
-    views: 630400,
-    likes: 21900,
-    is_featured: true,
-    created_at: new Date(Date.now() - 3600000 * 12).toISOString()
-  },
-  {
-    id: 'vid-fb-01',
-    title: 'Red Bull Extreme Downhill Mountain Bike Run (Facebook Watch)',
-    embed_url: 'https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2FRedBull%2Fvideos%2F10156828591825152%2F&show_text=0&autoplay=1',
-    thumbnail_url: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80',
-    duration: '04:12',
-    durationMinutes: 4,
+    id: 'vid-hl-33857',
+    title: "Kathleen Glawe Gets Destroyed by 2 BBC's",
+    embed_url: 'https://www.hornyleak.tv/embed/33857/',
+    thumbnail_url: 'https://www.hornyleak.tv/contents/videos_screenshots/33000/33857/preview.jpg',
+    duration: '17:06',
+    durationMinutes: 17,
+    duration_seconds: 1026,
     category: 'Hardcore',
     quality: '1080p',
     rating: 95,
-    tags: ['facebook', 'sports', 'mtb', 'downhill', 'redbull'],
-    views: 489000,
-    likes: 14300,
+    tags: ['kathleen glawe', 'trending', 'leak', 'hot'],
+    views: 8400,
+    likes: 240,
     is_featured: false,
-    created_at: new Date(Date.now() - 86400000).toISOString()
-  },
-
-  // --- CINEMATIC ---
-  {
-    id: 'vid-101',
-    title: 'Cyberpunk Odyssey: Neon Metropolis Night Drive (4K)',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=800&auto=format&fit=crop&q=80',
-    duration: '09:56',
-    durationMinutes: 9,
-    category: 'Creator Leaks',
-    quality: '4K UHD',
-    rating: 98,
-    tags: ['cyberpunk', 'neon', '4k', 'cinematic', 'futuristic', 'night'],
-    views: 1482100,
-    likes: 31200,
-    is_featured: true,
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+    created_at: '2026-11-20T06:36:14.886Z'
   },
   {
-    id: 'vid-102',
-    title: 'Cosmic Horizons: Deep Space Nebula Flythrough (8K HDR)',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
-    duration: '25:18',
-    durationMinutes: 25,
-    category: 'Creator Leaks',
-    quality: '8K HDR',
-    rating: 99,
-    tags: ['space', 'galaxy', 'universe', '8k', 'cinematic', 'cosmic'],
-    views: 2673000,
-    likes: 49200,
-    is_featured: true,
-    created_at: new Date(Date.now() - 86400000 * 3).toISOString()
-  },
-  {
-    id: 'vid-103',
-    title: 'The Last Ronin: Feudal Japan Moonlight Duel',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80',
-    duration: '14:50',
-    durationMinutes: 14,
-    category: 'Creator Leaks',
-    quality: '4K UHD',
-    rating: 97,
-    tags: ['cinematic', 'samurai', 'action', 'japan', 'martialarts', 'sword'],
-    views: 842000,
-    likes: 19800,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 4).toISOString()
-  },
-
-  // --- TRENDING ---
-  {
-    id: 'vid-104',
-    title: 'High Velocity: Supercar Night Racing in Tokyo Wangan',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&auto=format&fit=crop&q=80',
-    duration: '14:22',
-    durationMinutes: 14,
-    category: 'Trending',
-    quality: '1080p 60FPS',
-    rating: 96,
-    tags: ['racing', 'tokyo', 'cars', 'action', 'supercar', 'drift'],
-    views: 2894500,
-    likes: 64100,
-    is_featured: true,
-    created_at: new Date(Date.now() - 86400000 * 5).toISOString()
-  },
-  {
-    id: 'vid-105',
-    title: 'Tokyo Midnight Walk: Cyberpunk Streets & Hidden Izakayas',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=800&auto=format&fit=crop&q=80',
-    duration: '32:00',
-    durationMinutes: 32,
-    category: 'Trending',
-    quality: '4K UHD',
-    rating: 95,
-    tags: ['tokyo', 'streetview', 'nightlife', 'japan', 'travel', 'rain'],
-    views: 1942000,
-    likes: 51200,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 6).toISOString()
-  },
-  {
-    id: 'vid-106',
-    title: 'Hypercar Dyno Run: 1500HP Twin Turbo Beast on the Limit',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80',
-    duration: '11:15',
-    durationMinutes: 11,
-    category: 'Trending',
-    quality: '4K UHD',
-    rating: 97,
-    tags: ['hypercar', 'tuning', 'horsepower', 'dyno', 'racing', 'cars'],
-    views: 2954000,
-    likes: 71000,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 7).toISOString()
-  },
-  {
-    id: 'vid-107',
-    title: 'Underground Car Meet: Custom JDM & Euro Stance Showcase',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop&q=80',
-    duration: '18:10',
-    durationMinutes: 18,
-    category: 'Trending',
-    quality: '1080p 60FPS',
+    id: 'vid-hl-33856',
+    title: 'Busty Step Mom Needs to Get over Cheating Husband',
+    embed_url: 'https://www.hornyleak.tv/embed/33856/',
+    thumbnail_url: 'https://www.hornyleak.tv/contents/videos_screenshots/33000/33856/preview.jpg',
+    duration: '15:22',
+    durationMinutes: 15,
+    duration_seconds: 922,
+    category: 'Amateur',
+    quality: '1080p',
     rating: 94,
-    tags: ['jdm', 'tuning', 'cars', 'stance', 'drift', 'underground'],
-    views: 1320000,
-    likes: 28400,
+    tags: ['stepmom', 'busty', 'amateur', 'leak'],
+    views: 6200,
+    likes: 180,
     is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 8).toISOString()
-  },
-
-  // --- MUSIC ---
-  {
-    id: 'vid-108',
-    title: 'Deep House Sunset Session: Ibiza Beach Club Live Set',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80',
-    duration: '45:10',
-    durationMinutes: 45,
-    category: 'Amateur',
-    quality: '4K UHD',
-    rating: 99,
-    tags: ['deephouse', 'ibiza', 'club', 'sunset', 'music', 'relax'],
-    views: 4240000,
-    likes: 98000,
-    is_featured: true,
-    created_at: new Date(Date.now() - 86400000 * 9).toISOString()
-  },
-  {
-    id: 'vid-109',
-    title: 'Techno Underground: Berlin Bunker Rave Highlights',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80',
-    duration: '18:45',
-    durationMinutes: 18,
-    category: 'Amateur',
-    quality: '1080p',
-    rating: 92,
-    tags: ['techno', 'berlin', 'rave', 'electronic', 'club', 'underground'],
-    views: 1631000,
-    likes: 42000,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 10).toISOString()
-  },
-  {
-    id: 'vid-110',
-    title: 'Neon Synthwave Live Lounge: Lo-Fi Chill Beats to Relax',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
-    duration: '50:00',
-    durationMinutes: 50,
-    category: 'Amateur',
-    quality: '1080p',
-    rating: 99,
-    tags: ['synthwave', 'lofi', 'chill', 'relax', 'beats', 'night'],
-    views: 3102000,
-    likes: 87400,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 11).toISOString()
-  },
-  {
-    id: 'vid-111',
-    title: 'Midnight Anime Lo-Fi Cafe Beats & Soft Rain (10 Hours)',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop&q=80',
-    duration: '60:00',
-    durationMinutes: 60,
-    category: 'Amateur',
-    quality: '4K UHD',
-    rating: 98,
-    tags: ['chill', 'lofi', 'anime', 'rain', 'study', 'beats', 'relax'],
-    views: 4120000,
-    likes: 92000,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 12).toISOString()
-  },
-
-  // --- ACTION ---
-  {
-    id: 'vid-112',
-    title: 'Extreme Downhill Freeride: Alps Mountain Descent (GoPro)',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80',
-    duration: '08:14',
-    durationMinutes: 8,
-    category: 'Hardcore',
-    quality: '1080p 60FPS',
-    rating: 94,
-    tags: ['extreme', 'downhill', 'mountain', 'freeride', 'sports', 'action'],
-    views: 912000,
-    likes: 18900,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 13).toISOString()
-  },
-  {
-    id: 'vid-113',
-    title: 'Drone FPV Racing: Abandoned Industrial Complex Freestyle',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800&auto=format&fit=crop&q=80',
-    duration: '06:40',
-    durationMinutes: 6,
-    category: 'Hardcore',
-    quality: '1080p 60FPS',
-    rating: 98,
-    tags: ['fpv', 'drone', 'freestyle', 'acrobatics', 'action', 'urban'],
-    views: 1118000,
-    likes: 29500,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 14).toISOString()
-  },
-  {
-    id: 'vid-114',
-    title: 'Urban Free Solo: Rooftops & Cranes of Dubai Skyline',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&auto=format&fit=crop&q=80',
-    duration: '13:40',
-    durationMinutes: 13,
-    category: 'Hardcore',
-    quality: '4K UHD',
-    rating: 95,
-    tags: ['action', 'extreme', 'dubai', 'rooftop', 'climbing', 'stunts'],
-    views: 1820000,
-    likes: 41200,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 15).toISOString()
-  },
-  {
-    id: 'vid-115',
-    title: 'Wingsuit Proximity Flying: Norway Fjords High Speed Pass',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
-    duration: '07:22',
-    durationMinutes: 7,
-    category: 'Hardcore',
-    quality: '4K UHD',
-    rating: 98,
-    tags: ['wingsuit', 'extreme', 'basejump', 'norway', 'action', 'flight'],
-    views: 2240000,
-    likes: 54000,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 16).toISOString()
-  },
-
-  // --- TUTORIALS ---
-  {
-    id: 'vid-116',
-    title: 'Mastering Cinematic Lighting & VFX in Unreal Engine 5.4',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
-    duration: '22:30',
-    durationMinutes: 22,
-    category: 'Creator Leaks',
-    quality: '4K UHD',
-    rating: 97,
-    tags: ['unrealengine', 'vfx', '3d', 'cgi', 'tutorials', 'creative'],
-    views: 785000,
-    likes: 14200,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 17).toISOString()
-  },
-  {
-    id: 'vid-117',
-    title: 'Color Grading Masterclass: Moody Dark Cinematic Looks',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=800&auto=format&fit=crop&q=80',
-    duration: '19:15',
-    durationMinutes: 19,
-    category: 'Creator Leaks',
-    quality: '4K UHD',
-    rating: 96,
-    tags: ['tutorials', 'colorgrading', 'cinematic', 'editing', 'video'],
-    views: 654000,
-    likes: 12900,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 18).toISOString()
-  },
-  {
-    id: 'vid-118',
-    title: 'Sound Design Secrets: Creating Heavy Cyberpunk Basslines',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&auto=format&fit=crop&q=80',
-    duration: '26:40',
-    durationMinutes: 26,
-    category: 'Creator Leaks',
-    quality: '1080p',
-    rating: 98,
-    tags: ['tutorials', 'sounddesign', 'music', 'synth', 'production', 'cyberpunk'],
-    views: 520000,
-    likes: 11400,
-    is_featured: false,
-    created_at: new Date(Date.now() - 86400000 * 19).toISOString()
-  },
-
-  // --- FEATURED ---
-  {
-    id: 'vid-119',
-    title: 'Superyacht Life: Mediterranean Summer Cruise & Lifestyle Tour',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d17?w=800&auto=format&fit=crop&q=80',
-    duration: '16:05',
-    durationMinutes: 16,
-    category: 'Trending',
-    quality: '4K UHD',
-    rating: 96,
-    tags: ['luxury', 'yacht', 'monaco', 'cruise', 'featured', 'lifestyle'],
-    views: 1521000,
-    likes: 38900,
-    is_featured: true,
-    created_at: new Date(Date.now() - 86400000 * 20).toISOString()
-  },
-  {
-    id: 'vid-120',
-    title: 'Billionaire Penthouse Tour: Manhattan 360 Skyline View',
-    embed_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80',
-    duration: '21:30',
-    durationMinutes: 21,
-    category: 'Trending',
-    quality: '4K UHD',
-    rating: 99,
-    tags: ['luxury', 'architecture', 'featured', 'lifestyle', 'penthouse', 'nyc'],
-    views: 3450000,
-    likes: 81200,
-    is_featured: true,
-    created_at: new Date(Date.now() - 86400000 * 21).toISOString()
+    created_at: '2026-11-20T06:30:00.000Z'
   }
 ];
 
@@ -643,7 +300,7 @@ const DEFAULT_AD_SETTINGS = {
     zoneId: '6093414',
     isActive: true,
     durationSeconds: 5,
-    frequencyMinutes: 0,
+    frequencyMinutes: 5,
     adTitle: 'Featured Sponsor — High Speed Premium Streaming',
     adDescription: 'Instant HD access worldwide. Video starts in 5s.',
     targetUrl: 'https://s.magsrv.com/v1/vast.php?idz=6093414',
@@ -786,7 +443,18 @@ export const store = {
   getVideos() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.VIDEOS);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Purge any legacy mock videos that may linger in client localStorage
+          const filtered = parsed.filter(v => v && !v.id?.startsWith('vid-yt-') && !v.id?.startsWith('vid-ig-') && !v.id?.startsWith('vid-fb-') && !v.id?.startsWith('vid-1'));
+          if (filtered.length !== parsed.length) {
+            this.saveVideos(filtered.length > 0 ? filtered : SEED_VIDEOS);
+            return filtered.length > 0 ? filtered : SEED_VIDEOS;
+          }
+          return parsed;
+        }
+      }
     } catch (e) {
       console.error('Error loading videos:', e);
     }

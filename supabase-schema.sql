@@ -65,6 +65,7 @@ ALTER TABLE public.ad_settings ADD COLUMN IF NOT EXISTS format TEXT DEFAULT 'ban
 ALTER TABLE public.ad_settings ADD COLUMN IF NOT EXISTS target_url TEXT;
 ALTER TABLE public.ad_settings ADD COLUMN IF NOT EXISTS vast_url TEXT;
 ALTER TABLE public.ad_settings ADD COLUMN IF NOT EXISTS frequency_hours INTEGER DEFAULT 1;
+ALTER TABLE public.ad_settings ADD COLUMN IF NOT EXISTS frequency_minutes INTEGER CHECK (frequency_minutes >= 0);
 
 -- 3. Create DMCA Takedown Requests Table
 CREATE TABLE IF NOT EXISTS public.takedown_requests (
@@ -300,7 +301,7 @@ GRANT ALL ON TABLE public.source_checkpoints TO authenticated, service_role;
 GRANT ALL ON TABLE public.suppressed_videos TO authenticated, service_role;
 
 -- ==============================================================
--- 11. Seed Verified Live ExoClick Zones (Site ID: 1120332) - 9 Dedicated Slots
+-- 11. Seed Verified Live ExoClick Zones (Site ID: 1120332) - 12 Dedicated Slots
 -- ==============================================================
 INSERT INTO public.ad_settings (slot_id, name, network, dimensions, format, is_active, code, vast_url, frequency_hours)
 VALUES
@@ -312,17 +313,12 @@ VALUES
     ('slot_sticky_footer_mobile', 'Mobile Sticky Bottom 300x250', 'ExoClick Sticky Banner', '300x250', 'sticky', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e17" data-zoneid="6096158"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
     ('slot_video_preroll', 'In-Stream 5-Second Video Pre-Roll Ad', 'ExoClick VAST / In-Stream', 'Video Overlay', 'vast', true, NULL, 'https://s.magsrv.com/v1/vast.php?idz=6093414', 1),
     ('slot_popunder', 'Background Popunder (1h Capped)', 'ExoClick / Popunder', 'Full Tab', 'popunder', true, '<script type="application/javascript">var ad_idzone = "6093374", ad_popup_fallback = false, ad_popup_force = false, ad_chrome_enabled = true, ad_new_tab = true, ad_frequency_period = 60, ad_frequency_count = 1, ad_trigger_method = 1, ad_tcf_enabled = true;</script><script async type="application/javascript" id="popmagicldr" data-ad_idzone="6093374" data-ad_frequency_period="60" data-ad_frequency_count="1" data-ad_trigger_method="1" data-ad_tcf_enabled="true" src="https://a.pemsrv.com/popunder1000.js"></script>', NULL, 1),
-    ('slot_interstitial', 'Desktop Fullpage Interstitial', 'ExoClick / Interstitial', '1600x900', 'interstitial', true, '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1)
-ON CONFLICT (slot_id) DO UPDATE SET
-    name = EXCLUDED.name,
-    network = EXCLUDED.network,
-    dimensions = EXCLUDED.dimensions,
-    format = EXCLUDED.format,
-    is_active = EXCLUDED.is_active,
-    code = EXCLUDED.code,
-    vast_url = EXCLUDED.vast_url,
-    frequency_hours = EXCLUDED.frequency_hours,
-    updated_at = now();
+    ('slot_interstitial', 'Desktop Fullpage Interstitial', 'ExoClick / Interstitial', '1600x900', 'interstitial', true, '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e35" data-zoneid="6093518"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
+    ('slot_mobile_interstitial', 'Mobile Fullpage Interstitial', 'ExoClick / Mobile Interstitial', 'Mobile Fullscreen', 'interstitial_mobile', true, '<script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script><ins class="eas6a97888e33" data-zoneid="6100242"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
+    ('slot_desktop_skyscraper_left', 'Desktop Skyscraper (Left 160x600)', 'ExoClick / 160x600', '160x600', 'skyscraper_left', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6100280"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1),
+    ('slot_desktop_skyscraper_right', 'Desktop Skyscraper (Right 160x600)', 'ExoClick / 160x600', '160x600', 'skyscraper_right', true, '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script><ins class="eas6a97888e2" data-zoneid="6100290"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>', NULL, 1)
+ON CONFLICT (slot_id) DO NOTHING;
+UPDATE public.ad_settings SET frequency_minutes = 5 WHERE slot_id = 'slot_video_preroll' AND frequency_minutes IS NULL;
 
 -- 12. Seed Initial Crawler Sources
 INSERT INTO public.crawler_sources (name, url, category, video_limit, is_enabled)

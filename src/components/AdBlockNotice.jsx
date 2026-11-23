@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useAdBlock } from '../services/adBlockContext';
 
 export default function AdBlockNotice() {
-  const { isNoticeOpen } = useAdBlock();
+  const { isNoticeOpen, recheck, isRechecking } = useAdBlock();
   const dialogRef = useRef(null);
   const buttonRef = useRef(null);
   const prevActiveElementRef = useRef(null);
@@ -102,17 +102,17 @@ export default function AdBlockNotice() {
           </div>
           <div>
             <h2 id="adblock-dialog-title" className="text-lg sm:text-xl font-black text-white tracking-tight">
-              AdBlocker Detected
+              Please allow ads on this site
             </h2>
             <p className="text-xs text-rose-400 font-bold flex items-center gap-1 mt-0.5">
-              <i className="ri-lock-line not-italic"></i> Access Restricted — Disable to Continue
+              <i className="ri-lock-line not-italic"></i> Ads support free playback
             </p>
           </div>
         </div>
 
         {/* Modal Body */}
         <p id="adblock-dialog-desc" className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-          Please disable your ad blocker or whitelist this site to continue watching.
+          Allow ads for this site in your browser or extension, then select Check again to continue here.
         </p>
 
         {/* Step-by-Step Whitelist Instructions */}
@@ -124,7 +124,7 @@ export default function AdBlockNotice() {
             <div>
               <strong className="text-slate-100 block font-bold">Brave Browser:</strong>
               <span className="text-slate-400 leading-relaxed">
-                Click the shield icon in the address bar and toggle <strong>Shields to OFF</strong> for this site.
+                Open the shield icon in the address bar and allow ads for this site.
               </span>
             </div>
           </div>
@@ -147,15 +147,17 @@ export default function AdBlockNotice() {
           <button
             ref={buttonRef}
             type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.location.reload();
-              }
-            }}
+            onClick={recheck}
+            aria-disabled={isRechecking}
+            aria-busy={isRechecking}
             className="w-full py-3.5 px-6 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer"
           >
             <i className="ri-refresh-line text-base"></i>
-            <span>Refresh Page</span>
+            <span aria-live="polite">{isRechecking ? 'Checking…' : 'Check again'}</span>
+          </button>
+          <button type="button" onClick={() => window.location.reload()}
+            className="mt-2 w-full py-2 text-sm text-slate-300 underline">
+            Reload page
           </button>
         </div>
       </div>

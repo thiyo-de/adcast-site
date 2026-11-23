@@ -56,10 +56,8 @@ export default function Home({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-4 space-y-5">
       {/* 1. Top Leaderboard Banner (Fully Responsive Container) */}
-      <div className="w-full min-w-0 my-2 flex justify-center">
-        <div className="w-full min-w-0 flex justify-center">
+      <div className="adcast-inline-placement w-full min-w-0 my-2 flex justify-center">
           <AdSlot slotId="slot_top_banner" className="w-full" />
-        </div>
       </div>
 
       {/* 2.5 Pick Up Where You Left Off (Recently Watched Shelf) */}
@@ -322,7 +320,7 @@ export default function Home({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {processedVideos.map((video, index) => {
             const showNativeAd = index > 0 && index % 6 === 0;
 

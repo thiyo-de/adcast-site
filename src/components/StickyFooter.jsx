@@ -1,111 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import AdSlot from './AdSlot';
-import { useAdSettings } from '../services/store';
+import React, { useEffect, useRef } from 'react';
+import { useAdSettings, isPlaceholderAdCode } from '../services/store';
 import { useAdBlock } from '../services/adBlockContext';
+import { useAgeConfirmed } from '../services/ageVerification';
+import { mountAdTag } from '../services/adTag';
+import { useMobileAdViewport } from '../services/adViewport';
 
-export default function StickyFooter({ currentView }) {
+export default function StickyFooter({ currentView, videoId }) {
+  const host = useRef(null);
+  const mobile = useMobileAdViewport();
+  const slot = useAdSettings()[mobile ? 'slot_sticky_footer_mobile' : 'slot_sticky_footer'];
   const { isNoticeOpen } = useAdBlock();
-  const [isDismissed, setIsDismissed] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const wrapperRef = useRef(null);
-  const adSettings = useAdSettings();
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const activeSlotId = (isMobile && adSettings['slot_sticky_footer_mobile']?.isActive)
-    ? 'slot_sticky_footer_mobile'
-    : 'slot_sticky_footer';
-  const slot = adSettings[activeSlotId];
-
-  // Reset dismissal when user navigates to a new page (matching ExoClick 'Show on every page' setting)
+  const ageConfirmed = useAgeConfirmed();
+  const enabled = ageConfirmed && !isNoticeOpen && (currentView === 'home' || currentView === 'watch')
+    && slot?.isActive && !isPlaceholderAdCode(slot.code);
   useEffect(() => {
-    setIsDismissed(false);
-    setIsLoaded(false);
-  }, [currentView]);
-
-  useEffect(() => {
-    if (!slot || !slot.isActive || isDismissed || isNoticeOpen) return;
-
-    let intervalId = null;
-
-    const checkRenderedCreative = () => {
-      if (!wrapperRef.current) return;
-      const ad = wrapperRef.current.querySelector('[data-ad-state]');
-      const isCurrentlyVisible = ad?.dataset.adState === 'loaded';
-
-      if (isCurrentlyVisible) {
-        setIsLoaded(true);
-        if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-      }
-    };
-
-    intervalId = setInterval(checkRenderedCreative, 400);
-    checkRenderedCreative();
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [slot, isDismissed, isNoticeOpen, currentView]);
-
-  const handleDismiss = (e) => {
-    if (e) {
-      if (typeof e.stopPropagation === 'function') e.stopPropagation();
-      if (typeof e.preventDefault === 'function') e.preventDefault();
-    }
-    setIsDismissed(true);
-    setIsLoaded(false);
-  };
-
-  if (!slot || !slot.isActive || isDismissed || isNoticeOpen) return null;
-  if (typeof window !== 'undefined' && (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/'))) return null;
-
-  return (
-    <aside
-      id="adcast-sticky-footer"
-      aria-label="Sponsored"
-      className={`fixed bottom-0 left-0 right-0 z-40 w-full flex justify-center items-center pointer-events-none transition-all duration-300 pb-1 sm:pb-2 ${
-        isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-      }`}
-      style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}
-    >
-      {/* Suppress duplicate provider-injected bottom close bars so only our corner ✕ button is shown */}
-      <style>{`
-        #adcast-sticky-footer .exo-close,
-        #adcast-sticky-footer [class*="close-btn"],
-        #adcast-sticky-footer [class*="close_btn"],
-        #adcast-sticky-footer [class*="close_bar"],
-        #adcast-sticky-footer [class*="close-bar"],
-        #adcast-sticky-footer [class*="close-button"],
-        #adcast-sticky-footer [class*="close_button"],
-        #adcast-sticky-footer a[class*="close"],
-        #adcast-sticky-footer div[class*="close"] {
-          display: none !important;
-        }
-      `}</style>
-
-      <div
-        ref={wrapperRef}
-        className="relative pointer-events-auto w-fit max-w-[98vw] flex items-center justify-center mx-auto"
-      >
-        {/* Sole Unified Floating Close Button tightly anchored to the creative top-right corner */}
-        {isLoaded && (
-          <button
-            type="button"
-            onClick={handleDismiss}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Close advertisement"
-            className="absolute -top-2.5 right-1 sm:-right-2 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/95 hover:bg-black text-white/90 hover:text-white border border-white/20 shadow-xl text-[10px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
-            title="Dismiss ad"
-          >
-            ✕
-          </button>
-        )}
-
-        <AdSlot key={`${currentView}-${activeSlotId}`} slotId={activeSlotId} devBadge={false} />
-      </div>
-    </aside>
-  );
+    if (enabled && host.current) return mountAdTag(host.current, slot.code);
+  }, [enabled, slot?.code, mobile, currentView, videoId]);
+  // ExoClick owns the fixed banner, refresh and close control. This host has no overlay of its own.
+  return enabled ? <aside id="adcast-sticky-footer" aria-label="Sponsored" ref={host} /> : null;
 }

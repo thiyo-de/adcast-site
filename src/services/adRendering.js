@@ -1,8 +1,8 @@
 // Production-grade ad delivery verification
 // Cross-origin iframe contents remain opaque; geometry + non-empty presence is the robust signal.
-export function hasRenderedAd(root, loadedFrames = new WeakSet()) {
+export function hasRenderedAd(root, loadedFrames = new WeakSet(), documentLoaded = false) {
   if (!root) return false;
-  return [...root.querySelectorAll('img, video, iframe, ins')].some((element) => {
+  return [...root.querySelectorAll('img, video, iframe')].some((element) => {
     const rect = element.getBoundingClientRect();
     if (rect.width <= 15 || rect.height <= 15) return false;
     const style = getComputedStyle(element);
@@ -11,17 +11,20 @@ export function hasRenderedAd(root, loadedFrames = new WeakSet()) {
     if (element.tagName === 'VIDEO') return element.readyState >= 2 && element.videoWidth > 10;
     if (element.tagName === 'IFRAME') {
       try {
-        if (element.contentDocument) return hasRenderedAd(element.contentDocument, loadedFrames);
+        const inner = element.contentDocument;
+        if (inner) {
+          // A srcdoc wrapper finishes loading after its initial child frames.
+          // Those inner load events do not cross the document boundary.
+          const ready = (documentLoaded || loadedFrames.has(element)) && inner.readyState === 'complete';
+          return hasRenderedAd(inner, loadedFrames, ready);
+        }
       } catch {
         // Cross-origin frames cannot be inspected from the host page.
       }
       const src = element.getAttribute('src');
-      return loadedFrames.has(element) && Boolean(
-        element.getAttribute('srcdoc') || (src && src !== 'about:blank')
+      return (documentLoaded || loadedFrames.has(element)) && Boolean(
+        element.getAttribute('srcdoc')?.trim() || (src?.trim() && src !== 'about:blank')
       );
-    }
-    if (element.tagName === 'INS' && element.children.length > 0) {
-      return rect.width > 50 && rect.height > 20;
     }
     return false;
   });

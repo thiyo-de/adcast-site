@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { store, useAdSettings, parseToEmbedUrl } from '../services/store';
 import { useAdBlock } from '../services/adBlockContext';
-import { resolveVastAd } from '../utils/vast';
+import { resolveVastAd, vastSkipSeconds } from '../utils/vast';
 
 export default function VideoPlayer({ video, onEnded }) {
   const { verifyBeforePlayback } = useAdBlock();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPreRoll, setShowPreRoll] = useState(false);
-  const [countdown, setCountdown] = useState(5);
-  const [canSkip, setCanSkip] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const canSkip = countdown === 0;
   const [adData, setAdData] = useState(null);
   const [isAdMuted, setIsAdMuted] = useState(false);
   const [isAdAutoplayRefused, setIsAdAutoplayRefused] = useState(false);
@@ -25,8 +25,38 @@ export default function VideoPlayer({ video, onEnded }) {
   const preRollSlot = adSettings['slot_video_preroll'];
   const hasPreRoll = preRollSlot && preRollSlot.isActive;
 
+  const [directStreamUrl, setDirectStreamUrl] = useState('');
+  const [isResolvingStream, setIsResolvingStream] = useState(false);
+
   const rawUrl = video?.stream_url || video?.embed_url || '';
   const resolvedEmbedUrl = parseToEmbedUrl(rawUrl);
+
+  // Dynamically resolve Onestream and wrapped media pages into direct CDN mp4 streams
+  useEffect(() => {
+    let isMounted = true;
+    if (rawUrl && (rawUrl.includes('onestream.today') || rawUrl.includes('play.onestream'))) {
+      setIsResolvingStream(true);
+      fetch(`/api/resolve-stream?url=${encodeURIComponent(rawUrl)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted && data?.ok && data?.streamUrl) {
+            setDirectStreamUrl(data.streamUrl);
+          }
+        })
+        .catch((err) => console.warn('Stream resolution fallback:', err))
+        .finally(() => {
+          if (isMounted) setIsResolvingStream(false);
+        });
+    } else {
+      setDirectStreamUrl('');
+      setIsResolvingStream(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [rawUrl]);
+
+  const activeMediaUrl = directStreamUrl || resolvedEmbedUrl;
 
   const recordAdDiagnostic = (code, message) => {
     if (typeof window !== 'undefined') {
@@ -40,7 +70,14 @@ export default function VideoPlayer({ video, onEnded }) {
 
   const isDirectVideo = (url) => {
     if (!url) return false;
-    return url.endsWith('.mp4') || url.endsWith('.m3u8') || url.endsWith('.webm') || url.includes('.mp4?');
+    return (
+      url.endsWith('.mp4') ||
+      url.endsWith('.m3u8') ||
+      url.endsWith('.webm') ||
+      url.includes('.mp4?') ||
+      url.includes('stream=1') ||
+      url.includes('fastbytes.xyz')
+    );
   };
 
   const fireImpressionBeacons = () => {
@@ -81,8 +118,7 @@ export default function VideoPlayer({ video, onEnded }) {
     setAdData(null);
     setIsAdMuted(false);
     setIsAdAutoplayRefused(false);
-    setCountdown(5);
-    setCanSkip(false);
+    setCountdown(null);
     setIsLoadingAd(false);
     setPlaybackError(false);
     prerollCooldownRecordedRef.current = false;
@@ -92,25 +128,17 @@ export default function VideoPlayer({ video, onEnded }) {
 
   // Pre-fetch VAST ad on mount/video change if 5-minute cooldown has passed
   useEffect(() => {
-    let isCancelled = false;
-
     const lastPreRoll = parseInt(localStorage.getItem('adcast_last_preroll') || '0', 10);
     const cooldownMinutes = typeof preRollSlot?.frequencyMinutes === 'number' ? preRollSlot.frequencyMinutes : 0;
     const cooldownMs = cooldownMinutes * 60 * 1000;
     const isCooldownActive = cooldownMs > 0 && (Date.now() - lastPreRoll < cooldownMs);
 
     if (hasPreRoll && preRollSlot?.vastUrl && !isCooldownActive) {
-      resolveVastAd(preRollSlot.vastUrl)
-        .then((res) => {
-          if (!isCancelled && res?.mediaUrl) {
-            prefetchedAdRef.current = res;
-          }
-        })
-        .catch(() => {});
+      prefetchedAdRef.current = resolveVastAd(preRollSlot.vastUrl);
     }
 
     return () => {
-      isCancelled = true;
+      prefetchedAdRef.current = null;
     };
   }, [video?.id, hasPreRoll, preRollSlot?.vastUrl, preRollSlot?.frequencyMinutes]);
 
@@ -155,23 +183,19 @@ export default function VideoPlayer({ video, onEnded }) {
     const isCooldownActive = cooldownMs > 0 && (now - lastPreRoll < cooldownMs);
 
     if (hasPreRoll && preRollSlot?.vastUrl && !isCooldownActive) {
-      let vastResult = prefetchedAdRef.current;
-      if (!vastResult?.mediaUrl) {
-        setIsLoadingAd(true);
-        vastResult = await resolveVastAd(preRollSlot.vastUrl);
-        setIsLoadingAd(false);
-      }
+      setIsLoadingAd(true);
+      prefetchedAdRef.current ??= resolveVastAd(preRollSlot.vastUrl);
+      const vastResult = await prefetchedAdRef.current;
+      setIsLoadingAd(false);
 
       if (vastResult?.mediaUrl) {
-        localStorage.setItem('adcast_last_preroll', now.toString());
         prefetchedAdRef.current = null;
         prerollCooldownRecordedRef.current = false;
         firedTrackingRef.current.clear();
         firedImpressionRef.current = false;
         setAdData(vastResult);
         setShowPreRoll(true);
-        setCountdown(5);
-        setCanSkip(false);
+        setCountdown(null);
         setIsPlaying(true);
         return;
       } else {
@@ -250,17 +274,22 @@ export default function VideoPlayer({ video, onEnded }) {
   }, [isPlaying, video?.id]);
 
   const handleSkipAd = () => {
-    if (adVideoRef.current) {
-      try {
-        adVideoRef.current.pause();
-        adVideoRef.current.src = '';
-        adVideoRef.current.load();
-      } catch {}
-    }
+    if (!canSkip) return;
+    fireTrackingEvents('skip');
+    adVideoRef.current?.pause();
     setShowPreRoll(false);
   };
 
+  function updateSkipTime(media) {
+    const offsets = adData?.skipOffsets || [];
+    const seconds = offsets.map(offset => vastSkipSeconds(offset, media.duration));
+    const available = seconds.length > 0 && seconds.every(value => value !== null);
+    setCountdown(available ? Math.max(0, Math.ceil(Math.max(...seconds) - media.currentTime)) : null);
+  }
+
   const handleAdClick = () => {
+    const dest = adData?.clickUrl;
+    if (!/^https?:\/\//i.test(dest || '')) return;
     if (adData?.clickTrackingUrls && Array.isArray(adData.clickTrackingUrls)) {
       adData.clickTrackingUrls.forEach((url) => {
         try {
@@ -269,10 +298,7 @@ export default function VideoPlayer({ video, onEnded }) {
         } catch {}
       });
     }
-    const dest = adData?.clickUrl || preRollSlot?.targetUrl;
-    if (dest && typeof dest === 'string' && !dest.includes('vast.php') && (dest.startsWith('http://') || dest.startsWith('https://'))) {
-      window.open(dest, '_blank', 'noopener,noreferrer');
-    }
+    window.open(dest, '_blank', 'noopener,noreferrer');
   };
 
   if (!video) return null;
@@ -335,6 +361,7 @@ export default function VideoPlayer({ video, onEnded }) {
             playsInline
             webkit-playsinline="true"
             muted={isAdMuted}
+            onLoadedMetadata={e => updateSkipTime(e.currentTarget)}
             onPlaying={() => {
               fireImpressionBeacons();
               fireTrackingEvents('start');
@@ -344,19 +371,15 @@ export default function VideoPlayer({ video, onEnded }) {
               if (!prerollCooldownRecordedRef.current) {
                 prerollCooldownRecordedRef.current = true;
                 try {
-                  sessionStorage.setItem('adcast_last_preroll', Date.now().toString());
+                  localStorage.setItem('adcast_last_preroll', Date.now().toString());
                 } catch (e) {
-                  console.warn('sessionStorage write error:', e);
+                  console.warn('Pre-roll cooldown write error:', e);
                 }
               }
             }}
             onTimeUpdate={(e) => {
               const el = e.currentTarget;
-              if (el.currentTime) {
-                const remaining = Math.max(0, 5 - Math.floor(el.currentTime));
-                setCountdown(remaining);
-                if (remaining === 0) setCanSkip(true);
-              }
+              updateSkipTime(el);
               if (!el.duration) return;
               const progress = el.currentTime / el.duration;
               if (progress >= 0.25) fireTrackingEvents('firstQuartile');
@@ -427,17 +450,17 @@ export default function VideoPlayer({ video, onEnded }) {
           </div>
 
           {/* Bottom-Left Visit Sponsor Link */}
-          <div className="absolute bottom-4 left-4 z-40">
+          {adData.clickUrl && <div className="absolute bottom-4 left-4 z-40">
             <button
               onClick={handleAdClick}
               className="flex items-center gap-1.5 min-h-[40px] px-4 py-2 rounded-full bg-black/85 hover:bg-black backdrop-blur-md border border-white/20 text-white text-xs font-bold transition-all shadow-xl active:scale-95 cursor-pointer"
             >
               Visit Sponsor <i className="ri-external-link-line not-italic text-xs"></i>
             </button>
-          </div>
+          </div>}
 
           {/* Bottom-Right Skip Button */}
-          <div className="absolute bottom-4 right-4 z-40">
+          {countdown !== null && <div className="absolute bottom-4 right-4 z-40">
             <button
               onClick={handleSkipAd}
               disabled={!canSkip}
@@ -451,7 +474,7 @@ export default function VideoPlayer({ video, onEnded }) {
               <i className="ri-skip-forward-fill not-italic text-sm"></i>
               <span>{canSkip ? 'Skip Ad' : `Skip in ${countdown}s`}</span>
             </button>
-          </div>
+          </div>}
         </div>
       )}
 
@@ -479,22 +502,23 @@ export default function VideoPlayer({ video, onEnded }) {
                 </button>
               </div>
             </div>
-          ) : isDirectVideo(resolvedEmbedUrl) ? (
+          ) : isDirectVideo(activeMediaUrl) ? (
             <video
               ref={videoRef}
-              src={resolvedEmbedUrl}
+              src={activeMediaUrl}
               controls
               autoPlay
               playsInline
               webkit-playsinline="true"
               preload="metadata"
+              referrerPolicy="no-referrer"
               onEnded={onEnded}
               onError={() => setPlaybackError(true)}
               className="w-full h-full object-contain bg-black"
             />
           ) : (
             <iframe
-              src={resolvedEmbedUrl}
+              src={activeMediaUrl}
               title={video.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen

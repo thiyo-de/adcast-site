@@ -19,111 +19,60 @@
   text-decoration: none;
 }
 .adcast-ad-native,
+.adcast-ad-native > ins {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
 .adcast-ad-native-container {
+  container-type: inline-size;
+}
+
+.adcast-ad-native :is(img, video) {
+  max-width: 100%;
+  max-height: 56.25cqw;
+  height: auto;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.adcast-ad-native :is(.msg-native-widget-item-image, .exo-native-widget-item-image) {
+  background-size: cover !important;
+  background-repeat: no-repeat;
+  background-position: center !important;
+}
+
+.adcast-ad-native :is(.msg-native-widget-item-image-wrapper, .exo-native-widget-item-image-wrapper) {
   width: 100% !important;
-  height: 100% !important;
-  display: block !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-  overflow: hidden !important;
-  position: relative !important;
+  aspect-ratio: 16 / 9;
+  height: auto !important;
 }
 
-.adcast-ad-native > ins,
-.adcast-ad-native-container > ins {
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
-  display: block !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
-  overflow: hidden !important;
-}
-
-.adcast-ad-native table,
-.adcast-ad-native-container table,
-.adcast-ad-native tbody,
-.adcast-ad-native-container tbody,
-.adcast-ad-native tr,
-.adcast-ad-native-container tr,
-.adcast-ad-native td,
-.adcast-ad-native-container td,
-.adcast-ad-native a,
-.adcast-ad-native-container a,
-.adcast-ad-native iframe,
-.adcast-ad-native-container iframe {
-  width: 100% !important;
-  min-width: 100% !important;
-  max-width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
-  display: block !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-  overflow: hidden !important;
-  transform: none !important;
-}
-
-.adcast-ad-native img,
-.adcast-ad-native video,
-.adcast-ad-native-container img,
-.adcast-ad-native-container video {
-  width: 100% !important;
-  height: 100% !important;
-  min-width: 100% !important;
-  min-height: 100% !important;
-  object-fit: cover !important;
-  display: block !important;
-  border: none !important;
-  border-radius: 0 !important;
-}
-
-/*
- * ExoClick native recommendation widgets inject their own empty header,
- * grid gutters and text/branding row. The site supplies its own visible
- * Sponsored disclosure and metadata, so keep only the real 16:9 creative.
- * These rules are deliberately scoped to the native slot and cannot affect
- * banners, sticky ads, interstitials, popunders or VAST playback.
- */
-.adcast-ad-native .exo-native-widget-header {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  line-height: 0 !important;
-}
-
-.adcast-ad-native .exo-native-widget-outer-container {
-  width: 100% !important;
-  height: 100% !important;
-  margin: 0 !important;
-}
-
-.adcast-ad-native .exo-native-widget-item-container {
-  width: 100% !important;
-  height: 100% !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-.adcast-ad-native .exo-native-widget-item-image-ratio {
-  padding-top: 56.25% !important;
-}
-
-.adcast-ad-native .exo-native-widget-item-content {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+.adcast-ad-native :is(.msg-native-widget-item, .msg-native-widget-item-container, .msg-native-widget-item-content,
+                        .exo-native-widget-item, .exo-native-widget-item-container, .exo-native-widget-item-content) {
+  height: auto !important;
   min-height: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
+}
+
+.adcast-ad-native :is(.msg-native-widget-header, .exo-native-widget-header):empty {
+  display: none !important;
+}
+
+/* Hide ExoClick's own text section — headline and advertiser name are rendered
+   in our own info section below the thumbnail so labels never appear twice. */
+.adcast-ad-native :is(.exo-native-widget-item-content, .msg-native-widget-item-content) {
+  display: none !important;
+}
+
+.adcast-gutter [data-ad-state="loaded"] {
+  pointer-events: auto;
+}
+
+.adcast-inline-placement:not(:has([data-ad-state="loaded"])) {
+  height: 0;
+  margin-block: 0;
+  overflow: hidden;
 }
 
 .adcast-ad-content > iframe,

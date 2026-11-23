@@ -1,121 +1,81 @@
+import { useMobileAdViewport } from '../services/adViewport';
+import { mountAdTag } from '../services/adTag';
 import React, { useEffect, useRef, useState } from 'react';
-import { store, useAdSettings } from '../services/store';
+import { store, useAdSettings, isPlaceholderAdCode } from '../services/store';
 import { hasRenderedAd, getAdFrameLayout } from '../services/adRendering';
 import { useAdBlock } from '../services/adBlockContext';
 import { AD_BLOCK_STATES } from '../services/adBlockDetection';
 
-export default function AdSlot({ slotId, className = '', devBadge = true }) {
+export default function AdSlot({ slotId, className = '', devBadge = true, onAdLoaded = null }) {
   const containerRef = useRef(null);
   const outerWrapperRef = useRef(null);
-  const [isFallback, setIsFallback] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [adHeadline, setAdHeadline] = useState('');
   const adSettings = useAdSettings();
-  const slot = adSettings[slotId];
+
+  const isMobileViewport = useMobileAdViewport();
+
+  // Determine target zone by screen width first:
+  // Top banner: mobile zone 'slot_top_banner_mobile' (<768px), desktop zone 'slot_top_banner' (>=768px)
+  // Sticky bottom: mobile zone 'slot_sticky_footer_mobile' (<768px), desktop zone 'slot_sticky_footer' (>=768px)
+  let targetSlotId = slotId;
+  if (slotId === 'slot_top_banner') {
+    targetSlotId = isMobileViewport ? 'slot_top_banner_mobile' : 'slot_top_banner';
+  } else if (slotId === 'slot_sticky_footer') {
+    targetSlotId = isMobileViewport ? 'slot_sticky_footer_mobile' : 'slot_sticky_footer';
+  }
+
+  // Check ONLY that target zone's switch
+  const activeSlot = adSettings[targetSlotId];
   const isDevMode = store.isDevMode();
   const { isNoticeOpen, detectionState } = useAdBlock();
   const isAdBlockSuspected = isNoticeOpen || detectionState === AD_BLOCK_STATES.SUSPECTED_BLOCKING;
 
-  const [isMobileViewport, setIsMobileViewport] = useState(() => {
-    if (typeof window !== 'undefined') return window.innerWidth < 768;
-    return false;
-  });
+  const isDedicatedMobileBanner = targetSlotId === 'slot_top_banner_mobile' || targetSlotId === 'slot_sticky_footer_mobile';
+  const effectiveCode = activeSlot?.code || '';
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobileViewport(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Device-adaptive zone switching based on Ads-Prop specifications:
-  // Top banner: mobile 300x250 banner zone 6096160 (<768px), desktop 728x90 zone 6093488 (>=768px)
-  // Sticky bottom: mobile zone 6096158 (<768px), desktop zone 6093426 (>=768px)
-  const isDedicatedMobileBanner = slotId === 'slot_top_banner_mobile' || slotId === 'slot_sticky_footer_mobile';
-  const activeSlot = (slotId === 'slot_top_banner' && isMobileViewport && adSettings['slot_top_banner_mobile']?.isActive)
-    ? adSettings['slot_top_banner_mobile']
-    : ((slotId === 'slot_sticky_footer' && isMobileViewport && adSettings['slot_sticky_footer_mobile']?.isActive)
-      ? adSettings['slot_sticky_footer_mobile']
-      : slot);
-
-  const rawCode = activeSlot?.code || '';
-  let effectiveCode = rawCode;
-  if (slotId === 'slot_top_banner' && rawCode) {
-    const desktopZone = slot?.desktopZoneId || '6093488';
-    const mobileZone = slot?.mobileZoneId || '6096160';
-    if (isMobileViewport) {
-      effectiveCode = rawCode.includes(desktopZone)
-        ? rawCode.replaceAll(desktopZone, mobileZone)
-        : (rawCode.includes('6093362') ? rawCode.replaceAll('6093362', mobileZone) : rawCode);
-    } else {
-      effectiveCode = rawCode.includes(mobileZone)
-        ? rawCode.replaceAll(mobileZone, desktopZone)
-        : (rawCode.includes('6093362') ? rawCode.replaceAll('6093362', desktopZone) : rawCode);
-    }
-  } else if (slotId === 'slot_sticky_footer' && rawCode) {
-    const desktopZone = slot?.desktopZoneId || '6093426';
-    const mobileZone = slot?.mobileZoneId || '6096158';
-    if (isMobileViewport) {
-      effectiveCode = rawCode.includes(desktopZone)
-        ? rawCode.replaceAll(desktopZone, mobileZone)
-        : rawCode;
-    } else {
-      effectiveCode = rawCode.includes(mobileZone)
-        ? rawCode.replaceAll(mobileZone, desktopZone)
-        : rawCode;
-    }
-  }
-
-  const isNative = slotId === 'slot_native_feed';
-  const frameWidth = (slotId === 'slot_below_player' || isDedicatedMobileBanner)
+  const isNative = targetSlotId === 'slot_native_feed';
+  const frameWidth = (targetSlotId === 'slot_below_player' || isDedicatedMobileBanner || (isMobileViewport && (targetSlotId === 'slot_top_banner' || targetSlotId === 'slot_sticky_footer')))
     ? 300
-    : (slotId === 'slot_top_banner' || slotId === 'slot_sticky_footer')
-      ? (isMobileViewport ? 300 : 728)
-      : undefined;
-  const frameHeight = frameWidth === 728 ? 90 : 250;
+    : (targetSlotId === 'slot_top_banner' || targetSlotId === 'slot_sticky_footer')
+      ? 728
+      : (targetSlotId === 'slot_desktop_skyscraper_left' || targetSlotId === 'slot_desktop_skyscraper_right')
+        ? 160
+        : undefined;
+  const enabled = activeSlot?.isActive && !isPlaceholderAdCode(effectiveCode) && !isAdBlockSuspected;
 
-  // Consolidated effect: parse and inject ad tag or switch to fallback
   useEffect(() => {
-    let isMounted = true;
-    if (!slot || !slot.isActive) return;
-
-    // Detect unconfigured placeholder codes
-    const isPlaceholder =
-      !effectiveCode ||
-      effectiveCode.includes('Replace in Admin Panel') ||
-      effectiveCode.includes('EXOCLICK BELOW-PLAYER BANNER') ||
-      effectiveCode.includes('EXOCLICK TOP LEADERBOARD') ||
-      effectiveCode.includes('EXOCLICK NATIVE RECOMMENDATIONS') ||
-      effectiveCode.includes('EXOCLICK TABUNDER') ||
-      effectiveCode.includes('JUICYADS') ||
-      effectiveCode.includes('TrafficFactory') ||
-      effectiveCode.includes('EXOCLICK STICKY BOTTOM BANNER') ||
-      effectiveCode.includes('Adsterra Popunder Script Placeholder');
-
-    if (isPlaceholder) {
-      setIsFallback(true);
-      return;
-    }
-
-    setIsFallback(false);
     setIsLoaded(false);
-
-    if (!containerRef.current) return;
+    if (!enabled || !containerRef.current) return;
+    let isMounted = true;
     const container = containerRef.current;
-    container.innerHTML = '';
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = effectiveCode;
+    const wrapper = outerWrapperRef.current;
+    const backgrounds = new Map();
+    function widgetImageReady() {
+      // ExoClick can fill ordinary banner zones with a multi-item native widget.
+      return Array.from(container.querySelectorAll('.msg-native-widget-item-image, .exo-native-widget-item-image')).some(media => {
+        const rect = media.getBoundingClientRect();
+        if (rect.width <= 15 || rect.height <= 15) return false;
+        const style = getComputedStyle(media);
+        if (style.visibility === 'hidden' || style.opacity === '0') return false;
+        const url = style.backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+        if (!url) return false;
+        let image = backgrounds.get(url);
+        if (!image) {
+          image = new Image();
+          backgrounds.set(url, image);
+          image.onload = updateDelivery;
+          image.src = url;
+        }
+        return image.complete && image.naturalWidth > 10 && image.naturalHeight > 10;
+      });
+    }
 
     // Fit oversized fixed creatives proportionally; never crop or stretch their contents.
     const fitFrame = () => {
       const wrapper = outerWrapperRef.current;
       if (!isMounted || !wrapper || !wrapper.clientWidth) return;
-      if (isNative) {
-        container.style.transform = 'none';
-        wrapper.style.height = '100%';
-        return;
-      }
+      if (isNative) return;
       // Measure untransformed bounds, then fit the entire creative within the card.
       container.style.transform = 'none';
       const wrapperRect = wrapper.getBoundingClientRect();
@@ -129,15 +89,15 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       container.style.transform = `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`;
       wrapper.style.height = `${layout.height}px`;
     };
-    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fitFrame) : null;
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => updateDelivery()) : null;
     const observedCreatives = new WeakSet();
     resizeObserver?.observe(outerWrapperRef.current);
     resizeObserver?.observe(container);
-    window.addEventListener('resize', fitFrame);
+    window.addEventListener('resize', updateDelivery);
 
     // Style only our frame. Never rewrite the provider's tables, links or thumbnails.
     const loadedFrames = new WeakSet();
-    const updateDelivery = () => {
+    function updateDelivery() {
       if (!isMounted) return;
       // Provider frames can resize without resizing their absolute-positioned wrapper.
       container.querySelectorAll('ins, iframe, img, video').forEach(element => {
@@ -147,16 +107,19 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
         }
       });
       fitFrame();
-      const delivered = hasRenderedAd(container, loadedFrames);
-      if (delivered) {
-        setIsLoaded(true);
-      }
-    };
+      const creative = isNative && container.querySelector('.msg-native-widget-item, .exo-native-widget-item');
+      const delivered = widgetImageReady() || hasRenderedAd(creative || container, loadedFrames);
+      setIsLoaded(delivered);
+      onAdLoaded?.(delivered);
+      if (!delivered && !isNative) wrapper.style.height = '0px';
+    }
     const handleLoad = (event) => {
       if (event.target.tagName === 'IFRAME') loadedFrames.add(event.target);
       updateDelivery();
     };
     container.addEventListener('load', handleLoad, true);
+    container.addEventListener('error', updateDelivery, true);
+    container.addEventListener('loadeddata', updateDelivery, true);
     const observer = new MutationObserver(records => {
       // Ignore our own transform writes; react to provider sizing and content changes.
       if (records.some(record => record.type === 'childList' || record.target !== container)) updateDelivery();
@@ -166,142 +129,102 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       attributeFilter: ['style', 'class', 'width', 'height'],
     });
 
-    const scripts = tempDiv.querySelectorAll('script');
-    if (scripts.length > 0) {
-      const nonScripts = effectiveCode.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-      container.innerHTML = nonScripts;
-
-      scripts.forEach((oldScript) => {
-        const newScript = document.createElement('script');
-        Array.from(oldScript.attributes).forEach((attr) => {
-          newScript.setAttribute(attr.name, attr.value);
-        });
-        newScript.textContent = oldScript.textContent;
-        newScript.onerror = () => {
-          if (isMounted) setIsFallback(true);
-        };
-        container.appendChild(newScript);
-      });
-    } else {
-      container.innerHTML = effectiveCode;
-    }
+    const unmount = mountAdTag(container, effectiveCode);
+    updateDelivery();
 
     return () => {
       isMounted = false;
       observer.disconnect();
       resizeObserver?.disconnect();
-      window.removeEventListener('resize', fitFrame);
+      window.removeEventListener('resize', updateDelivery);
       container.removeEventListener('load', handleLoad, true);
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
+      container.removeEventListener('error', updateDelivery, true);
+      container.removeEventListener('loadeddata', updateDelivery, true);
+      for (const image of backgrounds.values()) image.onload = null;
+      onAdLoaded?.(false);
+      wrapper.style.removeProperty('height');
+      unmount();
     };
-  }, [effectiveCode, slot?.isActive, slotId, frameWidth]);
+  }, [effectiveCode, enabled, targetSlotId, frameWidth, isNative, onAdLoaded]);
 
-  if (!slot || !slot.isActive) return null;
+  // Extract ExoClick's headline text from their rendered DOM so we can render it
+  // in our own styled section while keeping ExoClick's click-tracking link intact.
+  useEffect(() => {
+    if (!isLoaded || !isNative || !containerRef.current) { setAdHeadline(''); return; }
+    const el = containerRef.current;
+    const text =
+      el.querySelector('.exo-native-widget-item-title, .msg-native-widget-item-title')?.textContent?.trim() ||
+      el.querySelector('.exo-native-widget-header, .msg-native-widget-header')?.textContent?.trim() ||
+      el.querySelector('a[href]')?.textContent?.trim() ||
+      '';
+    setAdHeadline(text);
+  }, [isLoaded, isNative]);
 
-  // Clean collapse: if ad fails, unconfigured, or adblock suspected, collapse space completely (0px)
-  if (isFallback || isAdBlockSuspected) return null;
+  if (!enabled) return null;
 
   if (isNative) {
-    const handleNativeCardClick = (e) => {
-      if (e.target.closest('a') || e.target.closest('button')) return;
-      const adLink = containerRef.current?.querySelector('a');
-      if (adLink) {
-        adLink.click();
-      } else if (slot?.targetUrl) {
-        window.open(slot.targetUrl, '_blank', 'noopener,noreferrer');
-      }
-    };
-
     return (
       <div
-        data-ad-slot={slotId}
+        data-ad-slot={targetSlotId}
+        inert={isLoaded ? undefined : ''}
+        aria-hidden={isLoaded ? undefined : true}
         data-ad-state={isLoaded ? 'loaded' : 'loading'}
-        onClick={handleNativeCardClick}
-        className={`group relative flex flex-col h-full rounded-2xl glass-card overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-rose-500 ${className}`}
+        className={`flex flex-col ${
+          isLoaded
+            ? `relative rounded-2xl glass-card overflow-hidden h-full ${className}`
+            : 'absolute col-start-1 col-end-2 w-full h-0 overflow-hidden opacity-0 pointer-events-none'
+        }`}
       >
         {/* Dev Mode Badge */}
-        {isDevMode && devBadge && (
+        {isDevMode && devBadge && isLoaded && (
           <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md pointer-events-none">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-            {`${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
+            {`${activeSlot?.network || 'Ad Slot'} | ${activeSlot?.dimensions || targetSlotId}`}
           </div>
         )}
 
-        {/* 1. Thumbnail Container (16:9) matching VideoCard */}
-        <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
-          {/* Live Ad Container inside the 16:9 slot */}
+        {/* Thumbnail region — ExoClick renders its image here; text is hidden via CSS */}
+        <div className="relative w-full overflow-hidden flex items-center justify-center">
           <div
             ref={outerWrapperRef}
-            className="adcast-ad-frame adcast-ad-native-container relative w-full h-full overflow-hidden"
+            className="adcast-ad-frame adcast-ad-native-container relative w-full h-auto overflow-hidden"
           >
             <div
               ref={containerRef}
-              className="adcast-ad-content adcast-ad-native w-full h-full"
-              style={{ position: 'relative', width: '100%', height: '100%' }}
+              className="adcast-ad-content adcast-ad-native w-full h-auto"
+              style={{ position: 'relative', width: '100%' }}
             />
           </div>
-
-          {/* Top Left Badges: HD & Hot pills matching VideoCard */}
-          <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-20">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-200 border border-white/20 backdrop-blur-md shadow-sm">
-              HD
-            </span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-sm shadow-rose-600/40 flex items-center gap-0.5">
-              <i className="ri-sparkling-fill not-italic text-[10px]"></i> Hot
-            </span>
-          </div>
-
-          {/* Top Right: Discrete Micro-Disclosure Pill */}
-          <div className="absolute top-2 right-2 flex items-center gap-1 pointer-events-none z-20">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-black/60 text-slate-300 border border-white/10 shadow-sm backdrop-blur-md">
-              PROMO
-            </span>
-          </div>
-
-          {/* Duration Pill (Bottom Right - Plus Jakarta Sans tabular) */}
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-[10px] font-sans font-bold tabular-nums tracking-tight text-white border border-white/10 shadow-sm pointer-events-none z-20">
-            HD Stream
-          </div>
         </div>
 
-        {/* 2. Video Info Section matching VideoCard */}
-        <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
-          <div>
-            {/* Category Tag */}
-            <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
-              FEATURED
-            </span>
-
-            {/* Title (Locked to 2 lines so all cards equalize perfectly) */}
-            <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-500 dark:group-hover:text-white line-clamp-2 leading-snug transition-colors min-h-[2.5rem]">
-              {slot?.title || 'Trending Live Stream — Exclusive HD Preview'}
-            </h3>
-          </div>
-
-          {/* Meta Stats Bar matching VideoCard */}
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
-            <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-              <i className="ri-eye-line not-italic text-rose-500/80 dark:text-rose-400/80 text-sm"></i>
-              <span>Trending</span>
+        {/* Info section — mirrors VideoCard's p-3.5 block exactly */}
+        {isLoaded && (
+          <div className="p-3.5 flex flex-col flex-1 justify-between gap-2.5">
+            <div>
+              {/* Category slot → Sponsored label (same style as video category tag) */}
+              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 mb-0.5">
+                Sponsored
+              </span>
+              {/* Headline → bold left-aligned title (same style as video title) */}
+              <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug min-h-[2.5rem]">
+                {adHeadline || activeSlot?.name || 'Sponsored Content'}
+              </p>
             </div>
-
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <i className="ri-time-line not-italic text-xs"></i>
-              <span>Sponsored</span>
+            {/* Footer bar — same border-t + mt-auto as video meta bar */}
+            <div className="flex items-center pt-2 border-t border-slate-200/60 dark:border-white/[0.06] mt-auto">
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 select-none">Ad</span>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
 
-  const showDisclosure = slotId !== 'slot_sticky_footer' && slotId !== 'slot_sticky_footer_mobile' && slotId !== 'slot_native_feed';
+  const showDisclosure = targetSlotId !== 'slot_sticky_footer' && targetSlotId !== 'slot_sticky_footer_mobile' && targetSlotId !== 'slot_native_feed';
 
   return (
     <div
-      data-ad-slot={slotId}
+      data-ad-slot={targetSlotId}
       data-ad-state={isLoaded ? 'loaded' : 'loading'}
       className={`relative min-w-0 w-full mx-auto self-start flex flex-col items-center ${className}`}
       style={{ maxWidth: frameWidth }}
@@ -310,7 +233,7 @@ export default function AdSlot({ slotId, className = '', devBadge = true }) {
       {isDevMode && devBadge && (
         <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold tabular-nums bg-black/85 text-rose-400 border border-rose-500/40 shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-          {`${slot.network || 'Ad Slot'} | ${slot.dimensions || slotId}`}
+          {`${activeSlot?.network || 'Ad Slot'} | ${activeSlot?.dimensions || targetSlotId}`}
         </div>
       )}
 

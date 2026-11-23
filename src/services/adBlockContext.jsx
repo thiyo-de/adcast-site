@@ -1,208 +1,81 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { detectAdBlock, AD_BLOCK_STATES } from './adBlockDetection';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AD_BLOCK_STATES as S, detectAdBlock, exoProbeUrls } from './adBlockDetection';
+import { useAgeConfirmed } from './ageVerification';
+import { useMobileAdViewport, useWideAdViewport } from './adViewport';
+import { useAdSettings } from './store';
 
 const AdBlockContext = createContext({
-  detectionState: AD_BLOCK_STATES.CHECKING,
-  isNoticeOpen: false,
-  isRechecking: false,
-  dismissNotice: () => {},
-  recheck: () => {},
-  verifyBeforePlayback: async () => true
+  detectionState: S.NOT_APPLICABLE, isNoticeOpen: false, isRechecking: false,
+  recheck: () => {}, verifyBeforePlayback: async () => true
 });
 
-const EXEMPT_VIEWS = ['admin', 'dmca', 'privacy', 'terms'];
-
 export function AdBlockProvider({ children, currentView = 'home', videoId = null }) {
-  const [detectionState, setDetectionState] = useState(AD_BLOCK_STATES.CHECKING);
-  const [isNoticeOpen, setIsNoticeOpen] = useState(false);
-  const [isRechecking, setIsRechecking] = useState(false);
-  const recheckCooldownRef = useRef(false);
-  const activeCheckIdRef = useRef(0);
-  const lastCheckTimestampRef = useRef(0);
-  const isCheckingRef = useRef(false);
+  const confirmed = useAgeConfirmed();
+  const settings = useAdSettings();
+  const mobile = useMobileAdViewport();
+  const wide = useWideAdViewport();
+  const endpoints = confirmed ? exoProbeUrls(settings, currentView, mobile, wide).join(' ') : '';
+  const scope = JSON.stringify([currentView, videoId, endpoints]);
+  const pending = useRef(null);
+  const [last, setLast] = useState(null);
+  const [retryScope, setRetryScope] = useState(null);
 
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-  const isExempt =
-    EXEMPT_VIEWS.includes(currentView) ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/dmca') ||
-    pathname.startsWith('/privacy') ||
-    pathname.startsWith('/terms');
+  const run = useCallback(() => {
+    if (!endpoints) return Promise.resolve(S.NOT_APPLICABLE);
+    if (pending.current?.scope === scope && !pending.current.controller.signal.aborted) return pending.current.promise;
+    pending.current?.controller.abort();
+    const controller = new AbortController();
+    const job = { controller, scope };
+    pending.current = job;
+    job.promise = detectAdBlock({ urls: endpoints.split(' '), signal: controller.signal })
+      .then(state => {
+        if (!controller.signal.aborted) setLast({ scope, state, time: Date.now() });
+        return state;
+      }).finally(() => {
+        if (pending.current === job) {
+          pending.current = null;
+          setRetryScope(null);
+        }
+      });
+    return job.promise;
+  }, [scope, endpoints]);
 
-  const runDetection = useCallback(async (isManual = false) => {
-    if (isCheckingRef.current && !isManual) {
-      return;
-    }
-
-    const checkId = ++activeCheckIdRef.current;
-    isCheckingRef.current = true;
-
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-    const isCurrentlyExempt =
-      EXEMPT_VIEWS.includes(currentView) ||
-      currentPath.startsWith('/admin') ||
-      currentPath.startsWith('/dmca') ||
-      currentPath.startsWith('/privacy') ||
-      currentPath.startsWith('/terms');
-
-    if (isCurrentlyExempt) {
-      isCheckingRef.current = false;
-      setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
-      setIsNoticeOpen(false);
-      return;
-    }
-
-    if (isManual) {
-      setIsRechecking(true);
-    }
-
-    try {
-      const state = await detectAdBlock({ timeoutMs: 3000 });
-
-      // If user navigated away or another check superseded this one, discard the result
-      if (activeCheckIdRef.current !== checkId) {
-        return;
-      }
-
-      // Re-verify route status immediately after the promise settles
-      const latestPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-      const isStillExempt =
-        EXEMPT_VIEWS.includes(currentView) ||
-        latestPath.startsWith('/admin') ||
-        latestPath.startsWith('/dmca') ||
-        latestPath.startsWith('/privacy') ||
-        latestPath.startsWith('/terms');
-
-      if (isStillExempt) {
-        setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
-        setIsNoticeOpen(false);
-        return;
-      }
-
-      lastCheckTimestampRef.current = Date.now();
-      setDetectionState(state);
-
-      if (state === AD_BLOCK_STATES.SUSPECTED_BLOCKING) {
-        setIsNoticeOpen(true);
-      } else {
-        setIsNoticeOpen(false);
-      }
-      return state;
-    } catch (e) {
-      if (activeCheckIdRef.current === checkId) {
-        setDetectionState(AD_BLOCK_STATES.INCONCLUSIVE);
-        setIsNoticeOpen(false);
-      }
-      return AD_BLOCK_STATES.INCONCLUSIVE;
-    } finally {
-      isCheckingRef.current = false;
-      if (isManual) {
-        setIsRechecking(false);
-      }
-    }
-  }, [currentView]);
-
-  // Pre-playback verification hook: if previous check is stale (> 45s), run a quick check
-  const verifyBeforePlayback = useCallback(async () => {
-    if (isExempt) return true;
-    if (detectionState === AD_BLOCK_STATES.SUSPECTED_BLOCKING) {
-      setIsNoticeOpen(true);
-      return false;
-    }
-
-    const ageMs = Date.now() - lastCheckTimestampRef.current;
-    if (ageMs < 45000 && lastCheckTimestampRef.current > 0) {
-      // Recent fresh check confirmed no blocking
-      return true;
-    }
-
-    // Previous check is older than 45s: verify ad status before starting media
-    const result = await runDetection(false);
-    return result !== AD_BLOCK_STATES.SUSPECTED_BLOCKING;
-  }, [isExempt, detectionState, runDetection]);
-
-  // Trigger check on view change OR video change
   useEffect(() => {
-    activeCheckIdRef.current++;
-
-    if (isExempt) {
-      setDetectionState(AD_BLOCK_STATES.NOT_APPLICABLE);
-      setIsNoticeOpen(false);
-      return;
-    }
-
-    // On initial mount or route switch, wait 250ms for layout/ads to settle
-    const timer = setTimeout(() => {
-      runDetection(false);
-    }, 250);
-
+    if (!endpoints) return;
+    const visibleCheck = () => {
+      if (!document.hidden) run();
+    };
+    const timer = setTimeout(visibleCheck, 250);
+    const heartbeat = setInterval(visibleCheck, 60000);
+    window.addEventListener('focus', visibleCheck);
+    document.addEventListener('visibilitychange', visibleCheck);
     return () => {
       clearTimeout(timer);
-      activeCheckIdRef.current++;
+      clearInterval(heartbeat);
+      window.removeEventListener('focus', visibleCheck);
+      document.removeEventListener('visibilitychange', visibleCheck);
+      if (pending.current?.scope === scope) pending.current.controller.abort();
     };
-  }, [currentView, videoId, isExempt, runDetection]);
+  }, [endpoints, run, scope]);
 
-  // Tab Return Listener: Recheck when returning to the tab if last check was > 10s ago
-  useEffect(() => {
-    if (isExempt) return;
+  const state = endpoints ? (last?.scope === scope ? last.state : S.CHECKING) : S.NOT_APPLICABLE;
+  const verifyBeforePlayback = async () => {
+    if (!endpoints) return true;
+    if (pending.current?.scope === scope) return await run() !== S.SUSPECTED_BLOCKING;
+    if (state === S.SUSPECTED_BLOCKING) return false;
+    if (state === S.NO_BLOCKING_DETECTED && Date.now() - last.time < 45000) return true;
+    return await run() !== S.SUSPECTED_BLOCKING;
+  };
+  const recheck = () => {
+    if (!endpoints) return;
+    setRetryScope(scope);
+    return run();
+  };
 
-    const handleTabReturn = () => {
-      if (document.visibilityState === 'visible') {
-        const timeSinceLastCheck = Date.now() - lastCheckTimestampRef.current;
-        if (timeSinceLastCheck >= 10000 && !isCheckingRef.current) {
-          runDetection(false);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleTabReturn);
-    window.addEventListener('focus', handleTabReturn);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleTabReturn);
-      window.removeEventListener('focus', handleTabReturn);
-    };
-  }, [isExempt, runDetection]);
-
-  // Periodic Heartbeat: Recheck every 60 seconds while the tab is active/visible
-  useEffect(() => {
-    if (isExempt) return;
-
-    const heartbeat = setInterval(() => {
-      if (document.visibilityState === 'visible' && !isCheckingRef.current) {
-        runDetection(false);
-      }
-    }, 60000);
-
-    return () => clearInterval(heartbeat);
-  }, [isExempt, runDetection]);
-
-  const dismissNotice = useCallback(() => {}, []);
-
-  const recheck = useCallback(() => {
-    if (recheckCooldownRef.current || isRechecking) return;
-    recheckCooldownRef.current = true;
-    setTimeout(() => {
-      recheckCooldownRef.current = false;
-    }, 3000);
-
-    runDetection(true);
-  }, [runDetection, isRechecking]);
-
-  return (
-    <AdBlockContext.Provider
-      value={{
-        detectionState,
-        isNoticeOpen,
-        isRechecking,
-        dismissNotice,
-        recheck,
-        verifyBeforePlayback
-      }}
-    >
-      {children}
-    </AdBlockContext.Provider>
-  );
+  return <AdBlockContext.Provider value={{
+    detectionState: state, isNoticeOpen: state === S.SUSPECTED_BLOCKING,
+    isRechecking: retryScope === scope, recheck, verifyBeforePlayback
+  }}>{children}</AdBlockContext.Provider>;
 }
 
 export function useAdBlock() {
