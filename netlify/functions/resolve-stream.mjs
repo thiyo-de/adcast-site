@@ -120,23 +120,36 @@ export default async (req) => {
     }
 
     const html = await pageRes.text();
-    const match = html.match(/<source[^>]+src=["']([^"']+)["']/i) ||
-                  html.match(/src=["'](https?:\/\/[^"']+\/(?:download|open)\.php\?[^"']+)["']/i);
+    // Prioritize direct download / CDN stream link (resolves to Cloudflare R2 .mp4 with 48h AWS S3 signature)
+    const dlMatch = html.match(/https?:\/\/[^\s"'<>]*download\.php\?dl=[^\s"'<>]+/i) ||
+                    html.match(/https?:\/\/[^\s"'<>]*(?:download|open)\.php\?dl=[^\s"'<>]+/i) ||
+                    html.match(/<source[^>]+src=["']([^"']+)["']/i);
 
-    if (match && match[1]) {
-      // If the stream is IP-locked to the server (e.g. kollybytes / open.php), return the embed URL so client plays natively
-      if (match[1].includes('kollybytes') || match[1].includes('open.php')) {
-        return new Response(JSON.stringify({ ok: true, embedUrl: targetUrl }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+    const rawStreamUrl = dlMatch ? (dlMatch[1] || dlMatch[0]) : null;
+
+    if (rawStreamUrl) {
+      let finalStreamUrl = rawStreamUrl;
+      // Follow the 302 redirect to extract the clean direct .mp4 CDN storage URL
+      if (rawStreamUrl.includes('.php')) {
+        try {
+          const headRes = await fetch(rawStreamUrl, {
+            method: 'HEAD',
+            redirect: 'manual',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': targetUrl
+            }
+          });
+          const location = headRes.headers.get('location');
+          if (location) {
+            finalStreamUrl = location;
           }
-        });
+        } catch (headErr) {
+          console.warn('Onestream redirect resolution fallback:', headErr.message);
+        }
       }
 
-      return new Response(JSON.stringify({ ok: true, streamUrl: match[1] }), {
+      return new Response(JSON.stringify({ ok: true, streamUrl: finalStreamUrl }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',

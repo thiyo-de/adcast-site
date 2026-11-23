@@ -31,12 +31,14 @@ export default function VideoPlayer({ video, onEnded }) {
   const rawUrl = video?.stream_url || video?.embed_url || '';
   const resolvedEmbedUrl = parseToEmbedUrl(rawUrl);
 
-  // Dynamically resolve MyDesi and HornyLeaks into direct streams / clean embed players
+  // Dynamically resolve Onestream movies, MyDesi, and HornyLeaks into direct streams / clean embed players
   useEffect(() => {
     let isMounted = true;
     if (
       rawUrl &&
-      (rawUrl.includes('mydesi.fun') ||
+      (rawUrl.includes('onestream.today') ||
+        rawUrl.includes('play.onestream') ||
+        rawUrl.includes('mydesi.fun') ||
         rawUrl.includes('hornyleak.tv/embed/'))
     ) {
       setIsResolvingStream(true);
@@ -89,7 +91,11 @@ export default function VideoPlayer({ video, onEnded }) {
       url.includes('.mp4?') ||
       url.includes('stream=1') ||
       url.includes('fastbytes.xyz') ||
-      url.includes('vidserv.cc')
+      url.includes('vidserv.cc') ||
+      url.includes('r2.cloudflarestorage.com') ||
+      url.includes('kollybytes.xyz') ||
+      url.includes('skyvault-assets.xyz') ||
+      url.includes('fileraja.click')
     );
   };
 
@@ -532,15 +538,8 @@ export default function VideoPlayer({ video, onEnded }) {
               referrerPolicy="no-referrer"
               onEnded={onEnded}
               onError={() => {
-                // If direct stream fails (especially on mobile devices due to carrier/session restrictions),
-                // automatically and silently switch to the clean iframe player instead of showing an error
-                if (resolvedEmbedUrl && resolvedEmbedUrl !== activeMediaUrl) {
-                  console.warn('Direct stream playback error, falling back to embed player:', resolvedEmbedUrl);
-                  setDirectStreamUrl('');
-                  setPlaybackError(false);
-                } else {
-                  setPlaybackError(true);
-                }
+                // Show clean retry overlay without ever falling back to third-party website iframes
+                setPlaybackError(true);
               }}
               className="w-full h-full object-contain bg-black"
             />
