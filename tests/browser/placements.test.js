@@ -77,9 +77,10 @@ test('age, shared Play check, in-place retry, focus recheck and legal pages', as
   assert.equal(requests.length - before, 2);
   await page.evaluate(() => {
     window.preserved = 42;
+    window.__RELOAD_MOCK__ = () => window.retry();
     document.querySelectorAll('style').forEach(s => { if(s.textContent.includes('.adsbox { display:none')) s.remove(); });
   });
-  await page.getByRole('button',{name:'Check again'}).click();
+  await page.getByRole('button',{name:/Reload page/i}).click();
   await result(page,'no_blocking_detected');
   assert.equal(await page.evaluate(() => window.preserved),42);
   await page.addStyleTag({content:'.adsbox { display:none !important }'});

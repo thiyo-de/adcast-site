@@ -2,20 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAdBlock } from '../services/adBlockContext';
 
 export default function AdBlockNotice() {
-  const { isNoticeOpen, recheck, isRechecking } = useAdBlock();
+  const { isNoticeOpen } = useAdBlock();
   const dialogRef = useRef(null);
   const buttonRef = useRef(null);
   const prevActiveElementRef = useRef(null);
-  const [retryFailed, setRetryFailed] = useState(false);
-  const wasRecheckingRef = useRef(false);
-
-  // Monitor recheck attempts to give visual feedback if AdBlock is still active
-  useEffect(() => {
-    if (wasRecheckingRef.current && !isRechecking && isNoticeOpen) {
-      setRetryFailed(true);
-    }
-    wasRecheckingRef.current = isRechecking;
-  }, [isRechecking, isNoticeOpen]);
 
   // Manage body scroll, autofocus, keyboard focus-trap, and focus restoration
   useEffect(() => {
@@ -100,9 +90,14 @@ export default function AdBlockNotice() {
 
   if (!isNoticeOpen) return null;
 
-  const handleRecheckClick = () => {
-    setRetryFailed(false);
-    recheck();
+  const handleReload = () => {
+    if (typeof window !== 'undefined') {
+      if (typeof window.__RELOAD_MOCK__ === 'function') {
+        window.__RELOAD_MOCK__();
+      } else {
+        window.location.reload();
+      }
+    }
   };
 
   return (
@@ -141,7 +136,7 @@ export default function AdBlockNotice() {
 
         {/* Modal Body */}
         <p id="adblock-dialog-desc" className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-          Allow ads for this site in your browser or extension, then select Check again to continue here.
+          Allow ads for this site in your browser or extension, then select <strong>Reload page</strong> to continue.
         </p>
 
         {/* Step-by-Step Whitelist Instructions */}
@@ -171,30 +166,16 @@ export default function AdBlockNotice() {
           </div>
         </div>
 
-        {/* Feedback message if recheck failed */}
-        {retryFailed && !isRechecking && (
-          <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-2.5 text-xs text-amber-300 animate-fadeIn">
-            <i className="ri-error-warning-line text-base shrink-0 text-amber-400"></i>
-            <span>Ad blocker still detected. Please pause it or allow ads for this site to continue.</span>
-          </div>
-        )}
-
         {/* Primary Action Button */}
         <div>
           <button
             ref={buttonRef}
             type="button"
-            onClick={handleRecheckClick}
-            aria-disabled={isRechecking}
-            aria-busy={isRechecking}
+            onClick={handleReload}
             className="w-full py-3.5 px-6 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer"
           >
             <i className="ri-refresh-line text-base"></i>
-            <span aria-live="polite">{isRechecking ? 'Checking…' : 'Check again'}</span>
-          </button>
-          <button type="button" onClick={() => window.location.reload()}
-            className="mt-2 w-full py-2 text-sm text-slate-300 underline">
-            Reload page
+            <span>Reload page</span>
           </button>
         </div>
       </div>
