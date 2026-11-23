@@ -36,7 +36,11 @@ export default function VideoPlayer({ video, onEnded }) {
     let isMounted = true;
     if (rawUrl && (rawUrl.includes('onestream.today') || rawUrl.includes('play.onestream'))) {
       setIsResolvingStream(true);
-      fetch(`/api/resolve-stream?url=${encodeURIComponent(rawUrl)}`)
+      const endpoint =
+        typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+          ? `/.netlify/functions/resolve-stream?url=${encodeURIComponent(rawUrl)}`
+          : `/api/resolve-stream?url=${encodeURIComponent(rawUrl)}`;
+      fetch(endpoint)
         .then((res) => res.json())
         .then((data) => {
           if (isMounted && data?.ok && data?.streamUrl) {
