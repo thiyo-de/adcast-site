@@ -31,14 +31,12 @@ export default function VideoPlayer({ video, onEnded }) {
   const rawUrl = video?.stream_url || video?.embed_url || '';
   const resolvedEmbedUrl = parseToEmbedUrl(rawUrl);
 
-  // Dynamically resolve Onestream, MyDesi, and HornyLeaks into direct streams / clean embed players
+  // Dynamically resolve MyDesi and HornyLeaks into direct streams / clean embed players
   useEffect(() => {
     let isMounted = true;
     if (
       rawUrl &&
-      (rawUrl.includes('onestream.today') ||
-        rawUrl.includes('play.onestream') ||
-        rawUrl.includes('mydesi.fun') ||
+      (rawUrl.includes('mydesi.fun') ||
         rawUrl.includes('hornyleak.tv/embed/'))
     ) {
       setIsResolvingStream(true);

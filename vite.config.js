@@ -88,7 +88,11 @@ export default defineConfig({
                           html.match(/src=["'](https?:\/\/[^"']+\/(?:download|open)\.php\?[^"']+)["']/i);
             res.setHeader('Content-Type', 'application/json');
             if (match && match[1]) {
-              res.end(JSON.stringify({ ok: true, streamUrl: match[1] }));
+              if (match[1].includes('kollybytes') || match[1].includes('open.php')) {
+                res.end(JSON.stringify({ ok: true, embedUrl: targetUrl }));
+              } else {
+                res.end(JSON.stringify({ ok: true, streamUrl: match[1] }));
+              }
             } else {
               res.statusCode = 404;
               res.end(JSON.stringify({ ok: false, error: 'Stream not found' }));

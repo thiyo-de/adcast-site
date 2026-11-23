@@ -124,6 +124,18 @@ export default async (req) => {
                   html.match(/src=["'](https?:\/\/[^"']+\/(?:download|open)\.php\?[^"']+)["']/i);
 
     if (match && match[1]) {
+      // If the stream is IP-locked to the server (e.g. kollybytes / open.php), return the embed URL so client plays natively
+      if (match[1].includes('kollybytes') || match[1].includes('open.php')) {
+        return new Response(JSON.stringify({ ok: true, embedUrl: targetUrl }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        });
+      }
+
       return new Response(JSON.stringify({ ok: true, streamUrl: match[1] }), {
         status: 200,
         headers: {
