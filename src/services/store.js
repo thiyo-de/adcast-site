@@ -351,7 +351,7 @@ const DEFAULT_AD_SETTINGS = {
     zoneId: '6093414',
     isActive: true,
     durationSeconds: 5,
-    frequencyMinutes: 5,
+    frequencyMinutes: 0,
     adTitle: 'Featured Sponsor — High Speed Premium Streaming',
     adDescription: 'Instant HD access worldwide. Video starts in 5s.',
     targetUrl: 'https://s.magsrv.com/v1/vast.php?idz=6093414',

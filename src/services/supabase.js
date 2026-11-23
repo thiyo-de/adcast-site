@@ -557,7 +557,7 @@ export const api = {
           targetUrl: item.target_url || existing.targetUrl,
           vastUrl: item.vast_url || existing.vastUrl,
           frequencyHours: item.frequency_hours !== undefined ? item.frequency_hours : existing.frequencyHours,
-          frequencyMinutes: item.frequency_minutes ?? existing.frequencyMinutes ?? (item.slot_id === 'slot_video_preroll' ? 5 : undefined),
+          frequencyMinutes: item.frequency_minutes ?? existing.frequencyMinutes ?? (item.slot_id === 'slot_video_preroll' ? 0 : undefined),
           isActive: item.is_active !== false
         };
       });
@@ -584,7 +584,7 @@ export const api = {
           target_url: fullSlot.targetUrl || null,
           vast_url: fullSlot.vastUrl || null,
           frequency_hours: fullSlot.frequencyHours !== undefined ? fullSlot.frequencyHours : 1,
-          frequency_minutes: fullSlot.frequencyMinutes !== undefined ? fullSlot.frequencyMinutes : (fullSlot.id === 'slot_video_preroll' ? 5 : null),
+          frequency_minutes: fullSlot.frequencyMinutes !== undefined ? fullSlot.frequencyMinutes : (fullSlot.id === 'slot_video_preroll' ? 0 : null),
           is_active: fullSlot.isActive !== false,
           updated_at: new Date().toISOString()
         };
