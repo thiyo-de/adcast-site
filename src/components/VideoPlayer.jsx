@@ -513,7 +513,8 @@ export default function VideoPlayer({ video, onEnded }) {
                 <button
                   onClick={() => {
                     setPlaybackError(false);
-                    setIsPlaying(false);
+                    setDirectStreamUrl('');
+                    setIsPlaying(true);
                   }}
                   className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow active:scale-95 cursor-pointer"
                 >
@@ -532,7 +533,17 @@ export default function VideoPlayer({ video, onEnded }) {
               preload="metadata"
               referrerPolicy="no-referrer"
               onEnded={onEnded}
-              onError={() => setPlaybackError(true)}
+              onError={() => {
+                // If direct stream fails (especially on mobile devices due to carrier/session restrictions),
+                // automatically and silently switch to the clean iframe player instead of showing an error
+                if (resolvedEmbedUrl && resolvedEmbedUrl !== activeMediaUrl) {
+                  console.warn('Direct stream playback error, falling back to embed player:', resolvedEmbedUrl);
+                  setDirectStreamUrl('');
+                  setPlaybackError(false);
+                } else {
+                  setPlaybackError(true);
+                }
+              }}
               className="w-full h-full object-contain bg-black"
             />
           ) : (
@@ -545,7 +556,7 @@ export default function VideoPlayer({ video, onEnded }) {
               allowFullScreen
               className="w-full h-full border-0 bg-black block overflow-hidden"
               style={{ overflow: 'hidden', border: 'none', display: 'block', width: '100%', height: '100%' }}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox"
             />
           )}
         </>
